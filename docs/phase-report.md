@@ -17,6 +17,12 @@
   JSON mapper, parser, money, dedup, CSV). All green locally and in CI (`testDebugUnitTest`).
 - Not yet: Robolectric/instrumented integration tests, SQLite migration tests, logcat privacy test.
 
+## CI
+- Every push: unit tests → R8 release build → lint → APK committed to `apk/` → emulator smoke test
+  (API 34) that walks Home, drawer, settings, every Waypoint screen and the glass theme, fails on any
+  crash, and commits screenshots to `docs/screenshots/`.
+- Release APK: 2.24 MB (upstream-identity build: 1.93 MB; budget +1.5 MB). Startup Baseline Profile shipped.
+
 ## Benchmarks
 None run (see `perf-baseline.md`). Startup-path guarantees are by construction and documented there.
 
