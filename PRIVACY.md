@@ -8,7 +8,6 @@
   time, and stores **only those fields** in a private database on your phone. Raw notification text is
   never stored or logged.
 - The ledger is excluded from Android backup and device-to-device transfer.
-- Automation history stores outcome and reason codes only, never notification content.
 - **Export** happens only when you tap *Save* or *Share*. You choose the destination.
-- You can delete rules, history and the ledger at any time in *Settings → Waypoint → Privacy & data*,
+- You can delete the ledger at any time in *Settings → Waypoint → Privacy & data*,
   and revoke notification access in Android settings.

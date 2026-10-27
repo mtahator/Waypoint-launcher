@@ -14,13 +14,13 @@ so no Macrobenchmark numbers exist. Nothing below is invented.
 ## Measured by design (code-level guarantees)
 - `Application.onCreate`: StrictMode (debug only) + a lazy container. No I/O, no DB, no jobs.
 - Home path reads only SharedPreferences (already loaded by upstream). Neither database is opened unless an
-  automation/ledger screen is opened or an enabled rule/capture needs it.
+  ledger screen is opened or capture saves a record.
 - No timers or polling. World clocks are `TextClock`s; offset labels refresh on `TIME_TICK` only between
   `onStart` and `onStop`.
-- At most one alarm for all time rules; the boot receiver is component-disabled without time rules.
+- No alarms, jobs or boot receivers are added by Waypoint features.
 - Notification listener: one set lookup rejects other apps; it unbinds itself when nothing needs it.
-- Glass: plain `GradientDrawable`s; the only blur is the system's cross-window blur while drawer/settings
-  are visible (Android disables it in battery saver).
+- Glass: plain `GradientDrawable`s and one compositor blur pass for the window (Android disables it in
+  battery saver). Styling is applied once and never changes layout.
 
 ## To do
 Add `:benchmark` (Macrobenchmark) and `:baselineprofile` modules and run them on a reference device.

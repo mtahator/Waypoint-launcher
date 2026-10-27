@@ -20,6 +20,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
 
       - uses: actions/setup-java@v4
         with:
@@ -75,18 +77,25 @@ jobs:
       # Commit the freshly built APK back to the branch so it can be downloaded straight from the repo.
       - name: Publish APK to repository
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
         run: |
-          mkdir -p apk
-          cp app/build/outputs/apk/release/app-release.apk apk/Waypoint.apk
           VERSION=$(grep -m1 versionName app/build.gradle | sed -E 's/.*"(.*)".*/\1/')
-          printf 'Waypoint %s\nBuilt from %s on %s\nSHA-256: %s\n' "$VERSION" "$GITHUB_SHA" "$(date -u +%FT%TZ)" \
-            "$(sha256sum apk/Waypoint.apk | cut -d' ' -f1)" > apk/BUILD_INFO.txt
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Waypoint.apk"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apk/Waypoint.apk apk/BUILD_INFO.txt
-          git commit -m "chore(apk): build Waypoint ${VERSION} from ${GITHUB_SHA::7} [skip ci]" || exit 0
-          for i in 1 2 3; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+          BR="${GITHUB_REF_NAME}"
+          for i in 1 2 3 4 5; do
+            git fetch -q origin "$BR"
+            # Never overwrite a newer build: skip if code (not apk/screenshots) changed after this commit.
+            if [ -n "$(git log --format=%H "$GITHUB_SHA..origin/$BR" -- . ':!apk' ':!docs/screenshots' | head -1)" ]; then
+              echo "Newer code on $BR; its own run will publish."; exit 0
+            fi
+            git checkout -q -B publish "origin/$BR"
+            mkdir -p apk && cp "$RUNNER_TEMP/Waypoint.apk" apk/Waypoint.apk
+            printf 'Waypoint %s\nBuilt from %s on %s\nSHA-256: %s\n' "$VERSION" "$GITHUB_SHA" "$(date -u +%FT%TZ)" \
+              "$(sha256sum apk/Waypoint.apk | cut -d' ' -f1)" > apk/BUILD_INFO.txt
+            git add apk && { git commit -q -m "chore(apk): build Waypoint ${VERSION} from ${GITHUB_SHA::7} [skip ci]" || exit 0; }
+            git push -q origin "HEAD:$BR" && exit 0
             sleep 5
           done
           exit 1
@@ -101,7 +110,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.ref_name }}
+          fetch-depth: 50
 
       - uses: actions/download-artifact@v4
         with:
@@ -133,15 +142,22 @@ jobs:
 
       - name: Commit screenshots
         if: always()
+        shell: bash
         run: |
-          mkdir -p docs/screenshots
-          cp smoke/*.png docs/screenshots/ 2>/dev/null || exit 0
-          cp smoke/crash.txt docs/screenshots/ 2>/dev/null || rm -f docs/screenshots/crash.txt
+          ls smoke/*.png >/dev/null 2>&1 || exit 0
+          mkdir -p "$RUNNER_TEMP/shots" && cp smoke/*.png "$RUNNER_TEMP/shots/" && cp smoke/crash.txt "$RUNNER_TEMP/shots/" 2>/dev/null || true
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A docs/screenshots
-          git commit -m "chore(screenshots): emulator smoke test of ${GITHUB_SHA::7} [skip ci]" || exit 0
-          for i in 1 2 3; do
-            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+          BR="${GITHUB_REF_NAME}"
+          for i in 1 2 3 4 5; do
+            git fetch -q origin "$BR"
+            if [ -n "$(git log --format=%H "$GITHUB_SHA..origin/$BR" -- . ':!apk' ':!docs/screenshots' | head -1)" ]; then
+              echo "Newer code on $BR; skipping screenshots."; exit 0
+            fi
+            git checkout -q -B shots "origin/$BR"
+            rm -rf docs/screenshots && mkdir -p docs/screenshots && cp "$RUNNER_TEMP"/shots/* docs/screenshots/
+            git add -A docs/screenshots && { git commit -q -m "chore(screenshots): emulator smoke test of ${GITHUB_SHA::7} [skip ci]" || exit 0; }
+            git push -q origin "HEAD:$BR" && exit 0
             sleep 5
           done
+          exit 1

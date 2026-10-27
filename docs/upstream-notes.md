@@ -35,6 +35,6 @@ receiver and an accessibility service used **only** for upstream's double-tap-to
 | Review / rate / share / wallpaper prompts no longer shown; "More features", "Rate", "X/Twitter" rows hidden; footer credits Olauncher | They promote Olauncher's own store listing |
 | About dialog shows Waypoint text + Olauncher attribution | GPL attribution |
 | Home touch listener wrapped by `HomeGestureCoordinator` | Corner swipe; upstream listener still receives every event unless a swipe that *started in the corner zone* moves downward/inward, which then gets `ACTION_CANCEL` |
-| `homeAppsLayout` top padding grows when world clocks are shown | Never let clocks overlap the app list |
+| In portrait, `homeAppsLayout` gets a fixed extra top offset (`wp_world_clock_reserved`, 96dp) while the world clock slider is shown | The slider has a fixed height, so the app list never moves between visits |
 | `backToHomeScreen()` skipped while `ExternalFlow.active` | SAF picker / system settings round trips must return to the same screen |
 | Settings gets a "Waypoint" card | Entry points to all new screens |

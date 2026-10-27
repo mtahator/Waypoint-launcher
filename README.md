@@ -18,8 +18,9 @@ choose Waypoint.
 ### نصب (فارسی)
 ۱. فایل [apk/Waypoint.apk](apk/Waypoint.apk) را روی گوشی دانلود و باز کنید و اجازهٔ نصب از این منبع را بدهید.
 ۲. دکمهٔ Home را بزنید و **Waypoint** را به‌عنوان لانچر پیش‌فرض انتخاب کنید.
-۳. برای تنظیمات، روی صفحهٔ اصلی انگشت را نگه دارید. بخش **Waypoint** شامل ساعت جهانی، ژست‌ها، ظاهر (تم شیشه‌ای)، اتوماسیون، اعلان‌ها و دفتر تراکنش، خروجی CSV و حریم خصوصی است.
-۴. **تم شیشه‌ای:** تنظیمات ← Waypoint ← Appearance ← Glass. پنل‌های مات و شیشه‌ای پشت متن‌ها، جستجو و کارت‌ها؛ در اندروید ۱۲ به بالا پس‌زمینهٔ کشوی برنامه‌ها و تنظیمات واقعاً بلور می‌شود.
+۳. برای تنظیمات، روی صفحهٔ اصلی انگشت را نگه دارید. بخش **Waypoint** شامل ساعت جهانی، ژست‌ها، ظاهر (تم شیشه‌ای)، اعلان‌ها و دفتر تراکنش، خروجی CSV و حریم خصوصی است.
+۴. **تم شیشه‌ای (الهام از Nothing):** تنظیمات ← Waypoint ← Appearance ← Glass. کل والپیپر پشت همهٔ صفحه‌ها بلور می‌شود، ساعت با فونت نقطه‌ای، متن‌های مونو و یک نقطهٔ قرمز. بلور واقعی نیاز به اندروید ۱۲ به بالا دارد.
+۵. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
 
 </div>
 
@@ -30,12 +31,11 @@ no database, registers no receivers and schedules no work.
 
 | Feature | Where |
 |---|---|
-| **Glass theme**: frosted panels behind home text, the search field and settings cards; real wallpaper blur behind the drawer and settings on Android 12+ | Settings → Waypoint → Appearance |
-| **World clock**: up to 3 cities under the date (DST-correct, `+1 day` offsets), full panel, offline city search | Settings → Waypoint → World clock |
-| **Corner swipe**: from the top corner, swipe down/inward (default: toggle monochrome). Never starts in the system back/notification gesture areas | Settings → Waypoint → Gestures |
+| **Glass theme** (Nothing-inspired): the whole wallpaper blurred behind every screen, dot-matrix clock, monospaced captions, one red accent, hairline glass cards and search capsule | Settings → Waypoint → Appearance |
+| **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
+| **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
 | **Launcher monochrome & OLED black**: instant, no recreation, no GPU filters | Appearance |
 | **System grayscale**: guidance to Android's own options, plus an optional ADB-granted toggle | Appearance |
-| **Automations (If → Then)**: triggers (corner swipe, Home opened, monochrome changed, time, notification) + conditions + up to 5 whitelisted actions, run test, history | Settings → Waypoint → Automations |
 | **Notification capture → local ledger**: only from apps you pick; parsed fields only, never raw text | Notifications & ledger |
 | **CSV export**: preview, column choice, masked preview, save via the system file picker or share | Export CSV |
 | **Privacy & data**: counts of what's stored and one-tap deletion | Privacy & data |
@@ -44,16 +44,14 @@ Upstream behaviour is preserved: swipe up for apps, swipe down for notifications
 apps, long-press for settings, double-tap to lock, 8 home apps, hidden apps, Private Space, and so on.
 
 ## Honest limitations
-- **Time rules run *around* their time** (inexact alarms) unless you mark a rule *precise* and allow
-  exact alarms. Some manufacturers delay background work further. See [dontkillmyapp.com](https://dontkillmyapp.com).
 - **System grayscale** can't be switched by a normal app. The advanced toggle needs a one-time
   `adb shell pm grant app.waypoint.launcher android.permission.WRITE_SECURE_SETTINGS` and may not work on every device.
 - **Sideloaded installs on Android 13+** can't grant notification access until you allow it in
   App info → ⋮ → *Allow restricted settings*.
 - **Android 15+** may hide sensitive notification content (e.g. codes) from listeners; such records are marked *Needs review*.
 - Notification formats change without notice: anything ambiguous is marked *Needs review*, never guessed.
-- Glass blur needs Android 12+ and a device with cross-window blur enabled (off in battery saver). Older
-  devices get the frosted surfaces without blur.
+- Glass blur needs Android 12+ with cross-window blur available (Android turns it off in battery saver
+  and on some GPUs). Without it, Waypoint uses a denser tint so text stays readable.
 - Performance benchmarks have not been run on a device yet (see `docs/perf-baseline.md`).
 
 ## Build

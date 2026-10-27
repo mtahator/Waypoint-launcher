@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0 (2026-10-27)
+### Changed
+- **Glass theme redesigned** in the spirit of Nothing OS: whole-screen wallpaper blur on every screen, dot-matrix
+  clock (Doto, OFL), monospaced captions, a single red accent, hairline cards; no more pills behind text.
+- **World clock is a slider**: swipe between cities under the date; page dots; fixed height.
+- **Home apps no longer move**: the world clock slot has a fixed height and is only rebuilt when it changes.
+- Corner swipe is now opt-in and can never start in the status-bar / notification pull area.
+
+### Fixed
+- Wallpaper could disappear: pulling down notifications from the top-right corner (with the status bar hidden)
+  was read as a corner swipe and turned on monochrome. A one-time migration turns monochrome off again.
+- CI: APK publishing no longer fails when an earlier run already pushed.
+
+### Removed
+- The automation feature (rules, scheduler, boot receiver) and its permissions
+  (`POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED`, `SCHEDULE_EXACT_ALARM`).
+
 ## 1.0.0 (2026-10-27)
 First Waypoint release, forked from Olauncher v6.10.27.
 
@@ -9,7 +26,6 @@ First Waypoint release, forked from Olauncher v6.10.27.
 - World clock: home rows (max 3), panel, settings with offline search of 360 cities and all IANA zones.
 - Corner swipe gesture with configurable corner, action and sensitivity, plus a "Try it" area.
 - Launcher monochrome, OLED black, system grayscale guidance and ADB-granted advanced toggle.
-- Automation engine v1 with builder, details, history and dry-run test; single-alarm time scheduling.
 - Notification capture for selected apps, transaction ledger with editing, CSV export, privacy screen.
 - CI that builds, tests and publishes `apk/Waypoint.apk`.
 
