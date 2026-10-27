@@ -11,6 +11,7 @@ import app.olauncher.core.ui.styleInput
 import app.olauncher.core.ui.PageBuilder
 import app.olauncher.core.ui.WpPageFragment
 import app.olauncher.core.ui.chooseOne
+import app.olauncher.core.ui.focusAndShowKeyboard
 import app.olauncher.core.ui.openPage
 import app.olauncher.core.ui.promptText
 import app.olauncher.features.worldclock.data.WorldClockRepository
@@ -120,6 +121,7 @@ class WorldClockSettingsFragment : WpPageFragment() {
             override fun afterTextChanged(s: Editable?) = render(s?.toString().orEmpty())
         })
         dialog.showRespectingStatusBar()
+        field.focusAndShowKeyboard()
         if (search == null) launchUi {
             search = repo.loadSearch(container.dispatchers.io)
             render(field.text.toString())

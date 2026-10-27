@@ -44,6 +44,16 @@ class OlDialog(context: Context) : AlertDialog(context) {
 
     private var blur: WindowBlur? = null
 
+    companion object {
+        private val open = LinkedHashSet<OlDialog>()
+
+        /** Waypoint: closes every open dialog, e.g. when the launcher returns Home or a page closes. */
+        fun dismissAll() {
+            open.toList().forEach { runCatching { it.dismiss() } }
+            open.clear()
+        }
+    }
+
     fun showRespectingStatusBar() {
         val window = window
         if (window == null || Prefs(context).showStatusBar) {
@@ -55,9 +65,11 @@ class OlDialog(context: Context) : AlertDialog(context) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
         }
         blur = window?.let { WindowBlur(it).apply { fadeIn() } }
+        open += this
     }
 
     override fun dismiss() {
+        open -= this
         val blur = blur ?: return super.dismiss()
         this.blur = null
         blur.fadeOut { super.dismiss() }

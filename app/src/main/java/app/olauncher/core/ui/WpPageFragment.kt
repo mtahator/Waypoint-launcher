@@ -16,6 +16,7 @@ import app.olauncher.core.AppContainer
 import app.olauncher.core.waypoint
 import app.olauncher.databinding.FragmentWpPageBinding
 import app.olauncher.features.appearance.ui.GlassStyler
+import app.olauncher.helper.OlDialog
 import app.olauncher.ui.BaseFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -72,6 +73,7 @@ abstract class WpPageFragment : BaseFragment() {
     }
 
     override fun onDestroyView() {
+        OlDialog.dismissAll() // a page's dialogs never outlive it
         super.onDestroyView()
         _binding = null
     }

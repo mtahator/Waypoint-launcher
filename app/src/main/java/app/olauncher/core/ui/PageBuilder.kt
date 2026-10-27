@@ -6,6 +6,7 @@ import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.SeekBar
@@ -194,7 +195,18 @@ fun Context.promptText(
             layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = (16 * resources.displayMetrics.density).toInt() }
         }
-    }).showRespectingStatusBar()
+    }).also {
+        it.showRespectingStatusBar()
+        field.focusAndShowKeyboard()
+    }
+}
+
+/** Gives [this] field focus and opens the keyboard once the dialog window can take input. */
+fun EditText.focusAndShowKeyboard() {
+    post {
+        if (!requestFocus()) return@post
+        context.getSystemService(InputMethodManager::class.java)?.showSoftInput(this, InputMethodManager.SHOW_IMPLICIT)
+    }
 }
 
 /** Simple choice list in the app's dialog style. */
