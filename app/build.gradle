@@ -5,6 +5,8 @@ android {
     compileSdk 36
 
     compileOptions {
+        // java.time on minSdk 24 (world clock, automation time rules)
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -14,20 +16,36 @@ android {
     }
 
     defaultConfig {
-        applicationId "app.olauncher"
+        // Waypoint identity: separate app from Olauncher; Kotlin namespace stays app.olauncher for rebasability
+        applicationId "app.waypoint.launcher"
         minSdkVersion 24
         targetSdkVersion 36
-        versionCode 114
-        versionName "v6.10.27"
+        versionCode 1
+        versionName "1.0.0"
 
         resourceConfigurations += ["en", "ar", "cs", "da", "de", "el", "es-rES", "es-rUS", "fi", "fr", "he", "hi", "hr", "hu", "in", "it", "ja", "ko", "nb", "nl", "pl", "pt-rBR", "ro", "ru-rRU", "sv", "th", "tr", "uk", "vi", "zh"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        // Production key comes from the environment (CI secrets). Without it, release builds fall back to
+        // the public sideload key in signing/ so a downloadable, updatable APK can be produced. That key is
+        // NOT a secret and must never be used for a store listing.
+        sideload {
+            def ksFile = System.getenv("WAYPOINT_KEYSTORE_FILE")
+            storeFile ksFile ? file(ksFile) : rootProject.file("signing/sideload.keystore")
+            storePassword System.getenv("WAYPOINT_KEYSTORE_PASSWORD") ?: "waypoint"
+            keyAlias System.getenv("WAYPOINT_KEY_ALIAS") ?: "waypoint"
+            keyPassword System.getenv("WAYPOINT_KEY_PASSWORD") ?: "waypoint"
+        }
     }
 
     buildTypes {
         release {
             debuggable false
             minifyEnabled true
+            shrinkResources true
+            signingConfig signingConfigs.sideload
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
@@ -46,6 +64,13 @@ android {
         includeInBundle = true
     }
     namespace 'app.olauncher'
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+    lint {
+        // Upstream code has pre-existing lint findings; new code is kept clean. Reports are uploaded by CI.
+        abortOnError false
+    }
 }
 
 dependencies {
@@ -67,6 +92,8 @@ dependencies {
 
     //Material dependency
     implementation libs.material
+
+    coreLibraryDesugaring libs.desugar.jdk.libs
 
     testImplementation libs.junit
 }

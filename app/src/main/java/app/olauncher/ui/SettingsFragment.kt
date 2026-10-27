@@ -56,7 +56,6 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
 
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
-    private val showPentastic = System.currentTimeMillis() % 2 == 0L
     private var dialog: OlDialog? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -95,8 +94,15 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         initClickListeners()
         initObservers()
 
-        if (showPentastic)
-            binding.footer.text = getText(R.string.new_app_minimal_todo_lists)
+        hideUpstreamPromotions()
+    }
+
+    // Waypoint: entries that promote Olauncher's own store listing / other apps are hidden
+    private fun hideUpstreamPromotions() {
+        binding.moreFeatures.visibility = View.GONE
+        binding.rate.visibility = View.GONE
+        binding.twitter.visibility = View.GONE
+        binding.footer.text = getString(R.string.based_on_olauncher)
     }
 
     override fun onClick(view: View) {
@@ -125,7 +131,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
 
             R.id.aboutOlauncher -> {
                 prefs.aboutClicked = true
-                requireContext().openUrl(Constants.URL_ABOUT_OLAUNCHER)
+                viewModel.showDialog.postValue(Constants.Dialog.ABOUT)
             }
 
             R.id.share -> requireActivity().shareApp()
@@ -137,11 +143,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             R.id.twitter -> requireContext().openUrl(Constants.URL_TWITTER_TANUJ)
             R.id.github -> requireContext().openUrl(Constants.URL_OLAUNCHER_GITHUB)
             R.id.privacy -> requireContext().openUrl(Constants.URL_OLAUNCHER_PRIVACY)
-            R.id.footer -> {
-                requireContext().openUrl(
-                    if (showPentastic) Constants.URL_PENTASTIC else Constants.URL_NTS
-                )
-            }
+            R.id.footer -> requireContext().openUrl(Constants.URL_UPSTREAM_OLAUNCHER)
         }
     }
 
