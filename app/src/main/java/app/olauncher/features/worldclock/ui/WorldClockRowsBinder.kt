@@ -52,7 +52,7 @@ class WorldClockRowsBinder(private val container: LinearLayout, private val onOp
             val more = TextView(ctx, null, 0, R.style.TextSmall).apply {
                 text = ctx.getString(R.string.wp_more_cities, entries.size - MAX_INLINE)
                 minHeight = (48 * resources.displayMetrics.density).toInt()
-                gravity = android.view.Gravity.CENTER_VERTICAL
+                this.gravity = android.view.Gravity.CENTER_VERTICAL
                 contentDescription = ctx.getString(R.string.wp_open_world_clock)
                 setPaddingRelative((3 * resources.displayMetrics.density).toInt(), 0, 0, 0)
                 setOnClickListener { onOpenPanel() }
