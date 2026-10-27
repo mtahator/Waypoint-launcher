@@ -55,6 +55,14 @@
             android:paddingHorizontal="3dp"
             android:textSize="@dimen/date_size"
             tools:text="Thu, 30 Dec" />
+        <!-- Waypoint: world clock rows (up to 3; filled at runtime, gone when empty) -->
+        <LinearLayout
+            android:id="@+id/worldClockLayout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Screen time-->

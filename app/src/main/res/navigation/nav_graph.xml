@@ -55,4 +55,50 @@
             app:popExitAnim="@anim/fade_exit" />
     </fragment>
 
+    <!-- Waypoint screens: reached from Settings (navigated by destination id) -->
+    <fragment
+        android:id="@+id/worldClockSettingsFragment"
+        android:name="app.olauncher.features.worldclock.ui.WorldClockSettingsFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/worldClockPanelFragment"
+        android:name="app.olauncher.features.worldclock.ui.WorldClockPanelFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/gestureSettingsFragment"
+        android:name="app.olauncher.features.gestures.ui.GestureSettingsFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/appearanceSettingsFragment"
+        android:name="app.olauncher.features.appearance.ui.AppearanceSettingsFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/automationListFragment"
+        android:name="app.olauncher.features.automation.ui.AutomationListFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/ruleBuilderFragment"
+        android:name="app.olauncher.features.automation.ui.RuleBuilderFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/ruleDetailsFragment"
+        android:name="app.olauncher.features.automation.ui.RuleDetailsFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/notificationAccessFragment"
+        android:name="app.olauncher.features.notifications.ui.NotificationAccessFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/transactionLedgerFragment"
+        android:name="app.olauncher.features.transactions.ui.TransactionLedgerFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/exportPreviewFragment"
+        android:name="app.olauncher.features.export.ui.ExportPreviewFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/privacyDataFragment"
+        android:name="app.olauncher.features.privacy.PrivacyDataFragment"
+        tools:layout="@layout/fragment_wp_page" />
+
 </navigation>

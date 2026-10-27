@@ -1,0 +1,360 @@
+# city	country	IANA zone id (bundled for offline World Clock search)
+London	United Kingdom	Europe/London
+Manchester	United Kingdom	Europe/London
+Edinburgh	United Kingdom	Europe/London
+Dublin	Ireland	Europe/Dublin
+Lisbon	Portugal	Europe/Lisbon
+Porto	Portugal	Europe/Lisbon
+Madrid	Spain	Europe/Madrid
+Barcelona	Spain	Europe/Madrid
+Paris	France	Europe/Paris
+Lyon	France	Europe/Paris
+Brussels	Belgium	Europe/Brussels
+Amsterdam	Netherlands	Europe/Amsterdam
+Rotterdam	Netherlands	Europe/Amsterdam
+Luxembourg	Luxembourg	Europe/Luxembourg
+Berlin	Germany	Europe/Berlin
+Munich	Germany	Europe/Berlin
+Frankfurt	Germany	Europe/Berlin
+Hamburg	Germany	Europe/Berlin
+Cologne	Germany	Europe/Berlin
+Zurich	Switzerland	Europe/Zurich
+Geneva	Switzerland	Europe/Zurich
+Vienna	Austria	Europe/Vienna
+Rome	Italy	Europe/Rome
+Milan	Italy	Europe/Rome
+Naples	Italy	Europe/Rome
+Copenhagen	Denmark	Europe/Copenhagen
+Oslo	Norway	Europe/Oslo
+Stockholm	Sweden	Europe/Stockholm
+Gothenburg	Sweden	Europe/Stockholm
+Helsinki	Finland	Europe/Helsinki
+Reykjavik	Iceland	Atlantic/Reykjavik
+Tallinn	Estonia	Europe/Tallinn
+Riga	Latvia	Europe/Riga
+Vilnius	Lithuania	Europe/Vilnius
+Warsaw	Poland	Europe/Warsaw
+Krakow	Poland	Europe/Warsaw
+Prague	Czechia	Europe/Prague
+Bratislava	Slovakia	Europe/Bratislava
+Budapest	Hungary	Europe/Budapest
+Ljubljana	Slovenia	Europe/Ljubljana
+Zagreb	Croatia	Europe/Zagreb
+Belgrade	Serbia	Europe/Belgrade
+Sarajevo	Bosnia and Herzegovina	Europe/Sarajevo
+Podgorica	Montenegro	Europe/Podgorica
+Skopje	North Macedonia	Europe/Skopje
+Tirana	Albania	Europe/Tirane
+Athens	Greece	Europe/Athens
+Thessaloniki	Greece	Europe/Athens
+Sofia	Bulgaria	Europe/Sofia
+Bucharest	Romania	Europe/Bucharest
+Chisinau	Moldova	Europe/Chisinau
+Kyiv	Ukraine	Europe/Kiev
+Odesa	Ukraine	Europe/Kiev
+Minsk	Belarus	Europe/Minsk
+Moscow	Russia	Europe/Moscow
+Saint Petersburg	Russia	Europe/Moscow
+Kazan	Russia	Europe/Moscow
+Samara	Russia	Europe/Samara
+Yekaterinburg	Russia	Asia/Yekaterinburg
+Omsk	Russia	Asia/Omsk
+Novosibirsk	Russia	Asia/Novosibirsk
+Krasnoyarsk	Russia	Asia/Krasnoyarsk
+Irkutsk	Russia	Asia/Irkutsk
+Yakutsk	Russia	Asia/Yakutsk
+Vladivostok	Russia	Asia/Vladivostok
+Magadan	Russia	Asia/Magadan
+Kamchatka	Russia	Asia/Kamchatka
+Kaliningrad	Russia	Europe/Kaliningrad
+Istanbul	Turkey	Europe/Istanbul
+Ankara	Turkey	Europe/Istanbul
+Izmir	Turkey	Europe/Istanbul
+Antalya	Turkey	Europe/Istanbul
+Nicosia	Cyprus	Asia/Nicosia
+Valletta	Malta	Europe/Malta
+Monaco	Monaco	Europe/Monaco
+Andorra la Vella	Andorra	Europe/Andorra
+Gibraltar	Gibraltar	Europe/Gibraltar
+Tbilisi	Georgia	Asia/Tbilisi
+Yerevan	Armenia	Asia/Yerevan
+Baku	Azerbaijan	Asia/Baku
+Tehran	Iran	Asia/Tehran
+Mashhad	Iran	Asia/Tehran
+Isfahan	Iran	Asia/Tehran
+Shiraz	Iran	Asia/Tehran
+Tabriz	Iran	Asia/Tehran
+Karaj	Iran	Asia/Tehran
+Qom	Iran	Asia/Tehran
+Ahvaz	Iran	Asia/Tehran
+Kermanshah	Iran	Asia/Tehran
+Rasht	Iran	Asia/Tehran
+Kerman	Iran	Asia/Tehran
+Yazd	Iran	Asia/Tehran
+Baghdad	Iraq	Asia/Baghdad
+Erbil	Iraq	Asia/Baghdad
+Basra	Iraq	Asia/Baghdad
+Kuwait City	Kuwait	Asia/Kuwait
+Riyadh	Saudi Arabia	Asia/Riyadh
+Jeddah	Saudi Arabia	Asia/Riyadh
+Mecca	Saudi Arabia	Asia/Riyadh
+Medina	Saudi Arabia	Asia/Riyadh
+Manama	Bahrain	Asia/Bahrain
+Doha	Qatar	Asia/Qatar
+Dubai	United Arab Emirates	Asia/Dubai
+Abu Dhabi	United Arab Emirates	Asia/Dubai
+Sharjah	United Arab Emirates	Asia/Dubai
+Muscat	Oman	Asia/Muscat
+Sanaa	Yemen	Asia/Aden
+Aden	Yemen	Asia/Aden
+Amman	Jordan	Asia/Amman
+Damascus	Syria	Asia/Damascus
+Beirut	Lebanon	Asia/Beirut
+Jerusalem	Israel	Asia/Jerusalem
+Tel Aviv	Israel	Asia/Jerusalem
+Gaza	Palestine	Asia/Gaza
+Ramallah	Palestine	Asia/Hebron
+Kabul	Afghanistan	Asia/Kabul
+Herat	Afghanistan	Asia/Kabul
+Tashkent	Uzbekistan	Asia/Tashkent
+Samarkand	Uzbekistan	Asia/Samarkand
+Dushanbe	Tajikistan	Asia/Dushanbe
+Ashgabat	Turkmenistan	Asia/Ashgabat
+Bishkek	Kyrgyzstan	Asia/Bishkek
+Almaty	Kazakhstan	Asia/Almaty
+Astana	Kazakhstan	Asia/Almaty
+Karachi	Pakistan	Asia/Karachi
+Lahore	Pakistan	Asia/Karachi
+Islamabad	Pakistan	Asia/Karachi
+New Delhi	India	Asia/Kolkata
+Mumbai	India	Asia/Kolkata
+Bengaluru	India	Asia/Kolkata
+Chennai	India	Asia/Kolkata
+Kolkata	India	Asia/Kolkata
+Hyderabad	India	Asia/Kolkata
+Pune	India	Asia/Kolkata
+Ahmedabad	India	Asia/Kolkata
+Jaipur	India	Asia/Kolkata
+Colombo	Sri Lanka	Asia/Colombo
+Male	Maldives	Indian/Maldives
+Kathmandu	Nepal	Asia/Kathmandu
+Thimphu	Bhutan	Asia/Thimphu
+Dhaka	Bangladesh	Asia/Dhaka
+Chittagong	Bangladesh	Asia/Dhaka
+Yangon	Myanmar	Asia/Rangoon
+Bangkok	Thailand	Asia/Bangkok
+Chiang Mai	Thailand	Asia/Bangkok
+Phuket	Thailand	Asia/Bangkok
+Vientiane	Laos	Asia/Vientiane
+Phnom Penh	Cambodia	Asia/Phnom_Penh
+Hanoi	Vietnam	Asia/Ho_Chi_Minh
+Ho Chi Minh City	Vietnam	Asia/Ho_Chi_Minh
+Kuala Lumpur	Malaysia	Asia/Kuala_Lumpur
+Penang	Malaysia	Asia/Kuala_Lumpur
+Singapore	Singapore	Asia/Singapore
+Jakarta	Indonesia	Asia/Jakarta
+Surabaya	Indonesia	Asia/Jakarta
+Bali	Indonesia	Asia/Makassar
+Makassar	Indonesia	Asia/Makassar
+Jayapura	Indonesia	Asia/Jayapura
+Manila	Philippines	Asia/Manila
+Cebu	Philippines	Asia/Manila
+Bandar Seri Begawan	Brunei	Asia/Brunei
+Dili	Timor-Leste	Asia/Dili
+Hong Kong	Hong Kong	Asia/Hong_Kong
+Macau	Macau	Asia/Macau
+Taipei	Taiwan	Asia/Taipei
+Beijing	China	Asia/Shanghai
+Shanghai	China	Asia/Shanghai
+Shenzhen	China	Asia/Shanghai
+Guangzhou	China	Asia/Shanghai
+Chengdu	China	Asia/Shanghai
+Chongqing	China	Asia/Shanghai
+Wuhan	China	Asia/Shanghai
+Hangzhou	China	Asia/Shanghai
+Urumqi	China	Asia/Urumqi
+Ulaanbaatar	Mongolia	Asia/Ulaanbaatar
+Seoul	South Korea	Asia/Seoul
+Busan	South Korea	Asia/Seoul
+Pyongyang	North Korea	Asia/Pyongyang
+Tokyo	Japan	Asia/Tokyo
+Osaka	Japan	Asia/Tokyo
+Kyoto	Japan	Asia/Tokyo
+Yokohama	Japan	Asia/Tokyo
+Sapporo	Japan	Asia/Tokyo
+Fukuoka	Japan	Asia/Tokyo
+Naha	Japan	Asia/Tokyo
+Perth	Australia	Australia/Perth
+Darwin	Australia	Australia/Darwin
+Adelaide	Australia	Australia/Adelaide
+Brisbane	Australia	Australia/Brisbane
+Gold Coast	Australia	Australia/Brisbane
+Sydney	Australia	Australia/Sydney
+Canberra	Australia	Australia/Sydney
+Melbourne	Australia	Australia/Melbourne
+Hobart	Australia	Australia/Hobart
+Lord Howe Island	Australia	Australia/Lord_Howe
+Auckland	New Zealand	Pacific/Auckland
+Wellington	New Zealand	Pacific/Auckland
+Christchurch	New Zealand	Pacific/Auckland
+Chatham Islands	New Zealand	Pacific/Chatham
+Port Moresby	Papua New Guinea	Pacific/Port_Moresby
+Suva	Fiji	Pacific/Fiji
+Noumea	New Caledonia	Pacific/Noumea
+Port Vila	Vanuatu	Pacific/Efate
+Honiara	Solomon Islands	Pacific/Guadalcanal
+Nuku'alofa	Tonga	Pacific/Tongatapu
+Apia	Samoa	Pacific/Apia
+Pago Pago	American Samoa	Pacific/Pago_Pago
+Tarawa	Kiribati	Pacific/Tarawa
+Kiritimati	Kiribati	Pacific/Kiritimati
+Majuro	Marshall Islands	Pacific/Majuro
+Guam	Guam	Pacific/Guam
+Papeete	French Polynesia	Pacific/Tahiti
+Honolulu	United States	Pacific/Honolulu
+Anchorage	United States	America/Anchorage
+Juneau	United States	America/Juneau
+Seattle	United States	America/Los_Angeles
+Portland	United States	America/Los_Angeles
+San Francisco	United States	America/Los_Angeles
+San Jose	United States	America/Los_Angeles
+Los Angeles	United States	America/Los_Angeles
+San Diego	United States	America/Los_Angeles
+Las Vegas	United States	America/Los_Angeles
+Phoenix	United States	America/Phoenix
+Salt Lake City	United States	America/Denver
+Denver	United States	America/Denver
+Albuquerque	United States	America/Denver
+Boise	United States	America/Boise
+Dallas	United States	America/Chicago
+Houston	United States	America/Chicago
+Austin	United States	America/Chicago
+San Antonio	United States	America/Chicago
+Chicago	United States	America/Chicago
+Minneapolis	United States	America/Chicago
+Kansas City	United States	America/Chicago
+St. Louis	United States	America/Chicago
+New Orleans	United States	America/Chicago
+Nashville	United States	America/Chicago
+Detroit	United States	America/Detroit
+Indianapolis	United States	America/Indiana/Indianapolis
+Atlanta	United States	America/New_York
+Miami	United States	America/New_York
+Orlando	United States	America/New_York
+Charlotte	United States	America/New_York
+Washington	United States	America/New_York
+Philadelphia	United States	America/New_York
+New York	United States	America/New_York
+Boston	United States	America/New_York
+Pittsburgh	United States	America/New_York
+Toronto	Canada	America/Toronto
+Ottawa	Canada	America/Toronto
+Montreal	Canada	America/Toronto
+Quebec City	Canada	America/Toronto
+Halifax	Canada	America/Halifax
+St. John's	Canada	America/St_Johns
+Winnipeg	Canada	America/Winnipeg
+Regina	Canada	America/Regina
+Calgary	Canada	America/Edmonton
+Edmonton	Canada	America/Edmonton
+Vancouver	Canada	America/Vancouver
+Whitehorse	Canada	America/Whitehorse
+Mexico City	Mexico	America/Mexico_City
+Guadalajara	Mexico	America/Mexico_City
+Monterrey	Mexico	America/Monterrey
+Cancun	Mexico	America/Cancun
+Tijuana	Mexico	America/Tijuana
+Guatemala City	Guatemala	America/Guatemala
+San Salvador	El Salvador	America/El_Salvador
+Tegucigalpa	Honduras	America/Tegucigalpa
+Managua	Nicaragua	America/Managua
+San Jose	Costa Rica	America/Costa_Rica
+Panama City	Panama	America/Panama
+Havana	Cuba	America/Havana
+Kingston	Jamaica	America/Jamaica
+Port-au-Prince	Haiti	America/Port-au-Prince
+Santo Domingo	Dominican Republic	America/Santo_Domingo
+San Juan	Puerto Rico	America/Puerto_Rico
+Nassau	Bahamas	America/Nassau
+Bridgetown	Barbados	America/Barbados
+Port of Spain	Trinidad and Tobago	America/Port_of_Spain
+Bogota	Colombia	America/Bogota
+Medellin	Colombia	America/Bogota
+Caracas	Venezuela	America/Caracas
+Quito	Ecuador	America/Guayaquil
+Guayaquil	Ecuador	America/Guayaquil
+Lima	Peru	America/Lima
+La Paz	Bolivia	America/La_Paz
+Santa Cruz	Bolivia	America/La_Paz
+Santiago	Chile	America/Santiago
+Easter Island	Chile	Pacific/Easter
+Buenos Aires	Argentina	America/Argentina/Buenos_Aires
+Cordoba	Argentina	America/Argentina/Cordoba
+Mendoza	Argentina	America/Argentina/Mendoza
+Montevideo	Uruguay	America/Montevideo
+Asuncion	Paraguay	America/Asuncion
+Sao Paulo	Brazil	America/Sao_Paulo
+São Paulo	Brazil	America/Sao_Paulo
+Rio de Janeiro	Brazil	America/Sao_Paulo
+Brasilia	Brazil	America/Sao_Paulo
+Salvador	Brazil	America/Bahia
+Recife	Brazil	America/Recife
+Fortaleza	Brazil	America/Fortaleza
+Manaus	Brazil	America/Manaus
+Belem	Brazil	America/Belem
+Fernando de Noronha	Brazil	America/Noronha
+Georgetown	Guyana	America/Guyana
+Paramaribo	Suriname	America/Paramaribo
+Cayenne	French Guiana	America/Cayenne
+Nuuk	Greenland	America/Godthab
+Azores	Portugal	Atlantic/Azores
+Madeira	Portugal	Atlantic/Madeira
+Canary Islands	Spain	Atlantic/Canary
+Praia	Cape Verde	Atlantic/Cape_Verde
+Bermuda	Bermuda	Atlantic/Bermuda
+Cairo	Egypt	Africa/Cairo
+Alexandria	Egypt	Africa/Cairo
+Tripoli	Libya	Africa/Tripoli
+Tunis	Tunisia	Africa/Tunis
+Algiers	Algeria	Africa/Algiers
+Casablanca	Morocco	Africa/Casablanca
+Rabat	Morocco	Africa/Casablanca
+Marrakesh	Morocco	Africa/Casablanca
+Dakar	Senegal	Africa/Dakar
+Bamako	Mali	Africa/Bamako
+Abidjan	Ivory Coast	Africa/Abidjan
+Accra	Ghana	Africa/Accra
+Lagos	Nigeria	Africa/Lagos
+Abuja	Nigeria	Africa/Lagos
+Kano	Nigeria	Africa/Lagos
+Douala	Cameroon	Africa/Douala
+Kinshasa	DR Congo	Africa/Kinshasa
+Lubumbashi	DR Congo	Africa/Lubumbashi
+Luanda	Angola	Africa/Luanda
+Khartoum	Sudan	Africa/Khartoum
+Juba	South Sudan	Africa/Juba
+Addis Ababa	Ethiopia	Africa/Addis_Ababa
+Asmara	Eritrea	Africa/Asmara
+Djibouti	Djibouti	Africa/Djibouti
+Mogadishu	Somalia	Africa/Mogadishu
+Nairobi	Kenya	Africa/Nairobi
+Mombasa	Kenya	Africa/Nairobi
+Kampala	Uganda	Africa/Kampala
+Kigali	Rwanda	Africa/Kigali
+Dar es Salaam	Tanzania	Africa/Dar_es_Salaam
+Zanzibar	Tanzania	Africa/Dar_es_Salaam
+Lusaka	Zambia	Africa/Lusaka
+Harare	Zimbabwe	Africa/Harare
+Maputo	Mozambique	Africa/Maputo
+Lilongwe	Malawi	Africa/Blantyre
+Windhoek	Namibia	Africa/Windhoek
+Gaborone	Botswana	Africa/Gaborone
+Johannesburg	South Africa	Africa/Johannesburg
+Cape Town	South Africa	Africa/Johannesburg
+Durban	South Africa	Africa/Johannesburg
+Pretoria	South Africa	Africa/Johannesburg
+Antananarivo	Madagascar	Indian/Antananarivo
+Port Louis	Mauritius	Indian/Mauritius
+Victoria	Seychelles	Indian/Mahe
+Reunion	Reunion	Indian/Reunion
+UTC	Coordinated Universal Time	UTC

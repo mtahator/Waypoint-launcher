@@ -35,6 +35,8 @@ import app.olauncher.helper.openUrl
 import app.olauncher.helper.showKeyboard
 import app.olauncher.helper.showToast
 import app.olauncher.helper.uninstall
+import app.olauncher.core.waypoint
+import app.olauncher.features.appearance.ui.GlassStyler
 
 class AppDrawerFragment : BaseFragment() {
 
@@ -89,6 +91,15 @@ class AppDrawerFragment : BaseFragment() {
             searchTextView?.gravity = prefs.appLabelAlignment
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+        if (requireContext().waypoint.prefs.glassTheme) {
+            // Waypoint glass: the search field becomes a frosted capsule over the blurred wallpaper
+            GlassStyler.styleField(binding.search)
+            (binding.search.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                it.marginStart = (16 * resources.displayMetrics.density).toInt()
+                binding.search.layoutParams = it
+            }
+            searchTextView?.setShadowLayer(0f, 0f, 0f, 0)
         }
     }
 

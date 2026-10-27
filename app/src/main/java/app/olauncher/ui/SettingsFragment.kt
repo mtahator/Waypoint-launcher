@@ -46,6 +46,9 @@ import app.olauncher.helper.showPopupMenu
 import app.olauncher.helper.showStatusBar
 import app.olauncher.helper.showToast
 import app.olauncher.listener.DeviceAdmin
+import app.olauncher.core.ui.openPage
+import app.olauncher.core.waypoint
+import app.olauncher.features.appearance.ui.GlassStyler
 
 class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListener {
 
@@ -95,6 +98,21 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
         initObservers()
 
         hideUpstreamPromotions()
+        initWaypointEntries()
+    }
+
+    private fun initWaypointEntries() {
+        val entries = mapOf(
+            binding.wpWorldClock to R.id.worldClockSettingsFragment,
+            binding.wpGestures to R.id.gestureSettingsFragment,
+            binding.wpAppearance to R.id.appearanceSettingsFragment,
+            binding.wpAutomations to R.id.automationListFragment,
+            binding.wpNotifications to R.id.notificationAccessFragment,
+            binding.wpExport to R.id.exportPreviewFragment,
+            binding.wpPrivacy to R.id.privacyDataFragment,
+        )
+        entries.forEach { (view, destination) -> view.setOnClickListener { openPage(destination) } }
+        if (requireContext().waypoint.prefs.glassTheme) GlassStyler.styleCards(binding.scrollLayout)
     }
 
     // Waypoint: entries that promote Olauncher's own store listing / other apps are hidden

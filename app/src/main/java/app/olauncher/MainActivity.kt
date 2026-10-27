@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
@@ -21,7 +22,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
+import app.olauncher.core.WaypointPrefs
+import app.olauncher.core.ui.ExternalFlow
+import app.olauncher.core.waypoint
 import app.olauncher.data.Constants
+import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.data.Prefs
 import app.olauncher.databinding.ActivityMainBinding
 import app.olauncher.helper.getColorFromAttr
@@ -57,6 +62,9 @@ class MainActivity : AppCompatActivity() {
     private var profileReceiver: BroadcastReceiver? = null
     private var launcherAppsCallback: LauncherApps.Callback? = null
     private var messageDialog: OlDialog? = null
+    private val appearanceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == WaypointPrefs.MONOCHROME || key == WaypointPrefs.OLED_BLACK) waypoint.appearance.apply(this)
+    }
 
 //    override fun onBackPressed() {
 //        if (navController.currentDestination?.id != R.id.mainFragment)
@@ -82,6 +90,13 @@ class MainActivity : AppCompatActivity() {
 
         navController = this.findNavController(R.id.nav_host_fragment)
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
+        waypoint.appearance.apply(this)
+        if (waypoint.prefs.glassTheme) {
+            // Glass: real blur of the wallpaper behind the drawer and settings (Android 12+), none on Home.
+            navController.addOnDestinationChangedListener { _, destination, _ ->
+                GlassStyler.setWindowBlur(window, destination.id != R.id.mainFragment)
+            }
+        }
 
         val onBackPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -125,10 +140,13 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         restartLauncherOrCheckTheme()
+        waypoint.appearance.apply(this)
+        waypoint.prefs.registerListener(appearanceListener)
     }
 
     override fun onResume() {
         super.onResume()
+        ExternalFlow.active = false
         isResumed = true
         viewModel.isPrivateSpaceToggling = false
         viewModel.getAppList()
@@ -164,6 +182,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        waypoint.prefs.unregisterListener(appearanceListener)
         isResumed = false
         backToHomeScreen()
         super.onStop()
@@ -309,7 +328,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun backToHomeScreen() {
-        if (viewModel.isPrivateSpaceToggling) return
+        if (viewModel.isPrivateSpaceToggling || ExternalFlow.active) return
         messageDialog?.dismiss()
         if (navController.currentDestination?.id != R.id.mainFragment)
             navController.popBackStack(R.id.mainFragment, false)

@@ -87,6 +87,114 @@
 
             </LinearLayout>
 
+            <!-- Waypoint features -->
+            <LinearLayout
+                android:id="@+id/wpCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="12dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/rounded_rect_shade_color"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="16dp">
+
+                <TextView
+                    style="@style/TextLarge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:text="@string/wp_waypoint_section"
+                    android:textColor="?attr/primaryColor" />
+
+                <TextView
+                    android:id="@+id/wpWorldClock"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_world_clock" />
+
+                <TextView
+                    android:id="@+id/wpGestures"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_gestures" />
+
+                <TextView
+                    android:id="@+id/wpAppearance"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_appearance" />
+
+                <TextView
+                    android:id="@+id/wpAutomations"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_automations" />
+
+                <TextView
+                    android:id="@+id/wpNotifications"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_notifications_and_ledger" />
+
+                <TextView
+                    android:id="@+id/wpExport"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_export_csv" />
+
+                <TextView
+                    android:id="@+id/wpPrivacy"
+                    style="@style/TextSmall"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="?attr/selectableItemBackground"
+                    android:focusable="true"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
+                    android:text="@string/wp_privacy_and_data" />
+
+            </LinearLayout>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
