@@ -41,7 +41,7 @@ open_settings; tap "Privacy & data"; shot 12-privacy
 
 # Glass theme
 open_settings; tap "Appearance"; shot 13-appearance
-tap "Glass" exact; sleep 3
+tap "Frosted glass behind"; sleep 3
 home; shot 14-home-glass
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 15-drawer-glass; home
 open_settings; shot 16-settings-glass
