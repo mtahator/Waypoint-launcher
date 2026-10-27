@@ -67,6 +67,11 @@ jobs:
             app/build/reports/
           if-no-files-found: ignore
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: waypoint-apk
+          path: app/build/outputs/apk/release/app-release.apk
+
       # Commit the freshly built APK back to the branch so it can be downloaded straight from the repo.
       - name: Publish APK to repository
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -85,3 +90,58 @@ jobs:
             sleep 5
           done
           exit 1
+
+  # Installs the release APK on an emulator, walks the main screens (incl. the glass theme), fails on any
+  # crash, and commits screenshots to docs/screenshots.
+  smoke:
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: waypoint-apk
+          path: smoke-apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run smoke test on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/smoke.sh smoke-apk/app-release.apk smoke
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-results
+          path: smoke/
+
+      - name: Commit screenshots
+        if: always()
+        run: |
+          mkdir -p docs/screenshots
+          cp smoke/*.png docs/screenshots/ 2>/dev/null || exit 0
+          cp smoke/crash.txt docs/screenshots/ 2>/dev/null || rm -f docs/screenshots/crash.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs/screenshots
+          git commit -m "chore(screenshots): emulator smoke test of ${GITHUB_SHA::7} [skip ci]" || exit 0
+          for i in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep 5
+          done
