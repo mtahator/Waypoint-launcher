@@ -165,6 +165,7 @@
     <string name="wp_position_top">Top</string>
     <string name="wp_position_center">Center</string>
     <string name="wp_position_bottom">Bottom</string>
+    <string name="wp_theme">Theme</string>
     <plurals name="wp_day_ahead">
         <item quantity="one">+%1$d day</item>
         <item quantity="other">+%1$d days</item>

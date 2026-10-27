@@ -50,7 +50,7 @@ import app.olauncher.core.ui.openPage
 import app.olauncher.core.waypoint
 import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.features.gestures.domain.GestureAction
-import app.olauncher.features.gestures.ui.HomeGestureCoordinator
+import app.olauncher.features.gestures.ui.CornerSwipeLayout
 import app.olauncher.features.worldclock.ui.WorldClockSlider
 import android.util.TypedValue
 import android.widget.LinearLayout
@@ -79,7 +79,10 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
-        return binding.root
+        // Waypoint: the corner swipe watches touches above every home view (see CornerSwipeLayout)
+        return CornerSwipeLayout(requireContext(), requireContext().waypoint.prefs) { onCornerSwipe() }.apply {
+            addView(binding.root)
+        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -247,9 +250,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     private fun initSwipeTouchListener() {
         val context = requireContext()
-        binding.mainLayout.setOnTouchListener(
-            HomeGestureCoordinator(context, wp.prefs, getSwipeGestureListener(context)) { onCornerSwipe() }
-        )
+        binding.mainLayout.setOnTouchListener(getSwipeGestureListener(context))
         binding.homeApp1.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp1))
         binding.homeApp2.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp2))
         binding.homeApp3.setOnTouchListener(getViewSwipeTouchListener(context, binding.homeApp3))

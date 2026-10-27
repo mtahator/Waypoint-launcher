@@ -107,7 +107,7 @@ class GestureSettingsFragment : WpPageFragment() {
             setShadowLayer(0f, 0f, 0f, 0)
         }
         area.addView(label, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
-        val recognizer = HomeGestureCoordinator.recognizerFor(ctx, prefs.cornerSensitivity)
+        val recognizer = CornerSwipeLayout.recognizerFor(ctx, prefs.cornerSensitivity)
         var downX = 0f
         var downY = 0f
         var downAt = 0L

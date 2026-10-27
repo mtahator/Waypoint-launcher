@@ -21,7 +21,9 @@ shot 01-home
 
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 02-drawer; home
 
-open_settings; shot 03-settings
+open_settings; shot 03-settings-first-open
+# First settings open shows upstream's welcome/About dialog: dismiss it
+back; open_settings; shot 03-settings
 tap "World clock"; add_city Tokyo; add_city Tehran; add_city London
 shot 04-world-clock-settings
 home; shot 05-home-world-clock

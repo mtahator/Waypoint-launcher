@@ -49,7 +49,7 @@ class AppearanceSettingsFragment : WpPageFragment() {
             note(getString(R.string.wp_apps_position_hint))
         }
         page.card {
-            header(getString(R.string.wp_glass_theme))
+            header(getString(R.string.wp_theme))
             toggle(getString(R.string.wp_glass_theme), prefs.glassTheme, getString(R.string.wp_glass_theme_hint)) {
                 prefs.glassTheme = it
                 // Surfaces are styled at view creation; recreate once so every screen picks it up.
