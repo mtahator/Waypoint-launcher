@@ -165,7 +165,7 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putInt(HOME_APPS_NUM, value).apply() }
 
     var homeAlignment: Int
-        get() = prefs.getInt(HOME_ALIGNMENT, Gravity.START)
+        get() = prefs.getInt(HOME_ALIGNMENT, Gravity.END)
         set(value) = prefs.edit { putInt(HOME_ALIGNMENT, value).apply() }
 
     var homeBottomAlignment: Boolean
@@ -173,7 +173,7 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putBoolean(HOME_BOTTOM_ALIGNMENT, value).apply() }
 
     var appLabelAlignment: Int
-        get() = prefs.getInt(APP_LABEL_ALIGNMENT, Gravity.START)
+        get() = prefs.getInt(APP_LABEL_ALIGNMENT, Gravity.END)
         set(value) = prefs.edit { putInt(APP_LABEL_ALIGNMENT, value).apply() }
 
     var showStatusBar: Boolean

@@ -20,7 +20,8 @@ choose Waypoint.
 ۲. دکمهٔ Home را بزنید و **Waypoint** را به‌عنوان لانچر پیش‌فرض انتخاب کنید.
 ۳. برای تنظیمات، روی صفحهٔ اصلی انگشت را نگه دارید. بخش **Waypoint** شامل ساعت جهانی، ژست‌ها، ظاهر (تم شیشه‌ای)، اعلان‌ها و دفتر تراکنش، خروجی CSV و حریم خصوصی است.
 ۴. **تم شیشه‌ای (الهام از Nothing):** تنظیمات ← Waypoint ← Appearance ← Glass. کل والپیپر پشت همهٔ صفحه‌ها بلور می‌شود، ساعت با فونت نقطه‌ای، متن‌های مونو و یک نقطهٔ قرمز. بلور واقعی نیاز به اندروید ۱۲ به بالا دارد.
-۵. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
+۵. **چیدمان صفحهٔ اصلی:** اپ‌ها به‌طور پیش‌فرض سمت راست هستند. در Appearance با اسلایدر **Apps position** ارتفاع بخش اپ‌ها را از بالا تا پایین تنظیم کنید؛ جای آن ثابت می‌ماند.
+۶. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
 
 </div>
 
@@ -34,6 +35,7 @@ no database, registers no receivers and schedules no work.
 | **Glass theme** (Nothing-inspired): the whole wallpaper blurred behind every screen, dot-matrix clock, monospaced captions, one red accent, hairline glass cards and search capsule | Settings → Waypoint → Appearance |
 | **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
 | **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
+| **Home layout**: right-aligned by default; *Apps position* slider moves the app list from top to bottom | Appearance |
 | **Launcher monochrome & OLED black**: instant, no recreation, no GPU filters | Appearance |
 | **System grayscale**: guidance to Android's own options, plus an optional ADB-granted toggle | Appearance |
 | **Notification capture → local ledger**: only from apps you pick; parsed fields only, never raw text | Notifications & ledger |

@@ -26,6 +26,12 @@ class WaypointPrefs(context: Context) {
 
     val worldClocksRaw: String? get() = prefs.getString(WORLD_CLOCKS, null)
 
+    // ---- Home layout
+    /** Vertical position of the home app list: 0 = top, 50 = centre (upstream), 100 = bottom. */
+    var homeAppsPosition: Int
+        get() = prefs.getInt(HOME_APPS_POSITION, 50).coerceIn(0, 100)
+        set(value) = prefs.edit { putInt(HOME_APPS_POSITION, value.coerceIn(0, 100)) }
+
     // ---- Appearance
     var launcherMonochrome: Boolean
         get() = prefs.getBoolean(MONOCHROME, false)
@@ -86,6 +92,7 @@ class WaypointPrefs(context: Context) {
     companion object {
         const val WORLD_CLOCKS_ON_HOME = "WP_WORLD_CLOCKS_ON_HOME"
         const val WORLD_CLOCKS = "WP_WORLD_CLOCKS"
+        const val HOME_APPS_POSITION = "WP_HOME_APPS_POSITION"
         const val MONOCHROME = "WP_MONOCHROME"
         const val OLED_BLACK = "WP_OLED_BLACK"
         const val GLASS_THEME = "WP_GLASS_THEME"

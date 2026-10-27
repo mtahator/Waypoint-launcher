@@ -155,6 +155,16 @@
     <string name="wp_waypoint_section">Waypoint</string>
     <string name="wp_world_clock">World clock</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
+    <string name="wp_home_layout">Home layout</string>
+    <string name="wp_alignment">Alignment</string>
+    <string name="wp_align_left">Left</string>
+    <string name="wp_align_center">Center</string>
+    <string name="wp_align_right">Right</string>
+    <string name="wp_apps_position">Apps position</string>
+    <string name="wp_apps_position_hint">Moves your home apps anywhere from the top to the bottom of the screen. The position is fixed: apps never shift when you come back to Home.</string>
+    <string name="wp_position_top">Top</string>
+    <string name="wp_position_center">Center</string>
+    <string name="wp_position_bottom">Bottom</string>
     <plurals name="wp_day_ahead">
         <item quantity="one">+%1$d day</item>
         <item quantity="other">+%1$d days</item>

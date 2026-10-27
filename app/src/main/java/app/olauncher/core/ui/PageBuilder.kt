@@ -1,12 +1,14 @@
 package app.olauncher.core.ui
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.annotation.StringRes
 import androidx.core.view.isVisible
@@ -120,6 +122,32 @@ class PageBuilder(private val container: LinearLayout) {
         }
         row.binding.root.contentDescription = "$title, ${onOff(state)}"
         return row
+    }
+
+    /** Labelled slider (SeekBar) with a live value; [onChange] fires for user moves only. */
+    fun slider(title: CharSequence, value: Int, max: Int, step: Int = 1, label: (Int) -> String, onChange: (Int) -> Unit): SeekBar {
+        val row = row(title, label(value))
+        val primary = context.getColorFromAttr(R.attr.primaryColor)
+        val bar = SeekBar(context).apply {
+            this.max = max / step
+            progress = value / step
+            contentDescription = title
+            minimumHeight = dp(48)
+            progressTintList = ColorStateList.valueOf(primary)
+            progressBackgroundTintList = ColorStateList.valueOf(primary)
+            thumbTintList = ColorStateList.valueOf(if (glass) GlassStyler.ACCENT_RED else primary)
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                    val v = progress * step
+                    row.value = label(v)
+                    if (fromUser) onChange(v)
+                }
+                override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+                override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+            })
+        }
+        container.addView(bar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        return bar
     }
 
     fun onOff(on: Boolean): String = context.getString(if (on) R.string.on else R.string.off)

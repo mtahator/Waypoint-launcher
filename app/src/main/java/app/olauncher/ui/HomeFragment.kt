@@ -53,6 +53,8 @@ import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.gestures.ui.HomeGestureCoordinator
 import app.olauncher.features.worldclock.ui.WorldClockSlider
 import android.util.TypedValue
+import android.widget.LinearLayout
+import android.widget.Space
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,7 +73,9 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private var worldClocks: WorldClockSlider? = null
     private var glass = false
     private var baseAppsPaddingTop = 0
-    private var alignment = Gravity.START
+    private var alignment = Gravity.END
+    private var topSpace: Space? = null
+    private var bottomSpace: Space? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -294,6 +298,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         binding.dateTimeLayout.gravity = horizontalGravity
         binding.worldClockLayout.gravity = horizontalGravity
         alignment = horizontalGravity
+        applyAppsPosition()
         if (_binding != null && worldClocks != null) populateWorldClocks()
         binding.homeApp1.gravity = horizontalGravity
         binding.homeApp2.gravity = horizontalGravity
@@ -776,6 +781,29 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         if (binding.homeAppsLayout.paddingTop != top) binding.homeAppsLayout.updatePadding(top = top)
     }
 
+    /**
+     * Places the app list at the user's chosen height. Two weighted spacers share the free space
+     * (top = position, bottom = 1 - position), so the position is resolved in a single layout pass
+     * and never shifts afterwards. Upstream's "bottom" option maps to position 100.
+     */
+    private fun applyAppsPosition() {
+        val layout = binding.homeAppsLayout
+        if (topSpace == null) {
+            topSpace = Space(requireContext()).also { layout.addView(it, 0, LinearLayout.LayoutParams(0, 0, 1f)) }
+            bottomSpace = Space(requireContext()).also { layout.addView(it, LinearLayout.LayoutParams(0, 0, 1f)) }
+        }
+        val f = if (prefs.homeBottomAlignment) 1f else wp.prefs.homeAppsPosition / 100f
+        setWeight(topSpace, f)
+        setWeight(bottomSpace, 1f - f)
+    }
+
+    private fun setWeight(view: View?, weight: Float) {
+        val lp = view?.layoutParams as? LinearLayout.LayoutParams ?: return
+        if (lp.weight == weight) return
+        lp.weight = weight
+        view.layoutParams = lp
+    }
+
     private fun onCornerSwipe() {
         when (val action = wp.prefs.cornerSwipeAction) {
             GestureAction.ToggleLauncherMonochrome -> {
@@ -826,6 +854,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         super.onDestroyView()
         worldClocks?.onStop()
         worldClocks = null
+        topSpace = null
+        bottomSpace = null
         _binding = null
     }
 }

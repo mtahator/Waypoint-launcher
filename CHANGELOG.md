@@ -6,6 +6,8 @@
   clock (Doto, OFL), monospaced captions, a single red accent, hairline cards; no more pills behind text.
 - **World clock is a slider**: swipe between cities under the date; page dots; fixed height.
 - **Home apps no longer move**: the world clock slot has a fixed height and is only rebuilt when it changes.
+- **Home layout**: apps are right-aligned by default, and a new *Apps position* slider (Appearance) places
+  the app list anywhere from top to bottom, resolved in one layout pass so it never shifts.
 - Corner swipe is now opt-in and can never start in the status-bar / notification pull area.
 
 ### Fixed
