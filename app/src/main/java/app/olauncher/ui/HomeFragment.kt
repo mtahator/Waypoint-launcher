@@ -868,8 +868,11 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             setOnLongClickListener { binding.date.performLongClick() }
         }
         val layout = binding.dateTimeLayout
-        layout.addView(dotClock, layout.indexOfChild(binding.clock))
-        layout.addView(dotDate, layout.indexOfChild(binding.date))
+        // Vertical LinearLayout defaults children to MATCH_PARENT width, which would pin the dots to the
+        // start edge; wrap them so the layout's gravity (Right/Left/Center alignment) applies.
+        val wrap = { LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT) }
+        layout.addView(dotClock, layout.indexOfChild(binding.clock), wrap())
+        layout.addView(dotDate, layout.indexOfChild(binding.date), wrap())
         GlassStyler.styleCaption(binding.date, accentDot = true)
         listOf(
             binding.homeApp1, binding.homeApp2, binding.homeApp3, binding.homeApp4,

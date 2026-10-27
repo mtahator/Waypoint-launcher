@@ -46,7 +46,7 @@ class GlassBackdrop(
     private fun key(): String {
         val (w, h) = size()
         val photo = if (prefs.glassBackground == WaypointPrefs.BG_PHOTO) prefs.glassPhotoStamp else 0L
-        return "v1|${prefs.glassBackground}|${prefs.glassMonochrome}|${prefs.glassRibWidth}|${context.isDarkThemeOn()}|${w}x$h|$photo"
+        return "v2|${prefs.glassBackground}|${prefs.glassMonochrome}|${prefs.glassRibWidth}|${context.isDarkThemeOn()}|${w}x$h|$photo"
     }
 
     /** Ready-to-use bitmap for the current settings, or null if it still needs loading/rendering. */

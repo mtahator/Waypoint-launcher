@@ -18,8 +18,8 @@ object AuroraBackdrop {
     private val BLOBS = listOf(
         Blob(0.65f, 0.55f, 0.75f, 0.25f, 0x2878EB, 1.00f, 0.06f),
         Blob(0.32f, 0.49f, 0.28f, 0.11f, 0x5AC8FF, 0.75f, 0.35f),
-        Blob(0.42f, 0.72f, 0.43f, 0.20f, 0x1A0408, 1.00f, 0.05f),
-        Blob(0.38f, 0.55f, 0.23f, 0.05f, 0x7832B4, 0.60f, 0.30f),
+        Blob(0.30f, 0.78f, 0.36f, 0.15f, 0x1A0408, 1.00f, 0.08f),
+        Blob(0.28f, 0.64f, 0.22f, 0.05f, 0x7832B4, 0.55f, 0.35f),
     )
 
     fun render(w: Int, h: Int): IntArray {

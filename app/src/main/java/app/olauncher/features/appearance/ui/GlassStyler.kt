@@ -119,7 +119,7 @@ object GlassStyler {
         val dark = context.isDarkThemeOn()
         return GradientDrawable().apply {
             cornerRadius = dp(context, radiusDp)
-            setColor(if (dark) 0x14FFFFFF else 0x66FFFFFF)
+            setColor(if (dark) 0x40000000 else 0x80FFFFFF.toInt()) // tinted so text reads over bright glass
             setStroke(hairline(context), if (dark) 0x29FFFFFF else 0x1F000000)
         }
     }

@@ -31,9 +31,9 @@ object ReededGlass {
         val soft = boxBlur(src, w, h, radiusX = max(1, w / 160), radiusY = max(1, h / 160))
 
         // 2. Refract: each rib magnifies a slice of what's behind it, shifted sideways AND vertically
-        //    across its width. The vertical term is what draws the sawtooth "scallops" along edges.
+        //    across its width. The vertical term draws the rounded "scallops" along colour edges.
         val refracted = IntArray(w * h)
-        val lift = h * 0.075f
+        val lift = rib * 1.15f // about one reed width: rounded scallops, not spikes
         for (x in 0 until w) {
             val ribStart = (x / rib) * rib
             val t = (x - ribStart + 0.5f) / rib
