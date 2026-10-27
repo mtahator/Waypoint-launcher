@@ -30,6 +30,8 @@ def find(text, exact=False):
     if root is None:
         return None
     for node in root.iter("node"):
+        if node.get("class", "").endswith("EditText"):
+            continue  # never "tap" a text field because it contains the text we're looking for
         t = node.get("text", "") or node.get("content-desc", "")
         if (t == text) if exact else (text.lower() in t.lower()):
             x1, y1, x2, y2 = map(int, re.findall(r"\d+", node.get("bounds")))
@@ -45,7 +47,8 @@ def tap_text(text, scrolls=8, exact=False):
             adb("shell", "input", "tap", str(pos[0]), str(pos[1]))
             time.sleep(1.5)
             return True
-        adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.75)), str(w // 2), str(int(h * 0.35)), "300")
+        # Scroll in the upper half so a visible keyboard never receives the swipe (gesture typing)
+        adb("shell", "input", "swipe", str(w // 2), str(int(h * 0.45)), str(w // 2), str(int(h * 0.2)), "300")
         time.sleep(0.8)
     print(f"!! not found: {text}", file=sys.stderr)
     return False

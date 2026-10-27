@@ -11,7 +11,12 @@ home() { adb shell input keyevent KEYCODE_HOME; sleep 2; }
 back() { adb shell input keyevent KEYCODE_BACK; sleep 1.5; }
 read -r W H < <(python3 scripts/ui.py size)
 open_settings() { home; adb shell input swipe $((W/2)) $((H/2)) $((W/2)) $((H/2)) 1600; sleep 2; }
-add_city() { tap "Add city"; tap "Search a city"; adb shell input text "$1"; sleep 2; tap "$1" exact; sleep 1; }
+add_city() {
+  tap "Add city"; sleep 1
+  adb shell input text "$1"; sleep 2
+  tap "$1" exact || back   # result row; close the dialog if nothing matched
+  sleep 1
+}
 
 adb install -r "$APK"
 adb logcat -c
