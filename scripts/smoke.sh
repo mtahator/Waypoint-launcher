@@ -55,7 +55,11 @@ open_settings; tap "Privacy & data"; shot 11-privacy
 
 # Glass theme
 open_settings; tap "Appearance"; shot 12-appearance
-tap "Your whole wallpaper"; sleep 3
+tap "Reeded glass over"; sleep 3
+open_settings; tap "Appearance"; shot 12b-appearance-glass
+tap "Monochrome glass"; sleep 3
+home; shot 13b-home-glass-mono
+open_settings; tap "Appearance"; tap "Monochrome glass"; sleep 3
 home; shot 13-home-glass
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 14-drawer-glass; home
 open_settings; shot 15-settings-glass

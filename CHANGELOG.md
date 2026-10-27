@@ -2,6 +2,9 @@
 
 ## 1.1.0 (2026-10-27)
 ### Changed
+- **Glass is now reeded glass** (Nothing style): a fluted-glass backdrop rendered over the built-in
+  *Aurora* gradient or your own photo, optional monochrome glass, three reed widths; the blurred system
+  wallpaper stays as an option. Home shows a round-dot matrix clock and a dotted date (`TUE, 27 OCT`).
 - **Glass theme redesigned** in the spirit of Nothing OS: whole-screen wallpaper blur on every screen, dot-matrix
   clock (Doto, OFL), monospaced captions, a single red accent, hairline cards; no more pills behind text.
 - **World clock is a slider**: swipe between cities under the date; page dots; fixed height.

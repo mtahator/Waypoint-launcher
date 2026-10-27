@@ -52,7 +52,9 @@ import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.gestures.ui.CornerSwipeLayout
 import app.olauncher.features.worldclock.ui.WorldClockSlider
-import android.util.TypedValue
+import app.olauncher.features.appearance.domain.DotMatrixFont
+import app.olauncher.features.appearance.ui.DotMatrixView
+import app.olauncher.helper.getColorFromAttr
 import android.widget.LinearLayout
 import android.widget.Space
 import java.text.SimpleDateFormat
@@ -74,6 +76,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private var glass = false
     private var baseAppsPaddingTop = 0
     private var alignment = Gravity.END
+    private var dotClock: DotMatrixView? = null
+    private var dotDate: DotMatrixView? = null
     private var topSpace: Space? = null
     private var bottomSpace: Space? = null
 
@@ -238,6 +242,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         }
         viewModel.toggleDateTime.observe(viewLifecycleOwner) {
             populateDateTime()
+            syncGlassClock()
         }
         viewModel.screenTimeValue.observe(viewLifecycleOwner) {
             it?.let { binding.tvScreenTime.text = it }
@@ -359,6 +364,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private fun populateHomeScreen(appCountUpdated: Boolean) {
         if (appCountUpdated) hideHomeApps()
         populateDateTime()
+        syncGlassClock()
         populateWorldClocks()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
@@ -837,10 +843,33 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         }
     }
 
-    /** Glass: dot-matrix clock, monospaced captions with a red accent, crisp labels. Layout is untouched. */
+    /**
+     * Glass: a dot-matrix clock and date drawn as round dots (Nothing style), monospaced captions with a red
+     * accent, crisp labels. The upstream clock/date views stay in place (hidden) and keep their tap actions.
+     */
     private fun applyGlass() {
-        GlassStyler.styleClock(binding.clock)
-        binding.clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, binding.clock.textSize * 1.25f)
+        val ctx = requireContext()
+        val color = ctx.getColorFromAttr(R.attr.primaryColor)
+        val density = resources.displayMetrics.density
+        dotClock = DotMatrixView(ctx, isClock = true).apply {
+            cellPx = 11f * density
+            fill = 0.86f
+            this.color = color
+            setOnClickListener { binding.clock.performClick() }
+            setOnLongClickListener { binding.clock.performLongClick() }
+        }
+        dotDate = DotMatrixView(ctx).apply {
+            cellPx = 3.1f * density
+            fill = 0.8f
+            this.color = color
+            alpha = 0.9f
+            setPadding(0, (14 * density).toInt(), 0, 0)
+            setOnClickListener { binding.date.performClick() }
+            setOnLongClickListener { binding.date.performLongClick() }
+        }
+        val layout = binding.dateTimeLayout
+        layout.addView(dotClock, layout.indexOfChild(binding.clock))
+        layout.addView(dotDate, layout.indexOfChild(binding.date))
         GlassStyler.styleCaption(binding.date, accentDot = true)
         listOf(
             binding.homeApp1, binding.homeApp2, binding.homeApp3, binding.homeApp4,
@@ -851,10 +880,27 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         GlassStyler.styleCaption(binding.firstRunTips)
     }
 
+    /** Mirrors upstream's clock/date state onto the dot-matrix views (after populateDateTime). */
+    private fun syncGlassClock() {
+        val clock = dotClock ?: return
+        val date = dotDate ?: return
+        clock.isVisible = binding.clock.isVisible
+        binding.clock.visibility = View.GONE
+        val text = binding.date.text?.toString().orEmpty().uppercase()
+        val dotted = binding.date.isVisible && text.isNotEmpty() && DotMatrixFont.supports(text)
+        date.isVisible = dotted
+        if (dotted) {
+            date.text = text
+            binding.date.visibility = View.GONE
+        }
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         worldClocks?.onStop()
         worldClocks = null
+        dotClock = null
+        dotDate = null
         topSpace = null
         bottomSpace = null
         _binding = null

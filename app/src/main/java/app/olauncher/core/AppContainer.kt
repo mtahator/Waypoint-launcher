@@ -1,6 +1,7 @@
 package app.olauncher.core
 
 import android.content.Context
+import app.olauncher.features.appearance.platform.GlassBackdrop
 import app.olauncher.features.appearance.platform.SystemGrayscaleController
 import app.olauncher.features.appearance.ui.AppearanceController
 import app.olauncher.features.notifications.platform.CaptureController
@@ -21,7 +22,8 @@ class AppContainer(context: Context) {
     val dispatchers by lazy { AppDispatchers() }
     val scope by lazy { CoroutineScope(SupervisorJob() + dispatchers.default) }
 
-    val appearance by lazy { AppearanceController(prefs) }
+    val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
+    val appearance by lazy { AppearanceController(prefs, backdrop) }
     val grayscale by lazy { SystemGrayscaleController(app) }
 
     val transactions by lazy { TransactionRepository({ LedgerDatabase(app) }, dispatchers.io) }

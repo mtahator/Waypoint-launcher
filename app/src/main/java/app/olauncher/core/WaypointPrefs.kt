@@ -45,6 +45,26 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(GLASS_THEME, false)
         set(value) = prefs.edit { putBoolean(GLASS_THEME, value) }
 
+    /** Glass background: "aurora" (built-in), "photo" (user-picked), or "wallpaper" (system wallpaper, blurred). */
+    var glassBackground: String
+        get() = prefs.getString(GLASS_BACKGROUND, BG_AURORA) ?: BG_AURORA
+        set(value) = prefs.edit { putString(GLASS_BACKGROUND, value) }
+
+    /** Nothing-style grey glass. */
+    var glassMonochrome: Boolean
+        get() = prefs.getBoolean(GLASS_MONO, false)
+        set(value) = prefs.edit { putBoolean(GLASS_MONO, value) }
+
+    /** Reed (rib) width: 0 narrow, 1 normal, 2 wide. */
+    var glassRibWidth: Int
+        get() = prefs.getInt(GLASS_RIB, 1).coerceIn(0, 2)
+        set(value) = prefs.edit { putInt(GLASS_RIB, value.coerceIn(0, 2)) }
+
+    /** Changes whenever the user picks a new photo (part of the render cache key). */
+    var glassPhotoStamp: Long
+        get() = prefs.getLong(GLASS_PHOTO_STAMP, 0L)
+        set(value) = prefs.edit { putLong(GLASS_PHOTO_STAMP, value) }
+
     // ---- Gestures (corner swipe is opt-in)
     var cornerSwipeEnabled: Boolean
         get() = prefs.getBoolean(CORNER_ENABLED_V2, false)
@@ -96,6 +116,13 @@ class WaypointPrefs(context: Context) {
         const val MONOCHROME = "WP_MONOCHROME"
         const val OLED_BLACK = "WP_OLED_BLACK"
         const val GLASS_THEME = "WP_GLASS_THEME"
+        const val GLASS_BACKGROUND = "WP_GLASS_BACKGROUND"
+        const val GLASS_MONO = "WP_GLASS_MONO"
+        const val GLASS_RIB = "WP_GLASS_RIB"
+        const val GLASS_PHOTO_STAMP = "WP_GLASS_PHOTO_STAMP"
+        const val BG_AURORA = "aurora"
+        const val BG_PHOTO = "photo"
+        const val BG_WALLPAPER = "wallpaper"
         const val CORNER_ENABLED_V2 = "WP_CORNER_ENABLED_V2"
         const val CORNER_SIDE = "WP_CORNER_SIDE"
         const val CORNER_ACTION = "WP_CORNER_ACTION"

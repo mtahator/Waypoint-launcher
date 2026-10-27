@@ -1,6 +1,11 @@
 package app.olauncher.features.appearance.ui
 
+import android.net.Uri
 import android.view.Gravity
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import app.olauncher.core.WaypointPrefs
+import app.olauncher.core.ui.chooseOne
 import app.olauncher.R
 import app.olauncher.data.Prefs
 import app.olauncher.core.ui.ExternalFlow
@@ -20,6 +25,53 @@ class AppearanceSettingsFragment : WpPageFragment() {
             else -> R.string.wp_align_right
         }
     )
+
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri: Uri? ->
+        ExternalFlow.active = false
+        if (uri == null) return@registerForActivityResult
+        launchUi {
+            if (container.backdrop.importPhoto(uri)) {
+                container.prefs.glassBackground = WaypointPrefs.BG_PHOTO
+                refreshBackdrop()
+            } else requireContext().showToast(R.string.wp_photo_failed)
+        }
+    }
+
+    private fun backgroundLabel(v: String) = getString(
+        when (v) {
+            WaypointPrefs.BG_PHOTO -> R.string.wp_bg_photo
+            WaypointPrefs.BG_WALLPAPER -> R.string.wp_bg_wallpaper
+            else -> R.string.wp_bg_aurora
+        }
+    )
+
+    private fun ribLabel(v: Int) = getString(
+        when (v) {
+            0 -> R.string.wp_ribs_narrow
+            2 -> R.string.wp_ribs_wide
+            else -> R.string.wp_ribs_normal
+        }
+    )
+
+    private fun chooseBackground() {
+        val prefs = container.prefs
+        val options = listOf<Pair<String, () -> Unit>>(
+            getString(R.string.wp_bg_aurora) to { prefs.glassBackground = WaypointPrefs.BG_AURORA; refreshBackdrop() },
+            getString(R.string.wp_bg_photo_pick) to {
+                ExternalFlow.active = true
+                pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            },
+            getString(R.string.wp_bg_wallpaper) to { prefs.glassBackground = WaypointPrefs.BG_WALLPAPER; refreshBackdrop() },
+        )
+        requireContext().chooseOne(R.string.wp_glass_background, options.map { it.first }) { options[it].second() }
+    }
+
+    /** Re-renders the reeded glass off the main thread, then swaps the window background. */
+    private fun refreshBackdrop() = launchUi {
+        if (container.prefs.glassBackground != WaypointPrefs.BG_WALLPAPER) container.backdrop.load()
+        container.appearance.apply(requireActivity())
+        rebuild()
+    }
 
     private fun positionLabel(v: Int): String = when (v) {
         0 -> getString(R.string.wp_position_top)
@@ -54,6 +106,21 @@ class AppearanceSettingsFragment : WpPageFragment() {
                 prefs.glassTheme = it
                 // Surfaces are styled at view creation; recreate once so every screen picks it up.
                 requireActivity().recreate()
+            }
+            if (prefs.glassTheme) {
+                row(getString(R.string.wp_glass_background), backgroundLabel(prefs.glassBackground)) { chooseBackground() }
+                if (prefs.glassBackground != WaypointPrefs.BG_WALLPAPER) {
+                    toggle(getString(R.string.wp_glass_mono), prefs.glassMonochrome, getString(R.string.wp_glass_mono_hint)) {
+                        prefs.glassMonochrome = it
+                        refreshBackdrop()
+                    }
+                    row(getString(R.string.wp_glass_ribs), ribLabel(prefs.glassRibWidth)) { r ->
+                        prefs.glassRibWidth = (prefs.glassRibWidth + 1) % 3
+                        r.value = ribLabel(prefs.glassRibWidth)
+                        refreshBackdrop()
+                    }
+                }
+                note(getString(if (prefs.glassBackground == WaypointPrefs.BG_WALLPAPER) R.string.wp_glass_wallpaper_note else R.string.wp_glass_backdrop_note))
             }
         }
         page.card {
