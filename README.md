@@ -13,6 +13,16 @@ choose Waypoint.
 > The APK is signed with a public *sideload* key so updates install over each other. It is not a
 > Play Store build. Waypoint installs side by side with Olauncher and does not import its settings.
 
+<div dir="rtl">
+
+### نصب (فارسی)
+۱. فایل [apk/Waypoint.apk](apk/Waypoint.apk) را روی گوشی دانلود و باز کنید و اجازهٔ نصب از این منبع را بدهید.
+۲. دکمهٔ Home را بزنید و **Waypoint** را به‌عنوان لانچر پیش‌فرض انتخاب کنید.
+۳. برای تنظیمات، روی صفحهٔ اصلی انگشت را نگه دارید. بخش **Waypoint** شامل ساعت جهانی، ژست‌ها، ظاهر (تم شیشه‌ای)، اتوماسیون، اعلان‌ها و دفتر تراکنش، خروجی CSV و حریم خصوصی است.
+۴. **تم شیشه‌ای:** تنظیمات ← Waypoint ← Appearance ← Glass. پنل‌های مات و شیشه‌ای پشت متن‌ها، جستجو و کارت‌ها؛ در اندروید ۱۲ به بالا پس‌زمینهٔ کشوی برنامه‌ها و تنظیمات واقعاً بلور می‌شود.
+
+</div>
+
 ## What's new compared to Olauncher
 
 Everything is **off or idle until you use it**. A feature you never enable creates no objects, opens
