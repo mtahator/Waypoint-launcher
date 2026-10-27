@@ -25,6 +25,8 @@ android {
 
         resourceConfigurations += ["en", "ar", "cs", "da", "de", "el", "es-rES", "es-rUS", "fi", "fr", "he", "hi", "hr", "hu", "in", "it", "ja", "ko", "nb", "nl", "pl", "pt-rBR", "ro", "ru-rRU", "sv", "th", "tr", "uk", "vi", "zh"]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // Spec 7.3.3: opt-in, ADB-granted system grayscale. On for sideload/F-Droid builds.
+        buildConfigField "boolean", "ENABLE_SYSTEM_GRAYSCALE_ADB", "true"
     }
 
     signingConfigs {
@@ -96,4 +98,6 @@ dependencies {
     coreLibraryDesugaring libs.desugar.jdk.libs
 
     testImplementation libs.junit
+    // Real org.json for JVM tests of the rule JSON mapper (android.jar only has stubs)
+    testImplementation libs.json
 }
