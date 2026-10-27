@@ -74,6 +74,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private val wp get() = requireContext().waypoint
     private var worldClocks: WorldClockRowsBinder? = null
     private var glass = false
+    private var baseAppsPaddingTop = 0
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -89,6 +90,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
         deviceManager = context?.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         glass = wp.prefs.glassTheme
+        baseAppsPaddingTop = binding.homeAppsLayout.paddingTop
         worldClocks = WorldClockRowsBinder(binding.worldClockLayout) { openPage(R.id.worldClockPanelFragment) }
 
         initObservers()
@@ -773,11 +775,16 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             (row as? ViewGroup)?.children?.forEach { (it as? TextView)?.setShadowLayer(0f, 0f, 0f, 0) }
         }
         binder.onStart(requireContext())
-        // Never squeeze the app list: push it below the clock block when world clocks are shown.
+        // Never squeeze the app list: in portrait, push it below the clock block while world clocks are shown.
+        val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        if (entries.isEmpty() || !portrait) {
+            binding.homeAppsLayout.updatePadding(top = baseAppsPaddingTop)
+            return
+        }
         binding.dateTimeLayout.doOnLayout {
-            val minTop = 112.dpToPx()
-            val needed = if (binding.dateTimeLayout.isVisible) binding.dateTimeLayout.bottom + 16.dpToPx() else 0
-            binding.homeAppsLayout.updatePadding(top = maxOf(minTop, needed))
+            val b = _binding ?: return@doOnLayout
+            val needed = b.dateTimeLayout.bottom + 16.dpToPx()
+            b.homeAppsLayout.updatePadding(top = maxOf(baseAppsPaddingTop, needed))
         }
     }
 

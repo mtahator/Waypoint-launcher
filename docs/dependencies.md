@@ -3,6 +3,7 @@
 | Dependency | Scope | Purpose | APK impact | License | Why the platform isn't enough |
 |---|---|---|---|---|---|
 | `com.android.tools:desugar_jdk_libs:2.1.5` | coreLibraryDesugaring | `java.time` on API 24–25 | small (R8 keeps only used classes) | GPL-2.0 w/ Classpath Exception | `java.time` only exists natively from API 26 (pre-approved in spec 8.1) |
+| `androidx.profileinstaller:profileinstaller:1.4.1` | implementation | Applies the Baseline Profile on sideloaded installs (AOT-compiled startup path) | ~30 KB | Apache-2.0 | Pre-approved (spec 8.1); the platform only installs profiles for Play installs |
 | `org.json:json:20240303` | test only | Real `org.json` for JVM tests of the rule mapper | none (not packaged) | Public domain (JSON License text) | `android.jar` ships stubs that return defaults in unit tests |
 
 ## Not added (deliberately)

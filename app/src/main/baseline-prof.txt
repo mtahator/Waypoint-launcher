@@ -1,0 +1,25 @@
+# Baseline Profile (hand-written startup set): AOT-compiles the cold-start and Home paths on install.
+# profileinstaller applies it for sideloaded APKs too. Replace with a generated profile once the
+# :baselineprofile module exists (see docs/perf-baseline.md).
+HSPLapp/olauncher/MainActivity;->**(**)**
+HSPLapp/olauncher/MainViewModel;->**(**)**
+HSPLapp/olauncher/MainViewModel$*;->**(**)**
+HSPLapp/olauncher/ui/HomeFragment;->**(**)**
+HSPLapp/olauncher/ui/HomeFragment$*;->**(**)**
+HSPLapp/olauncher/ui/BaseFragment;->**(**)**
+HSPLapp/olauncher/ui/AppDrawerFragment;->**(**)**
+HSPLapp/olauncher/ui/AppDrawerFragment$*;->**(**)**
+HSPLapp/olauncher/ui/AppDrawerAdapter;->**(**)**
+HSPLapp/olauncher/ui/AppDrawerAdapter$*;->**(**)**
+HSPLapp/olauncher/data/**;->**(**)**
+HSPLapp/olauncher/helper/**;->**(**)**
+HSPLapp/olauncher/listener/**;->**(**)**
+HSPLapp/olauncher/core/**;->**(**)**
+HSPLapp/olauncher/features/gestures/**;->**(**)**
+HSPLapp/olauncher/features/worldclock/ui/WorldClockRowsBinder;->**(**)**
+HSPLapp/olauncher/features/worldclock/domain/**;->**(**)**
+HSPLapp/olauncher/features/appearance/**;->**(**)**
+HSPLapp/olauncher/databinding/FragmentHomeBinding;->**(**)**
+HSPLapp/olauncher/databinding/ActivityMainBinding;->**(**)**
+HSPLapp/olauncher/databinding/FragmentAppDrawerBinding;->**(**)**
+HSPLapp/olauncher/databinding/AdapterAppDrawerBinding;->**(**)**

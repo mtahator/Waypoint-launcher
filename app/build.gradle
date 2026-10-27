@@ -96,6 +96,8 @@ dependencies {
     implementation libs.material
 
     coreLibraryDesugaring libs.desugar.jdk.libs
+    // Installs the Baseline Profile (src/main/baseline-prof.txt) for sideloaded installs too
+    implementation libs.profileinstaller
 
     testImplementation libs.junit
     // Real org.json for JVM tests of the rule JSON mapper (android.jar only has stubs)
