@@ -1,128 +1,162 @@
 package app.olauncher.features.appearance.ui
 
-import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
-import android.view.animation.DecelerateInterpolator
 import android.widget.TextView
-import androidx.annotation.RequiresApi
+import androidx.core.content.res.ResourcesCompat
+import app.olauncher.R
 import app.olauncher.helper.isDarkThemeOn
 import app.olauncher.helper.isEinkDisplay
+import java.util.function.Consumer
 
 /**
- * "Glass" look: frosted translucent surfaces with a hairline edge and a soft top highlight,
- * plus real system blur of the wallpaper behind the drawer and settings on Android 12+.
+ * Glass: a monochrome, dot-matrix look in the spirit of Nothing OS.
  *
- * Cost model: the surfaces are plain GradientDrawables (no offscreen layers). The only GPU blur is
- * the system's cross-window blur, active only while drawer/settings are visible; Android itself
- * disables it in battery saver and on devices that can't afford it.
+ * - The whole wallpaper is blurred behind the launcher window (Android 12+, cross-window blur) and
+ *   covered by a soft scrim. Where the system can't blur (older Android, battery saver, some GPUs)
+ *   the scrim simply gets denser, so text always stays readable.
+ * - Type: a dot-matrix face for clocks, monospaced caps for captions, a single red accent dot.
+ * - Surfaces: hairline-bordered translucent cards and capsules. No shadows, no pills behind labels.
+ *
+ * Cost: plain drawables and one system blur pass handled by the compositor; no offscreen layers.
  */
 object GlassStyler {
 
-    enum class Surface { PILL, CARD, FIELD }
+    const val ACCENT_RED = 0xFFD71921.toInt()
 
-    private data class Tone(val fill: Int, val stroke: Int, val highlightTop: Int)
+    private const val BLUR_RADIUS_DP = 56f
+    private var dotTypeface: Typeface? = null
+    private var blurListener: Consumer<Boolean>? = null
 
-    private fun tone(dark: Boolean, surface: Surface): Tone = if (dark) when (surface) {
-        Surface.PILL -> Tone(0x33FFFFFF, 0x40FFFFFF, 0x1FFFFFFF)
-        Surface.CARD -> Tone(0x1FFFFFFF, 0x33FFFFFF, 0x14FFFFFF)
-        Surface.FIELD -> Tone(0x29FFFFFF, 0x4DFFFFFF, 0x1AFFFFFF)
-    } else when (surface) {
-        Surface.PILL -> Tone(0x8CFFFFFF.toInt(), 0xB3FFFFFF.toInt(), 0x66FFFFFF)
-        Surface.CARD -> Tone(0x73FFFFFF, 0x99FFFFFF.toInt(), 0x4DFFFFFF)
-        Surface.FIELD -> Tone(0x99FFFFFF.toInt(), 0xCCFFFFFF.toInt(), 0x59FFFFFF)
+    // ---------------------------------------------------------------- window
+
+    /** Full-screen blur + scrim for a window that shows the wallpaper. */
+    fun applyWindow(window: Window) {
+        val context = window.context
+        val dark = context.isDarkThemeOn()
+        val canBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !context.isEinkDisplay() &&
+            window.windowManager.isCrossWindowBlurEnabled
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            window.setBackgroundBlurRadius(if (canBlur) dp(context, BLUR_RADIUS_DP).toInt() else 0)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(scrim(dark, canBlur)))
     }
 
-    fun drawable(context: Context, surface: Surface, radiusDp: Float): Drawable {
-        val t = tone(context.isDarkThemeOn(), surface)
-        val radius = dp(context, radiusDp)
-        val base = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = radius
-            setColor(t.fill)
-            setStroke(dp(context, 1f).toInt().coerceAtLeast(1), t.stroke)
-        }
-        // Light catching the top edge: fades out by mid-height, like real glass.
-        val highlight = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(t.highlightTop, 0x00FFFFFF, 0x00FFFFFF)).apply {
-            cornerRadius = radius
-        }
-        return LayerDrawable(arrayOf(base, highlight))
+    /** Removes blur when glass is off or the wallpaper is hidden. */
+    fun clearWindow(window: Window) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) window.setBackgroundBlurRadius(0)
     }
 
-    /** Frosted pill behind a home text (app label, clock). Removes the text shadow, which smears on glass. */
-    fun styleHomeText(view: TextView, radiusDp: Float = 20f) {
-        val c = view.context
-        view.background = drawable(c, Surface.PILL, radiusDp)
+    /** Re-applies when the system turns cross-window blur on/off (e.g. battery saver). */
+    fun watchBlurAvailability(window: Window, onChange: () -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || blurListener != null) return
+        val l = Consumer<Boolean> { onChange() }
+        blurListener = l
+        window.windowManager.addCrossWindowBlurEnabledListener(l)
+    }
+
+    fun unwatchBlurAvailability(window: Window) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        blurListener?.let { window.windowManager.removeCrossWindowBlurEnabledListener(it) }
+        blurListener = null
+    }
+
+    private fun scrim(dark: Boolean, blurred: Boolean): Int = when {
+        dark && blurred -> 0x66000000
+        dark -> 0xA6000000.toInt()
+        blurred -> 0x59FFFFFF
+        else -> 0x99FFFFFF.toInt()
+    }
+
+    // ---------------------------------------------------------------- type
+
+    fun dotFont(context: Context): Typeface =
+        dotTypeface ?: (ResourcesCompat.getFont(context, R.font.doto_dot) ?: Typeface.MONOSPACE).also { dotTypeface = it }
+
+    /** Big dot-matrix clock. */
+    fun styleClock(view: TextView) {
+        view.typeface = dotFont(view.context)
         view.setShadowLayer(0f, 0f, 0f, 0)
-        val h = dp(c, 18f).toInt()
-        view.setPaddingRelative(h, view.paddingTop, h, view.paddingBottom)
-        (view.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
-            val m = dp(c, 4f).toInt()
-            it.topMargin = m
-            it.bottomMargin = m
-            view.layoutParams = it
+        view.letterSpacing = 0.02f
+        view.includeFontPadding = false
+    }
+
+    /** Monospaced, letter-spaced caption ("TUE 27 OCT"). */
+    fun styleCaption(view: TextView, accentDot: Boolean = false) {
+        view.typeface = Typeface.MONOSPACE
+        view.isAllCaps = true
+        view.letterSpacing = 0.14f
+        view.setShadowLayer(0f, 0f, 0f, 0)
+        if (accentDot) {
+            view.setCompoundDrawablesRelativeWithIntrinsicBounds(accentDot(view.context), null, null, null)
+            view.compoundDrawablePadding = dp(view.context, 10f).toInt()
         }
     }
 
-    fun styleBlock(view: View, radiusDp: Float = 28f) {
-        val c = view.context
-        view.background = drawable(c, Surface.PILL, radiusDp)
-        val p = dp(c, 16f).toInt()
-        view.setPaddingRelative(p, p, p, p)
+    /** App labels: crisp, no shadow, a touch of tracking. */
+    fun styleLabel(view: TextView) {
+        view.setShadowLayer(0f, 0f, 0f, 0)
+        view.letterSpacing = 0.01f
+    }
+
+    fun accentDot(context: Context, sizeDp: Float = 7f): Drawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(ACCENT_RED)
+        val s = dp(context, sizeDp).toInt()
+        setSize(s, s)
+    }
+
+    // ---------------------------------------------------------------- surfaces
+
+    /** Hairline glass card. */
+    fun card(context: Context, radiusDp: Float = 24f): Drawable {
+        val dark = context.isDarkThemeOn()
+        return GradientDrawable().apply {
+            cornerRadius = dp(context, radiusDp)
+            setColor(if (dark) 0x14FFFFFF else 0x66FFFFFF)
+            setStroke(hairline(context), if (dark) 0x29FFFFFF else 0x1F000000)
+        }
+    }
+
+    /** Hairline capsule for inputs (drawer search). */
+    fun capsule(context: Context): Drawable {
+        val dark = context.isDarkThemeOn()
+        return GradientDrawable().apply {
+            cornerRadius = dp(context, 100f)
+            setColor(if (dark) 0x1AFFFFFF else 0x80FFFFFF.toInt())
+            setStroke(hairline(context), if (dark) 0x40FFFFFF else 0x29000000)
+        }
     }
 
     fun styleField(view: View) {
         val c = view.context
-        view.background = drawable(c, Surface.FIELD, 26f)
-        val h = dp(c, 14f).toInt()
-        val v = dp(c, 4f).toInt()
+        view.background = capsule(c)
+        val h = dp(c, 18f).toInt()
+        val v = dp(c, 6f).toInt()
         view.setPaddingRelative(h, v, h, v)
     }
 
     /** Replaces every card-like background (direct children that have one) inside [container]. */
-    fun styleCards(container: ViewGroup, radiusDp: Float = 28f) {
+    fun styleCards(container: ViewGroup) {
         for (i in 0 until container.childCount) {
             val child = container.getChildAt(i)
-            if (child is ViewGroup && child.background != null) child.background = drawable(container.context, Surface.CARD, radiusDp)
+            if (child is ViewGroup && child.background != null) child.background = card(container.context)
         }
     }
 
-    // ---- Real blur of the wallpaper behind the launcher window (Android 12+)
-
-    private var blurAnimator: ValueAnimator? = null
-    private var currentRadius = 0
-
-    fun setWindowBlur(window: Window, enabled: Boolean) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || window.context.isEinkDisplay()) return
-        val target = if (enabled) dp(window.context, BLUR_RADIUS_DP).toInt() else 0
-        animateBlur(window, target)
+    /** Lets the blurred window show through a full-screen page (drawer, settings). */
+    fun clearPageBackground(view: View) {
+        view.background = null
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun animateBlur(window: Window, target: Int) {
-        if (target == currentRadius) return
-        blurAnimator?.cancel()
-        if (target > 0 && !window.windowManager.isCrossWindowBlurEnabled) return
-        blurAnimator = ValueAnimator.ofInt(currentRadius, target).apply {
-            duration = 220L
-            interpolator = DecelerateInterpolator()
-            addUpdateListener {
-                currentRadius = it.animatedValue as Int
-                window.setBackgroundBlurRadius(currentRadius)
-            }
-            start()
-        }
-    }
+    private fun hairline(context: Context) = dp(context, 1f).toInt().coerceAtLeast(1)
 
-    private const val BLUR_RADIUS_DP = 36f
-
-    private fun dp(context: Context, v: Float) =
+    fun dp(context: Context, v: Float) =
         TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, context.resources.displayMetrics)
 }

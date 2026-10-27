@@ -54,14 +54,32 @@
             android:paddingHorizontal="3dp"
             android:textSize="@dimen/date_size"
             tools:text="Thu, 30 Dec" />
-        <!-- Waypoint: world clock rows (up to 3; filled at runtime, gone when empty) -->
+        <!-- Waypoint: world clock slider (swipe between cities; fixed height so nothing below moves) -->
         <LinearLayout
             android:id="@+id/worldClockLayout"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="14dp"
             android:orientation="vertical"
-            android:visibility="gone" />
+            android:visibility="gone">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/worldClockPager"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/wp_world_clock_page_height"
+                android:contentDescription="@string/wp_world_clock"
+                android:overScrollMode="never"
+                android:scrollbars="none" />
+
+            <LinearLayout
+                android:id="@+id/worldClockDots"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/wp_world_clock_dots_height"
+                android:gravity="center_vertical"
+                android:importantForAccessibility="no"
+                android:orientation="horizontal"
+                android:paddingHorizontal="3dp" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- Screen time-->

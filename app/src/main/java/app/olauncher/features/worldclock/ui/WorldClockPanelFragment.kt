@@ -8,6 +8,7 @@ import app.olauncher.R
 import app.olauncher.core.ui.PageBuilder
 import app.olauncher.core.ui.WpPageFragment
 import app.olauncher.core.ui.openPage
+import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.features.worldclock.domain.DayOffset
 import java.time.Instant
 import java.time.ZoneId
@@ -20,6 +21,7 @@ class WorldClockPanelFragment : WpPageFragment() {
 
     override fun build(page: PageBuilder) {
         val entries = container.prefs.worldClocks
+        val glass = container.prefs.glassTheme
         val now = Instant.now()
         val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
         page.card {
@@ -34,6 +36,7 @@ class WorldClockPanelFragment : WpPageFragment() {
                 row.addView(TextView(context, null, 0, R.style.TextSmall).apply {
                     text = e.label
                     setShadowLayer(0f, 0f, 0f, 0)
+                    if (glass) GlassStyler.styleCaption(this, accentDot = true)
                 })
                 if (zone == null) {
                     row.addView(TextView(context, null, 0, R.style.TextSmallLight).apply {
@@ -48,11 +51,12 @@ class WorldClockPanelFragment : WpPageFragment() {
                         textSize = 40f
                         setShadowLayer(0f, 0f, 0f, 0)
                         gravity = Gravity.START
+                        if (glass) GlassStyler.styleClock(this)
                     })
                     val days = DayOffset.daysBetween(e.zoneId, now, ZoneId.systemDefault()) ?: 0
                     val date = dateFormat.format(now.atZone(zone))
                     row.addView(TextView(context, null, 0, R.style.TextSmallLight).apply {
-                        text = if (days == 0) date else "$date · ${WorldClockRowsBinder.formatOffset(context, days)}"
+                        text = if (days == 0) date else "$date · ${WorldClockSlider.formatOffset(context, days)}"
                         textSize = 14f
                         setShadowLayer(0f, 0f, 0f, 0)
                     })

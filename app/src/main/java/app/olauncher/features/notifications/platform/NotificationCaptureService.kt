@@ -8,12 +8,11 @@ import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationManagerCompat
 import app.olauncher.core.WaypointPrefs
 import app.olauncher.core.waypoint
-import app.olauncher.features.automation.domain.AutomationEvent
 import app.olauncher.features.transactions.domain.CapturedNotification
 import kotlinx.coroutines.launch
 
 /**
- * Reads notifications ONLY from apps the user selected. Non-selected packages are rejected with
+ * Reads notifications ONLY from the source apps the user selected for the ledger. Non-selected packages are rejected with
  * one in-memory set lookup before anything else happens. Titles/texts are never logged or stored
  * raw; only parsed fields reach the ledger. When nothing needs the listener it unbinds itself.
  */
@@ -21,10 +20,6 @@ class NotificationCaptureService : NotificationListenerService(), SharedPreferen
 
     @Volatile
     private var selected: Set<String> = emptySet()
-    @Volatile
-    private var ledgerPackages: Set<String> = emptySet()
-    @Volatile
-    private var rulePackages: Set<String> = emptySet()
 
     private val lastHashByKey = object : LinkedHashMap<String, Int>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?) = size > 128
@@ -36,7 +31,7 @@ class NotificationCaptureService : NotificationListenerService(), SharedPreferen
         val prefs = waypoint.prefs
         prefs.registerListener(this)
         refresh(prefs)
-        if (!waypoint.coordinator.needsListener()) requestUnbind()
+        if (!waypoint.capture.needsListener()) requestUnbind()
     }
 
     override fun onListenerDisconnected() {
@@ -52,14 +47,12 @@ class NotificationCaptureService : NotificationListenerService(), SharedPreferen
     }
 
     override fun onSharedPreferenceChanged(sp: SharedPreferences?, key: String?) {
-        if (key == WaypointPrefs.CAPTURE_PACKAGES || key == WaypointPrefs.RULE_PACKAGES || key == WaypointPrefs.LEDGER_CAPTURE)
+        if (key == WaypointPrefs.CAPTURE_PACKAGES || key == WaypointPrefs.LEDGER_CAPTURE)
             refresh(waypoint.prefs)
     }
 
     private fun refresh(prefs: WaypointPrefs) {
-        ledgerPackages = if (prefs.ledgerCaptureEnabled) prefs.capturePackages else emptySet()
-        rulePackages = prefs.rulePackages
-        selected = ledgerPackages + rulePackages
+        selected = if (prefs.ledgerCaptureEnabled) prefs.capturePackages else emptySet()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -89,21 +82,11 @@ class NotificationCaptureService : NotificationListenerService(), SharedPreferen
             text = text,
             redacted = isRedacted(title, text),
         )
-        val toLedger = pkg in ledgerPackages
-        val toRules = pkg in rulePackages
         val container = waypoint
         container.scope.launch(container.dispatchers.capture) {
-            if (toLedger) {
-                runCatching {
-                    container.transactions.saveCaptured(captured, container.parsers.parse(captured), System.currentTimeMillis())
-                }
+            runCatching {
+                container.transactions.saveCaptured(captured, container.parsers.parse(captured), System.currentTimeMillis())
             }
-            if (toRules) container.fire(
-                AutomationEvent.NotificationReceived(
-                    packageName = pkg, notificationKey = captured.key, title = title, text = text,
-                    postTime = captured.postTime, redacted = captured.redacted, occurredAt = System.currentTimeMillis(),
-                )
-            )
         }
     }
 

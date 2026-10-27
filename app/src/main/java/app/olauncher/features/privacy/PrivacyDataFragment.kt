@@ -18,7 +18,6 @@ class PrivacyDataFragment : WpPageFragment() {
     override val pageTitle = R.string.wp_privacy_and_data
     override val pageSubtitle = R.string.wp_privacy_subtitle
 
-    private var ruleCount = -1
     private var txCount = -1
 
     override fun onResume() {
@@ -28,7 +27,6 @@ class PrivacyDataFragment : WpPageFragment() {
 
     private fun refresh() {
         launchUi {
-            ruleCount = container.automationRepository.allRules().size
             txCount = container.transactions.count(LedgerFilter())
             rebuild()
         }
@@ -37,23 +35,8 @@ class PrivacyDataFragment : WpPageFragment() {
     override fun build(page: PageBuilder) {
         page.card {
             header(getString(R.string.wp_data_summary))
-            row(getString(R.string.wp_rules), if (ruleCount >= 0) ruleCount.toString() else "…")
             row(getString(R.string.wp_transactions), if (txCount >= 0) txCount.toString() else "…")
             note(getString(R.string.wp_privacy_promise))
-        }
-        page.card {
-            header(getString(R.string.wp_automation_data))
-            row(getString(R.string.wp_delete_history)) {
-                confirm(R.string.wp_delete_history, R.string.wp_delete_history_message) {
-                    container.automationRepository.clearHistory()
-                }
-            }
-            row(getString(R.string.wp_delete_all_rules)) {
-                confirm(R.string.wp_delete_all_rules, R.string.wp_delete_all_rules_message) {
-                    container.automationRepository.deleteAll()
-                    container.coordinator.onRulesChanged()
-                }
-            }
         }
         page.card {
             header(getString(R.string.wp_ledger))

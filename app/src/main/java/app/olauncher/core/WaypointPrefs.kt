@@ -10,7 +10,7 @@ import app.olauncher.features.worldclock.domain.WorldClockEntry
 
 /**
  * Waypoint settings. Same SharedPreferences file as upstream [app.olauncher.data.Prefs] (already
- * loaded at start), keys prefixed `WP_`. Values used on the home path are read once and cached.
+ * loaded at start), keys prefixed `WP_`.
  */
 class WaypointPrefs(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app.olauncher", 0)
@@ -23,6 +23,8 @@ class WaypointPrefs(context: Context) {
     var worldClocks: List<WorldClockEntry>
         get() = WorldClockCodec.decode(prefs.getString(WORLD_CLOCKS, null))
         set(value) = prefs.edit { putString(WORLD_CLOCKS, WorldClockCodec.encode(value)) }
+
+    val worldClocksRaw: String? get() = prefs.getString(WORLD_CLOCKS, null)
 
     // ---- Appearance
     var launcherMonochrome: Boolean
@@ -37,10 +39,10 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(GLASS_THEME, false)
         set(value) = prefs.edit { putBoolean(GLASS_THEME, value) }
 
-    // ---- Gestures
+    // ---- Gestures (corner swipe is opt-in)
     var cornerSwipeEnabled: Boolean
-        get() = prefs.getBoolean(CORNER_ENABLED, true)
-        set(value) = prefs.edit { putBoolean(CORNER_ENABLED, value) }
+        get() = prefs.getBoolean(CORNER_ENABLED_V2, false)
+        set(value) = prefs.edit { putBoolean(CORNER_ENABLED_V2, value) }
 
     var cornerSwipeCorner: Corner
         get() = if (prefs.getString(CORNER_SIDE, "end") == "start") Corner.TOP_START else Corner.TOP_END
@@ -50,27 +52,10 @@ class WaypointPrefs(context: Context) {
         get() = GestureAction.decode(prefs.getString(CORNER_ACTION, null))
         set(value) = prefs.edit { putString(CORNER_ACTION, GestureAction.encode(value)) }
 
-    /** Distance multiplier: 0 = sensitive (48dp), 1 = normal (64dp), 2 = firm (88dp). */
+    /** 0 = sensitive (48dp), 1 = normal (64dp), 2 = firm (88dp). */
     var cornerSensitivity: Int
         get() = prefs.getInt(CORNER_SENSITIVITY, 1).coerceIn(0, 2)
         set(value) = prefs.edit { putInt(CORNER_SENSITIVITY, value.coerceIn(0, 2)) }
-
-    // ---- Automation (cached counts keep the engine and DB off the home path when unused)
-    var enabledRuleCount: Int
-        get() = prefs.getInt(ENABLED_RULES, 0)
-        set(value) = prefs.edit { putInt(ENABLED_RULES, value) }
-
-    var enabledRuleTypes: Set<String>
-        get() = prefs.getStringSet(ENABLED_RULE_TYPES, emptySet()).orEmpty().toSet()
-        set(value) = prefs.edit { putStringSet(ENABLED_RULE_TYPES, value) }
-
-    var scheduledAlarmAt: Long
-        get() = prefs.getLong(ALARM_AT, 0L)
-        set(value) = prefs.edit { putLong(ALARM_AT, value) }
-
-    var scheduledAlarmRules: Set<String>
-        get() = prefs.getStringSet(ALARM_RULES, emptySet()).orEmpty().toSet()
-        set(value) = prefs.edit { putStringSet(ALARM_RULES, value) }
 
     // ---- Notification capture / ledger
     var ledgerCaptureEnabled: Boolean
@@ -81,13 +66,22 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getStringSet(CAPTURE_PACKAGES, emptySet()).orEmpty().toSet()
         set(value) = prefs.edit { putStringSet(CAPTURE_PACKAGES, value) }
 
-    /** Packages watched by enabled notification rules (kept in sync on rule CRUD). */
-    var rulePackages: Set<String>
-        get() = prefs.getStringSet(RULE_PACKAGES, emptySet()).orEmpty().toSet()
-        set(value) = prefs.edit { putStringSet(RULE_PACKAGES, value) }
-
     fun registerListener(l: SharedPreferences.OnSharedPreferenceChangeListener) = prefs.registerOnSharedPreferenceChangeListener(l)
     fun unregisterListener(l: SharedPreferences.OnSharedPreferenceChangeListener) = prefs.unregisterOnSharedPreferenceChangeListener(l)
+
+    /**
+     * One-time fixes for earlier builds: the corner zone used to reach the very top edge when the status bar
+     * was hidden, so pulling down notifications could silently turn on monochrome (which hides the wallpaper).
+     * Also drops keys of the removed automation feature.
+     */
+    fun migrate() {
+        if (prefs.getInt(MIGRATION, 0) >= 2) return
+        prefs.edit {
+            putBoolean(MONOCHROME, false)
+            OBSOLETE_KEYS.forEach { remove(it) }
+            putInt(MIGRATION, 2)
+        }
+    }
 
     companion object {
         const val WORLD_CLOCKS_ON_HOME = "WP_WORLD_CLOCKS_ON_HOME"
@@ -95,16 +89,16 @@ class WaypointPrefs(context: Context) {
         const val MONOCHROME = "WP_MONOCHROME"
         const val OLED_BLACK = "WP_OLED_BLACK"
         const val GLASS_THEME = "WP_GLASS_THEME"
-        const val CORNER_ENABLED = "WP_CORNER_ENABLED"
+        const val CORNER_ENABLED_V2 = "WP_CORNER_ENABLED_V2"
         const val CORNER_SIDE = "WP_CORNER_SIDE"
         const val CORNER_ACTION = "WP_CORNER_ACTION"
         const val CORNER_SENSITIVITY = "WP_CORNER_SENSITIVITY"
-        const val ENABLED_RULES = "WP_ENABLED_RULES"
-        const val ENABLED_RULE_TYPES = "WP_ENABLED_RULE_TYPES"
-        const val ALARM_AT = "WP_ALARM_AT"
-        const val ALARM_RULES = "WP_ALARM_RULES"
         const val LEDGER_CAPTURE = "WP_LEDGER_CAPTURE"
         const val CAPTURE_PACKAGES = "WP_CAPTURE_PACKAGES"
-        const val RULE_PACKAGES = "WP_RULE_PACKAGES"
+        private const val MIGRATION = "WP_MIGRATION"
+        private const val CORNER_ENABLED_V1 = "WP_CORNER_ENABLED"
+        private val OBSOLETE_KEYS = listOf(
+            CORNER_ENABLED_V1, "WP_ENABLED_RULES", "WP_ENABLED_RULE_TYPES", "WP_ALARM_AT", "WP_ALARM_RULES", "WP_RULE_PACKAGES",
+        )
     }
 }

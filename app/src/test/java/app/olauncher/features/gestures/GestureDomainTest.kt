@@ -65,12 +65,13 @@ class GestureDomainTest {
             GestureAction.ToggleLauncherMonochrome,
             GestureAction.ToggleSystemGrayscale,
             GestureAction.OpenWorldClockPanel,
-            GestureAction.FireAutomationEvent("corner_swipe"),
             GestureAction.None,
         )
         all.forEach { assertEquals(it, GestureAction.decode(GestureAction.encode(it))) }
         assertEquals(GestureAction.None, GestureAction.decode("open_app:broken", GestureAction.None))
         assertEquals(GestureAction.ToggleLauncherMonochrome, GestureAction.decode(null))
         assertEquals(GestureAction.ToggleLauncherMonochrome, GestureAction.decode("what"))
+        // Removed automation action from older builds decodes to the fallback
+        assertEquals(GestureAction.None, GestureAction.decode("fire_event:corner_swipe", GestureAction.None))
     }
 }

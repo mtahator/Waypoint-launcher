@@ -13,7 +13,6 @@ import app.olauncher.core.ui.WpPageFragment
 import app.olauncher.core.ui.chooseOne
 import app.olauncher.core.ui.pickApp
 import app.olauncher.features.appearance.ui.GlassStyler
-import app.olauncher.features.gestures.domain.CORNER_GESTURE_EVENT_KEY
 import app.olauncher.features.gestures.domain.Corner
 import app.olauncher.features.gestures.domain.CornerGestureRecognizer
 import app.olauncher.features.gestures.domain.GestureAction
@@ -66,7 +65,6 @@ class GestureSettingsFragment : WpPageFragment() {
         GestureAction.ToggleLauncherMonochrome -> getString(R.string.wp_action_toggle_monochrome)
         GestureAction.ToggleSystemGrayscale -> getString(R.string.wp_action_toggle_grayscale)
         GestureAction.OpenWorldClockPanel -> getString(R.string.wp_open_world_clock)
-        is GestureAction.FireAutomationEvent -> getString(R.string.wp_action_run_automations)
         GestureAction.None -> getString(R.string.wp_action_none)
     }
 
@@ -81,9 +79,6 @@ class GestureSettingsFragment : WpPageFragment() {
             getString(R.string.wp_action_toggle_monochrome) to { prefs.cornerSwipeAction = GestureAction.ToggleLauncherMonochrome; rebuild() },
             getString(R.string.wp_action_toggle_grayscale) to { prefs.cornerSwipeAction = GestureAction.ToggleSystemGrayscale; rebuild() },
             getString(R.string.wp_open_world_clock) to { prefs.cornerSwipeAction = GestureAction.OpenWorldClockPanel; rebuild() },
-            getString(R.string.wp_action_run_automations) to {
-                prefs.cornerSwipeAction = GestureAction.FireAutomationEvent(CORNER_GESTURE_EVENT_KEY); rebuild()
-            },
             getString(R.string.wp_action_open_app) to {
                 requireContext().pickApp(this) { app ->
                     prefs.cornerSwipeAction = GestureAction.OpenApp(app.packageName, app.userSerial)
@@ -103,7 +98,7 @@ class GestureSettingsFragment : WpPageFragment() {
         val density = resources.displayMetrics.density
         val area = FrameLayout(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (220 * density).toInt())
-            background = GlassStyler.drawable(ctx, GlassStyler.Surface.FIELD, 24f)
+            background = GlassStyler.card(ctx)
             contentDescription = getString(R.string.wp_try_it_description)
         }
         val label = TextView(ctx, null, 0, R.style.TextSmall).apply {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- World clock slider: fixed heights keep the home app list from moving -->
+    <dimen name="wp_world_clock_page_height">60dp</dimen>
+    <dimen name="wp_world_clock_dots_height">14dp</dimen>
+    <dimen name="wp_world_clock_reserved">96dp</dimen>
+</resources>

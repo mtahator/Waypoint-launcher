@@ -15,6 +15,7 @@ import app.olauncher.R
 import app.olauncher.core.AppContainer
 import app.olauncher.core.waypoint
 import app.olauncher.databinding.FragmentWpPageBinding
+import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.ui.BaseFragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -42,6 +43,15 @@ abstract class WpPageFragment : BaseFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.pageTitle.setText(pageTitle)
+        if (container.prefs.glassTheme) {
+            GlassStyler.clearPageBackground(binding.pageRoot)
+            GlassStyler.styleClock(binding.pageTitle)
+            binding.pageTitle.isAllCaps = true
+            binding.pageTitle.textSize = 30f
+            GlassStyler.styleCaption(binding.pageSubtitle)
+            binding.pageSubtitle.textSize = 11f
+            binding.pageSubtitle.setLineSpacing(0f, 1.25f)
+        }
         if (pageSubtitle != 0) {
             binding.pageSubtitle.setText(pageSubtitle)
             binding.pageSubtitle.isVisible = true

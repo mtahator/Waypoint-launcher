@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(prefs.appTheme)
         super.onCreate(savedInstanceState)
         if (prefs.boldFont) theme.applyStyle(R.style.BoldFontOverlay, true)
+        if (waypoint.prefs.glassTheme) theme.applyStyle(R.style.GlassOverlay, true)
         if (isEinkDisplay() || isSystemAnimationsDisabled()) theme.applyStyle(R.style.NoAnimationOverlay, true)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -91,12 +92,6 @@ class MainActivity : AppCompatActivity() {
         navController = this.findNavController(R.id.nav_host_fragment)
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         waypoint.appearance.apply(this)
-        if (waypoint.prefs.glassTheme) {
-            // Glass: real blur of the wallpaper behind the drawer and settings (Android 12+), none on Home.
-            navController.addOnDestinationChangedListener { _, destination, _ ->
-                GlassStyler.setWindowBlur(window, destination.id != R.id.mainFragment)
-            }
-        }
 
         val onBackPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
@@ -142,6 +137,8 @@ class MainActivity : AppCompatActivity() {
         restartLauncherOrCheckTheme()
         waypoint.appearance.apply(this)
         waypoint.prefs.registerListener(appearanceListener)
+        // Glass: follow the system turning blur on/off (battery saver, developer option)
+        if (waypoint.prefs.glassTheme) GlassStyler.watchBlurAvailability(window) { waypoint.appearance.apply(this) }
     }
 
     override fun onResume() {
@@ -183,6 +180,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         waypoint.prefs.unregisterListener(appearanceListener)
+        GlassStyler.unwatchBlurAvailability(window)
         isResumed = false
         backToHomeScreen()
         super.onStop()

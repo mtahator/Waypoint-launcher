@@ -18,14 +18,7 @@
     <!--Used for Private Space support on Android 15+-->
     <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
 
-    <!-- Waypoint. Each is requested just in time and only used by a feature the user enabled. -->
-    <!-- Automation notifications (Android 13+ runtime permission) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Re-arm the single time-trigger alarm; the receiver stays disabled unless a time rule exists -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Only for rules the user marks "precise"; otherwise inexact alarms are used -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- Never requested at runtime: the user may grant it over ADB for advanced system grayscale -->
+    <!-- Waypoint: never requested at runtime; the user may grant it over ADB for advanced system grayscale -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -114,24 +107,6 @@
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
         </service>
-
-        <!-- Waypoint: automation time trigger (single alarm) -->
-        <receiver
-            android:name=".features.automation.platform.TimeTriggerReceiver"
-            android:exported="false" />
-
-        <!-- Waypoint: re-arm alarm after boot/update/time change. Enabled only while time rules exist. -->
-        <receiver
-            android:name=".features.automation.platform.RescheduleReceiver"
-            android:enabled="false"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-            </intent-filter>
-        </receiver>
 
         <!-- Waypoint: notification capture for user-selected apps only -->
         <service

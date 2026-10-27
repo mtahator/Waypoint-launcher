@@ -145,17 +145,6 @@
                     android:gravity="center_vertical"
                     android:text="@string/wp_appearance" />
 
-                <TextView
-                    android:id="@+id/wpAutomations"
-                    style="@style/TextSmall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:focusable="true"
-                    android:minHeight="48dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/wp_automations" />
 
                 <TextView
                     android:id="@+id/wpNotifications"

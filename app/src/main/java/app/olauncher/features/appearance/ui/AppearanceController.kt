@@ -8,8 +8,8 @@ import app.olauncher.features.appearance.domain.AppearanceState
 import app.olauncher.helper.isDarkThemeOn
 
 /**
- * Launcher monochrome / OLED black. A toggle is a flag write plus one window flag + background
- * swap: no activity recreation, no offscreen layers, no ColorMatrix.
+ * Window look: wallpaper (optionally blurred by Glass) or, for monochrome / OLED black, an opaque
+ * neutral background. A toggle is one window flag + background swap: no recreation, no GPU filters.
  */
 class AppearanceController(private val prefs: WaypointPrefs) {
 
@@ -18,8 +18,13 @@ class AppearanceController(private val prefs: WaypointPrefs) {
         val window = activity.window
         if (state.showWallpaper) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
-            window.setBackgroundDrawable(ColorDrawable(AppearanceState.TRANSPARENT))
+            if (prefs.glassTheme) GlassStyler.applyWindow(window)
+            else {
+                GlassStyler.clearWindow(window)
+                window.setBackgroundDrawable(ColorDrawable(AppearanceState.TRANSPARENT))
+            }
         } else {
+            GlassStyler.clearWindow(window)
             window.clearFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
             window.setBackgroundDrawable(ColorDrawable(state.backgroundArgb))
         }

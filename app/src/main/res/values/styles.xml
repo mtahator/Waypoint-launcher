@@ -58,6 +58,11 @@
         <item name="mainFontFamily">sans-serif</item>
     </style>
 
+    <!-- Waypoint Glass: text sits on a blurred wallpaper, so drop the legibility shadow everywhere -->
+    <style name="GlassOverlay">
+        <item name="primaryTextShadowColor">@android:color/transparent</item>
+    </style>
+
     <style name="WindowAnimationTransition">
         <item name="android:windowEnterAnimation">@android:anim/fade_in</item>
         <item name="android:windowExitAnimation">@android:anim/fade_out</item>

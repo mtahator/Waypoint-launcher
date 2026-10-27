@@ -88,10 +88,13 @@ class HomeGestureCoordinator(
         }
         val insets = ViewCompat.getRootWindowInsets(view)
         val gestures = insets?.getInsets(WindowInsetsCompat.Type.systemGestures())
-        val status = insets?.getInsets(WindowInsetsCompat.Type.statusBars())
+        // Status bar height even while it is hidden (upstream hides it by default): a pull-down from the very
+        // top edge is always the notification shade, never a corner swipe.
+        val status = insets?.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.statusBars())
+        val minTop = (MIN_TOP_DP * context.resources.displayMetrics.density).toInt()
         val safe = SafeInsets(
             left = gestures?.left ?: 0,
-            top = maxOf(gestures?.top ?: 0, status?.top ?: 0),
+            top = maxOf(gestures?.top ?: 0, status?.top ?: 0) + minTop,
             right = gestures?.right ?: 0,
         )
         val isRtl = view.layoutDirection == View.LAYOUT_DIRECTION_RTL
@@ -102,6 +105,8 @@ class HomeGestureCoordinator(
 
     companion object {
         private val MIN_DISTANCE_DP = floatArrayOf(48f, 64f, 88f)
+        /** Extra gap below the status bar before the corner zone starts. */
+        private const val MIN_TOP_DP = 24f
 
         fun recognizerFor(context: Context, sensitivity: Int): CornerGestureRecognizer {
             val d = context.resources.displayMetrics.density

@@ -73,18 +73,6 @@
         android:name="app.olauncher.features.appearance.ui.AppearanceSettingsFragment"
         tools:layout="@layout/fragment_wp_page" />
     <fragment
-        android:id="@+id/automationListFragment"
-        android:name="app.olauncher.features.automation.ui.AutomationListFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
-        android:id="@+id/ruleBuilderFragment"
-        android:name="app.olauncher.features.automation.ui.RuleBuilderFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
-        android:id="@+id/ruleDetailsFragment"
-        android:name="app.olauncher.features.automation.ui.RuleDetailsFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
         android:id="@+id/notificationAccessFragment"
         android:name="app.olauncher.features.notifications.ui.NotificationAccessFragment"
         tools:layout="@layout/fragment_wp_page" />

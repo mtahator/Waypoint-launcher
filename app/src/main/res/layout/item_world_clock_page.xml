@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One page of the home world clock slider -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/wcPage"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="vertical"
+    android:paddingHorizontal="3dp">
+
+    <LinearLayout
+        android:id="@+id/wcTimeRow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="true"
+        android:orientation="horizontal">
+
+        <TextClock
+            android:id="@+id/wcTime"
+            style="@style/TextDefault"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-light"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:includeFontPadding="false"
+            android:textSize="26sp"
+            tools:text="06:34" />
+
+        <TextView
+            android:id="@+id/wcOffset"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:alpha="0.7"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="+1 day"
+            tools:visibility="visible" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/wcLabel"
+        style="@style/TextSmall"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textSize="13sp"
+        tools:text="Tokyo" />
+</LinearLayout>

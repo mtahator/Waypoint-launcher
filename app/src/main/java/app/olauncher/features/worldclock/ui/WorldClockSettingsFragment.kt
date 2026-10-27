@@ -51,7 +51,7 @@ class WorldClockSettingsFragment : WpPageFragment() {
                 val subtitle = if (zone == null) getString(R.string.wp_unknown_zone_remove) else {
                     val days = DayOffset.daysBetween(e.zoneId, now, ZoneId.systemDefault()) ?: 0
                     val time = timeFormat.format(now.atZone(zone))
-                    listOfNotNull(e.zoneId, time, if (days != 0) WorldClockRowsBinder.formatOffset(requireContext(), days) else null)
+                    listOfNotNull(e.zoneId, time, if (days != 0) WorldClockSlider.formatOffset(requireContext(), days) else null)
                         .joinToString(" · ")
                 }
                 row(e.label, subtitle = subtitle) { showEntryMenu(index, e.label, entries.size) }

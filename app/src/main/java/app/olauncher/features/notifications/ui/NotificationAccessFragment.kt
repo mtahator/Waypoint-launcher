@@ -9,7 +9,7 @@ import app.olauncher.core.ui.PageBuilder
 import app.olauncher.core.ui.WpPageFragment
 import app.olauncher.core.ui.openPage
 import app.olauncher.core.ui.pickApps
-import app.olauncher.features.automation.ui.AutomationText
+import app.olauncher.core.ui.appLabel
 import app.olauncher.features.notifications.platform.NotificationAccessStatus
 import app.olauncher.features.notifications.platform.NotificationCaptureService
 
@@ -20,7 +20,7 @@ class NotificationAccessFragment : WpPageFragment() {
     override fun onResume() {
         super.onResume()
         rebuild() // access may have changed in system settings
-        container.coordinator.updateListenerBinding()
+        container.capture.updateListenerBinding()
     }
 
     override fun build(page: PageBuilder) {
@@ -56,17 +56,17 @@ class NotificationAccessFragment : WpPageFragment() {
             header(getString(R.string.wp_ledger_capture))
             toggle(getString(R.string.wp_save_transactions), prefs.ledgerCaptureEnabled, getString(R.string.wp_save_transactions_hint)) {
                 prefs.ledgerCaptureEnabled = it
-                container.coordinator.updateListenerBinding()
+                container.capture.updateListenerBinding()
             }
             val selected = prefs.capturePackages
             row(
                 getString(R.string.wp_source_apps),
                 value = selected.size.toString(),
-                subtitle = selected.joinToString(", ") { AutomationText.appLabel(ctx, it) }.ifEmpty { getString(R.string.wp_none_selected) },
+                subtitle = selected.joinToString(", ") { ctx.appLabel(it) }.ifEmpty { getString(R.string.wp_none_selected) },
             ) {
                 ctx.pickApps(this@NotificationAccessFragment, selected) {
                     prefs.capturePackages = it
-                    container.coordinator.updateListenerBinding()
+                    container.capture.updateListenerBinding()
                     rebuild()
                 }
             }

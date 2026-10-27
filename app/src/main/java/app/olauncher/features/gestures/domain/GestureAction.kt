@@ -6,7 +6,6 @@ sealed interface GestureAction {
     data object ToggleLauncherMonochrome : GestureAction
     data object ToggleSystemGrayscale : GestureAction
     data object OpenWorldClockPanel : GestureAction
-    data class FireAutomationEvent(val eventKey: String) : GestureAction
     data object None : GestureAction
 
     companion object {
@@ -15,7 +14,6 @@ sealed interface GestureAction {
             ToggleLauncherMonochrome -> "toggle_monochrome"
             ToggleSystemGrayscale -> "toggle_system_grayscale"
             OpenWorldClockPanel -> "open_world_clock"
-            is FireAutomationEvent -> "fire_event:${action.eventKey}"
             None -> "none"
         }
 
@@ -27,8 +25,6 @@ sealed interface GestureAction {
                 raw == "toggle_system_grayscale" -> ToggleSystemGrayscale
                 raw == "open_world_clock" -> OpenWorldClockPanel
                 raw == "none" -> None
-                raw.startsWith("fire_event:") -> raw.removePrefix("fire_event:")
-                    .takeIf { it.isNotBlank() }?.let { FireAutomationEvent(it) } ?: fallback
                 raw.startsWith("open_app:") -> {
                     val parts = raw.removePrefix("open_app:").split(':')
                     val user = parts.getOrNull(1)?.toLongOrNull()
@@ -39,6 +35,3 @@ sealed interface GestureAction {
         }
     }
 }
-
-/** Event key emitted by the corner swipe so automation rules can listen to it. */
-const val CORNER_GESTURE_EVENT_KEY = "corner_swipe"

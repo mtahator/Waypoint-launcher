@@ -45,18 +45,14 @@ import app.olauncher.helper.showToast
 import app.olauncher.listener.OnSwipeTouchListener
 import app.olauncher.listener.ViewSwipeTouchListener
 import android.os.UserManager
-import androidx.core.view.children
-import androidx.core.view.doOnLayout
 import androidx.core.view.updatePadding
 import app.olauncher.core.ui.openPage
 import app.olauncher.core.waypoint
 import app.olauncher.features.appearance.ui.GlassStyler
-import app.olauncher.features.automation.domain.AppEventType
-import app.olauncher.features.automation.domain.AutomationEvent
-import app.olauncher.features.automation.platform.HomeVisibility
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.gestures.ui.HomeGestureCoordinator
-import app.olauncher.features.worldclock.ui.WorldClockRowsBinder
+import app.olauncher.features.worldclock.ui.WorldClockSlider
+import android.util.TypedValue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -72,9 +68,10 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     // Waypoint
     private val wp get() = requireContext().waypoint
-    private var worldClocks: WorldClockRowsBinder? = null
+    private var worldClocks: WorldClockSlider? = null
     private var glass = false
     private var baseAppsPaddingTop = 0
+    private var alignment = Gravity.START
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -91,7 +88,10 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         deviceManager = context?.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         glass = wp.prefs.glassTheme
         baseAppsPaddingTop = binding.homeAppsLayout.paddingTop
-        worldClocks = WorldClockRowsBinder(binding.worldClockLayout) { openPage(R.id.worldClockPanelFragment) }
+        worldClocks = WorldClockSlider(binding.worldClockLayout, binding.worldClockPager, binding.worldClockDots) {
+            openPage(R.id.worldClockPanelFragment)
+        }
+        if (glass) applyGlass()
 
         initObservers()
         setHomeAlignment(prefs.homeAlignment)
@@ -101,7 +101,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     override fun onStart() {
         super.onStart()
-        worldClocks?.onStart(requireContext())
+        worldClocks?.onStart()
     }
 
     override fun onResume() {
@@ -110,18 +110,10 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         viewModel.isOlauncherDefault()
         if (prefs.showStatusBar) showStatusBar()
         else hideStatusBar()
-        HomeVisibility.isResumed = true
-        // No-op (no engine, no DB) unless an enabled rule listens for it
-        wp.fire(AutomationEvent.App(AppEventType.LAUNCHER_OPENED, System.currentTimeMillis()))
-    }
-
-    override fun onPause() {
-        HomeVisibility.isResumed = false
-        super.onPause()
     }
 
     override fun onStop() {
-        worldClocks?.onStop(requireContext())
+        worldClocks?.onStop()
         super.onStop()
     }
 
@@ -301,7 +293,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         binding.homeAppsLayout.gravity = horizontalGravity or verticalGravity
         binding.dateTimeLayout.gravity = horizontalGravity
         binding.worldClockLayout.gravity = horizontalGravity
-        if (glass) applyGlass(horizontalGravity)
+        alignment = horizontalGravity
+        if (_binding != null && worldClocks != null) populateWorldClocks()
         binding.homeApp1.gravity = horizontalGravity
         binding.homeApp2.gravity = horizontalGravity
         binding.homeApp3.gravity = horizontalGravity
@@ -767,33 +760,28 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     // ---- Waypoint
 
+    /**
+     * World clock slider under the date. Binding is skipped when nothing changed, and in portrait the app
+     * list gets a fixed extra top offset while the slider is shown, so apps never jump between visits.
+     */
     private fun populateWorldClocks() {
-        val binder = worldClocks ?: return
-        val entries = if (wp.prefs.worldClocksOnHome && prefs.dateTimeVisibility != Constants.DateTime.OFF) wp.prefs.worldClocks else emptyList()
-        binder.bind(entries, prefs.homeAlignment) { if (glass) it.setShadowLayer(0f, 0f, 0f, 0) }
-        if (glass) binding.worldClockLayout.children.forEach { row ->
-            (row as? ViewGroup)?.children?.forEach { (it as? TextView)?.setShadowLayer(0f, 0f, 0f, 0) }
-        }
-        binder.onStart(requireContext())
-        // Never squeeze the app list: in portrait, push it below the clock block while world clocks are shown.
+        val slider = worldClocks ?: return
+        val onHome = wp.prefs.worldClocksOnHome && prefs.dateTimeVisibility != Constants.DateTime.OFF
+        val entries = if (onHome) wp.prefs.worldClocks else emptyList()
+        val visible = slider.bind(entries, alignment, glass, wp.prefs.worldClocksRaw.orEmpty())
+        slider.onStart()
         val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-        if (entries.isEmpty() || !portrait) {
-            binding.homeAppsLayout.updatePadding(top = baseAppsPaddingTop)
-            return
-        }
-        binding.dateTimeLayout.doOnLayout {
-            val b = _binding ?: return@doOnLayout
-            val needed = b.dateTimeLayout.bottom + 16.dpToPx()
-            b.homeAppsLayout.updatePadding(top = maxOf(baseAppsPaddingTop, needed))
-        }
+        val top = if (visible && portrait) baseAppsPaddingTop + resources.getDimensionPixelSize(R.dimen.wp_world_clock_reserved)
+        else baseAppsPaddingTop
+        if (binding.homeAppsLayout.paddingTop != top) binding.homeAppsLayout.updatePadding(top = top)
     }
 
     private fun onCornerSwipe() {
         when (val action = wp.prefs.cornerSwipeAction) {
             GestureAction.ToggleLauncherMonochrome -> {
-                wp.appearance.toggleMonochrome()
+                val on = wp.appearance.toggleMonochrome()
                 wp.appearance.apply(requireActivity())
-                wp.fire(AutomationEvent.App(AppEventType.MONOCHROME_CHANGED, System.currentTimeMillis()))
+                requireContext().showToast(getString(if (on) R.string.wp_monochrome_on_toast else R.string.wp_monochrome_off_toast))
             }
             GestureAction.ToggleSystemGrayscale -> {
                 if (!wp.grayscale.isAvailable()) {
@@ -802,7 +790,6 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
                 } else wp.grayscale.toggle()
             }
             GestureAction.OpenWorldClockPanel -> openPage(R.id.worldClockPanelFragment)
-            is GestureAction.FireAutomationEvent -> wp.fire(AutomationEvent.Gesture(action.eventKey, System.currentTimeMillis()))
             is GestureAction.OpenApp -> {
                 val user = requireContext().getSystemService(UserManager::class.java).getUserForSerialNumber(action.userHandleId)
                 val activity = user?.let {
@@ -821,29 +808,23 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         }
     }
 
-    /** Glass theme: frosted pills behind every home text, hugging its content. */
-    private fun applyGlass(horizontalGravity: Int) {
-        val homeApps = listOf(
+    /** Glass: dot-matrix clock, monospaced captions with a red accent, crisp labels. Layout is untouched. */
+    private fun applyGlass() {
+        GlassStyler.styleClock(binding.clock)
+        binding.clock.setTextSize(TypedValue.COMPLEX_UNIT_PX, binding.clock.textSize * 1.25f)
+        GlassStyler.styleCaption(binding.date, accentDot = true)
+        listOf(
             binding.homeApp1, binding.homeApp2, binding.homeApp3, binding.homeApp4,
             binding.homeApp5, binding.homeApp6, binding.homeApp7, binding.homeApp8,
-        )
-        homeApps.forEach { GlassStyler.styleHomeText(it) }
-        (binding.dateTimeLayout.layoutParams as? FrameLayout.LayoutParams)?.let {
-            it.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            it.gravity = Gravity.TOP or horizontalGravity
-            binding.dateTimeLayout.layoutParams = it
-        }
-        GlassStyler.styleBlock(binding.dateTimeLayout)
-        binding.clock.setShadowLayer(0f, 0f, 0f, 0)
-        binding.date.setShadowLayer(0f, 0f, 0f, 0)
-        GlassStyler.styleHomeText(binding.tvScreenTime, 18f)
-        GlassStyler.styleHomeText(binding.setDefaultLauncher, 18f)
-        GlassStyler.styleHomeText(binding.firstRunTips, 18f)
+        ).forEach { GlassStyler.styleLabel(it) }
+        GlassStyler.styleCaption(binding.tvScreenTime)
+        GlassStyler.styleCaption(binding.setDefaultLauncher)
+        GlassStyler.styleCaption(binding.firstRunTips)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        worldClocks?.onStop(requireContext())
+        worldClocks?.onStop()
         worldClocks = null
         _binding = null
     }

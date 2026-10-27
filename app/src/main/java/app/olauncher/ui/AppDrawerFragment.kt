@@ -93,7 +93,8 @@ class AppDrawerFragment : BaseFragment() {
             e.printStackTrace()
         }
         if (requireContext().waypoint.prefs.glassTheme) {
-            // Waypoint glass: the search field becomes a frosted capsule over the blurred wallpaper
+            // Waypoint glass: the blurred window shows through; search becomes a hairline capsule
+            GlassStyler.clearPageBackground(binding.root)
             GlassStyler.styleField(binding.search)
             (binding.search.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
                 it.marginStart = (16 * resources.displayMetrics.density).toInt()

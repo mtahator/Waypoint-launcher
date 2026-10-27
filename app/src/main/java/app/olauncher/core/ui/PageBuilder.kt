@@ -53,18 +53,25 @@ class PageBuilder(private val container: LinearLayout) {
 
     fun card(build: PageBuilder.() -> Unit): LinearLayout {
         val card = inflater.inflate(R.layout.item_wp_card, container, false) as LinearLayout
-        if (glass) card.background = GlassStyler.drawable(context, GlassStyler.Surface.CARD, 28f)
+        if (glass) card.background = GlassStyler.card(context)
         container.addView(card)
         PageBuilder(card).build()
         return card
     }
 
-    fun header(text: CharSequence): TextView = TextView(context, null, 0, R.style.TextLarge).apply {
+    fun header(text: CharSequence): TextView = TextView(context, null, 0, if (glass) R.style.TextSmall else R.style.TextLarge).apply {
         this.text = text
         setShadowLayer(0f, 0f, 0f, 0)
-        textSize = 20f
+        if (glass) {
+            GlassStyler.styleCaption(this, accentDot = true)
+            textSize = 12f
+            alpha = 0.9f
+            setPaddingRelative(dp(8), dp(12), dp(8), dp(10))
+        } else {
+            textSize = 20f
+            setPaddingRelative(dp(8), dp(8), dp(8), dp(8))
+        }
         markHeading()
-        setPaddingRelative(dp(8), dp(8), dp(8), dp(8))
         container.addView(this)
     }
 
@@ -86,6 +93,10 @@ class PageBuilder(private val container: LinearLayout) {
         onClick: ((Row) -> Unit)? = null,
     ): Row {
         val b = ItemWpRowBinding.inflate(inflater, container, false)
+        if (glass) {
+            GlassStyler.styleCaption(b.rowValue)
+            b.rowValue.textSize = 13f
+        }
         val row = Row(b)
         row.title = title
         row.value = value
