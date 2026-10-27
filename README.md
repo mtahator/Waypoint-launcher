@@ -1,43 +1,64 @@
-![Olauncher](https://repository-images.githubusercontent.com/278638069/db0acb80-661b-11eb-803e-926cae5dccb4)
+# Waypoint
 
+A fast, text-only, distraction-free Android launcher with a near-zero idle battery footprint.
+Waypoint is based on [Olauncher](https://github.com/tanujnotes/Olauncher) by tanujnotes and is
+licensed under **GPL-3.0**.
 
-# Olauncher | Minimal AF Launcher
-AF stands for Ad-Free! :D
+## Download
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
-    alt="Get it on Play Store"
-    height="80" align="middle">](https://play.google.com/store/apps/details?id=app.olauncher)
-[<img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png"
-    alt="Get it on F-Droid"
-    height="80" align="middle">](https://f-droid.org/packages/app.olauncher)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroidButtonGreyBorder_nofont.png"
-    alt="Get it on IzzyOnDroid"
-    height="54" hspace="13" align="middle">](https://apt.izzysoft.de/packages/app.olauncher)
+**[apk/Waypoint.apk](apk/Waypoint.apk)**: built by CI from this branch (see `apk/BUILD_INFO.txt` for the
+commit and SHA-256). Open the file on your phone, allow installing from this source, then press Home and
+choose Waypoint.
 
-#### Install using [Play Store,](https://play.google.com/store/apps/details?id=app.olauncher) [F-Droid,](https://f-droid.org/packages/app.olauncher) [IzzyOnDroid](https://apt.izzysoft.de/packages/app.olauncher) or the [latest APK.](https://github.com/tanujnotes/Olauncher/releases/)
+> The APK is signed with a public *sideload* key so updates install over each other. It is not a
+> Play Store build. Waypoint installs side by side with Olauncher and does not import its settings.
 
-To maintain the simplicity of the launcher, a few niche features are available but hidden.
+## What's new compared to Olauncher
 
-Please check out the **[About](https://tanujnotes.substack.com/p/olauncher-minimal-af-launcher?utm_source=github)** page in the Olauncher settings for a complete list of features and **FAQs**.
+Everything is **off or idle until you use it**. A feature you never enable creates no objects, opens
+no database, registers no receivers and schedules no work.
 
-##
+| Feature | Where |
+|---|---|
+| **Glass theme**: frosted panels behind home text, the search field and settings cards; real wallpaper blur behind the drawer and settings on Android 12+ | Settings → Waypoint → Appearance |
+| **World clock**: up to 3 cities under the date (DST-correct, `+1 day` offsets), full panel, offline city search | Settings → Waypoint → World clock |
+| **Corner swipe**: from the top corner, swipe down/inward (default: toggle monochrome). Never starts in the system back/notification gesture areas | Settings → Waypoint → Gestures |
+| **Launcher monochrome & OLED black**: instant, no recreation, no GPU filters | Appearance |
+| **System grayscale**: guidance to Android's own options, plus an optional ADB-granted toggle | Appearance |
+| **Automations (If → Then)**: triggers (corner swipe, Home opened, monochrome changed, time, notification) + conditions + up to 5 whitelisted actions, run test, history | Settings → Waypoint → Automations |
+| **Notification capture → local ledger**: only from apps you pick; parsed fields only, never raw text | Notifications & ledger |
+| **CSV export**: preview, column choice, masked preview, save via the system file picker or share | Export CSV |
+| **Privacy & data**: counts of what's stored and one-tap deletion | Privacy & data |
 
-License: [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html)
+Upstream behaviour is preserved: swipe up for apps, swipe down for notifications, swipe left/right for
+apps, long-press for settings, double-tap to lock, 8 home apps, hidden apps, Private Space, and so on.
 
-Developer: [@tanujnotes](https://x.com/tanujnotes)
+## Honest limitations
+- **Time rules run *around* their time** (inexact alarms) unless you mark a rule *precise* and allow
+  exact alarms. Some manufacturers delay background work further. See [dontkillmyapp.com](https://dontkillmyapp.com).
+- **System grayscale** can't be switched by a normal app. The advanced toggle needs a one-time
+  `adb shell pm grant app.waypoint.launcher android.permission.WRITE_SECURE_SETTINGS` and may not work on every device.
+- **Sideloaded installs on Android 13+** can't grant notification access until you allow it in
+  App info → ⋮ → *Allow restricted settings*.
+- **Android 15+** may hide sensitive notification content (e.g. codes) from listeners; such records are marked *Needs review*.
+- Notification formats change without notice: anything ambiguous is marked *Needs review*, never guessed.
+- Glass blur needs Android 12+ and a device with cross-window blur enabled (off in battery saver). Older
+  devices get the frosted surfaces without blur.
+- Performance benchmarks have not been run on a device yet (see `docs/perf-baseline.md`).
 
-##
+## Build
 
-### Other apps from team Olauncher:
+```bash
+./gradlew testDebugUnitTest assembleRelease
+```
 
-- [Pro Launcher](https://play.google.com/store/apps/details?id=app.prolauncher) - Pro version of Olauncher with extra features like widgets, weather, folders, etc.
+See [docs/toolchain.md](docs/toolchain.md). The Kotlin namespace stays `app.olauncher` so upstream changes
+can still be merged.
 
-- [Note to Self](https://play.google.com/store/apps/details?id=com.makenotetoself) - Free and [open source](https://github.com/jeerovan/ntsapp) notes app with chat like interface and end-to-end encryption.
+## Docs
+[Upstream notes](docs/upstream-notes.md) · [Dependencies](docs/dependencies.md) · [CSV format](docs/csv-format.md) ·
+[Performance](docs/perf-baseline.md) · [Battery test](docs/battery-test.md) · [Device tests](docs/device-tests.md) ·
+[Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
-- [Pentastic](https://play.google.com/store/apps/details?id=app.pentastic) - Free and [open source](https://github.com/tanujnotes/Pentastic). A minimal tasks, notes and reminders app.
-
-- [Supernova](https://github.com/tanujnotes/Supernova) - Free and [open source](https://github.com/tanujnotes/Supernova) alternative of Nova Launcher.
-
-##
-
-Thank you!
+## License
+GPL-3.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Waypoint is based on Olauncher by tanujnotes.
