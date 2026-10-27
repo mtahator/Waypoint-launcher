@@ -19,9 +19,8 @@ Read before touching `HomeFragment`, `MainViewModel`, `Prefs`, `fragment_home.xm
 
 ## Background work
 - `WallpaperWorker` (WorkManager, periodic) only when the user turns on Daily wallpaper. Upstream already
-  defaults it to **off** (`DAILY_WALLPAPER` default `false`). **Deviation:** none needed for the default;
-  the worker is unchanged. Adding `UNMETERED` + `requiresBatteryNotLow()` constraints is tracked as a
-  follow-up (it touches `MainViewModel.setWallpaperWorker`).
+  defaults it to **off** (`DAILY_WALLPAPER` default `false`). **Deviation:** when on, the worker now
+  requires `NetworkType.UNMETERED` and `requiresBatteryNotLow()` (`MainViewModel.setWallpaperWorker`).
 - `MainActivity` restarts itself every 4 h on start and checks the theme; preserved.
 
 ## Permissions (upstream)

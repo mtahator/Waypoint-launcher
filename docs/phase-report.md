@@ -31,4 +31,3 @@ None run (see `perf-baseline.md`). Startup-path guarantees are by construction a
 - Revolut package id and real notification fixtures.
 - Left/right swipes still open apps only (upstream); mapping them to any `GestureAction` is not done.
 - Room replaced by platform SQLite (see `dependencies.md`): needs sign-off.
-- Wallpaper worker constraints (UNMETERED, battery-not-low) not yet added.

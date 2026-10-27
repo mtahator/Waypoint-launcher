@@ -418,8 +418,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setWallpaperWorker() {
+        // Waypoint: wallpaper downloads only on unmetered networks and when the battery isn't low
         val constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiredNetworkType(NetworkType.UNMETERED)
+            .setRequiresBatteryNotLow(true)
             .build()
         val uploadWorkRequest = PeriodicWorkRequestBuilder<WallpaperWorker>(4, TimeUnit.HOURS)
             .setBackoffCriteria(BackoffPolicy.LINEAR, 1, TimeUnit.HOURS)
