@@ -13,7 +13,7 @@
 - Phase 5: CSV export (preview, columns, SAF save, share, temp cleanup) and ADB-granted grayscale.
 
 ## Tests
-- 62 JVM unit tests (world clock, gestures, validator, conditions, time scheduling incl. DST, engine,
+- 65 JVM unit tests (world clock, gestures, appearance, validator, conditions, time scheduling incl. DST, engine,
   JSON mapper, parser, money, dedup, CSV). All green locally and in CI (`testDebugUnitTest`).
 - Not yet: Robolectric/instrumented integration tests, SQLite migration tests, logcat privacy test.
 
