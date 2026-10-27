@@ -17,7 +17,8 @@ adb shell cmd package set-home-activity "$PKG/app.olauncher.MainActivity" || tru
 adb shell settings put global window_animation_scale 0
 adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
-home; sleep 3
+# First open: upstream may show the default-apps screen once; return Home after it settles.
+home; sleep 4; home; sleep 2
 shot 01-home
 
 # Drawer
