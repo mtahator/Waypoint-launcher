@@ -126,7 +126,7 @@ class AppDrawerFragment : BaseFragment() {
             }
             searchTextView?.setShadowLayer(0f, 0f, 0f, 0)
             GlassStyler.styleCaption(binding.geminiTitle, accentDot = true)
-            GlassStyler.styleCaption(binding.quickAnswerDetail, accentDot = true)
+            GlassStyler.styleCaption(binding.quickAnswerDetail)
             GlassStyler.styleCaption(binding.geminiCancel)
             GlassStyler.styleCaption(binding.geminiCount)
             binding.geminiInput.background = GlassStyler.card(requireContext(), 22f)
@@ -248,7 +248,8 @@ class AppDrawerFragment : BaseFragment() {
         binding.search.setQuery("", false)
         binding.searchRow.isVisible = false
         binding.quickAnswer.isVisible = false
-        binding.recyclerView.isVisible = false
+        // INVISIBLE keeps the list's weight, so the composer stays at the top, above the keyboard
+        binding.recyclerView.visibility = View.INVISIBLE
         binding.geminiComposer.isVisible = true
         composerBack.isEnabled = true
         binding.geminiInput.setText(initial)
@@ -262,7 +263,7 @@ class AppDrawerFragment : BaseFragment() {
         binding.geminiInput.text = null
         binding.geminiComposer.isVisible = false
         binding.searchRow.isVisible = true
-        binding.recyclerView.isVisible = true
+        binding.recyclerView.visibility = View.VISIBLE
         if (showKeyboard) binding.search.showKeyboard() else binding.geminiInput.hideKeyboard()
     }
 

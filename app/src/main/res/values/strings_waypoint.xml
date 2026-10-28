@@ -158,7 +158,7 @@
     <string name="wp_gemini_hint">Ask anything. Paragraphs welcome.</string>
     <string name="wp_send_to_gemini">Send ↗</string>
     <string name="wp_cancel">Cancel</string>
-    <string name="wp_search_hint">Search · ? Gemini · 12×3</string>
+    <string name="wp_search_hint">Search  ·  ? Gemini</string>
     <string name="wp_copied">Copied %1$s</string>
     <string name="wp_tap_copy_short">Tap to copy</string>
     <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>

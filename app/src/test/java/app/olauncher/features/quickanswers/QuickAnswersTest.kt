@@ -48,7 +48,8 @@ class QuickAnswersTest {
         assertEquals(37.7778, UnitConverter.convert("100 f to c")!!.value, 1e-3)
         assertEquals(5.51156, UnitConverter.convert("2.5 kg in lb")!!.value, 1e-4)
         assertNull(UnitConverter.convert("5 km to kg"))
-        assertEquals("3.106855961 mi", QuickAnswers.answer("5 km to mi")!!.value)
+        assertEquals("3.10686 mi", QuickAnswers.answer("5 km to mi")!!.value)
+        assertEquals("= 12×3+4", QuickAnswers.answer("12x3+4")!!.detail)
     }
 
     @Test fun timeInCity() {
