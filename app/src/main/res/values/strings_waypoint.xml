@@ -154,6 +154,8 @@
     <string name="wp_unknown_zone_remove">Unknown zone. This time zone no longer exists on this device; you can remove it.</string>
     <string name="wp_waypoint_section">Waypoint</string>
     <string name="wp_world_clock">World clock</string>
+    <string name="wp_ask_gemini">Ask Gemini</string>
+    <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
     <string name="wp_home_layout">Home layout</string>
     <string name="wp_alignment">Alignment</string>

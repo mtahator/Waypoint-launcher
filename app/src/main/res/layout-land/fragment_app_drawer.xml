@@ -49,6 +49,19 @@
             android:textAllCaps="true"
             android:visibility="gone" />
 
+        <!-- Waypoint: "?question" in search hands the question to Gemini -->
+        <TextView
+            android:id="@+id/askGemini"
+            style="@style/TextSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginEnd="20dp"
+            android:paddingVertical="@dimen/app_padding_vertical"
+            android:text="@string/wp_ask_gemini"
+            android:textAllCaps="true"
+            android:visibility="gone" />
+
     </LinearLayout>
 
     <Space

@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.text.Spannable
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,6 +14,7 @@ import android.view.inputmethod.BaseInputConnection
 import android.view.inputmethod.InputMethodManager
 import android.widget.TextView
 import androidx.appcompat.widget.SearchView
+import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -37,6 +39,8 @@ import app.olauncher.helper.showToast
 import app.olauncher.helper.uninstall
 import app.olauncher.core.waypoint
 import app.olauncher.features.appearance.ui.GlassStyler
+import app.olauncher.features.assistant.domain.AskCommand
+import app.olauncher.features.assistant.platform.GeminiHandoff
 
 class AppDrawerFragment : BaseFragment() {
 
@@ -88,7 +92,8 @@ class AppDrawerFragment : BaseFragment() {
             binding.search.queryHint = "Please select an app"
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
-            searchTextView?.gravity = prefs.appLabelAlignment
+            searchTextView?.textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+            updateSearchGravity("")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -101,12 +106,17 @@ class AppDrawerFragment : BaseFragment() {
                 binding.search.layoutParams = it
             }
             searchTextView?.setShadowLayer(0f, 0f, 0f, 0)
+            GlassStyler.styleCaption(binding.askGemini, accentDot = true)
         }
     }
 
     private fun initSearch() {
         binding.search.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
+                if (AskCommand.isCommand(query)) {
+                    askGemini(query)
+                    return true
+                }
                 if (query?.startsWith("!") == true)
                     requireContext().openUrl(Constants.URL_DUCK_SEARCH + query.replace(" ", "%20"))
                 else if (adapter.itemCount == 0)
@@ -118,10 +128,13 @@ class AppDrawerFragment : BaseFragment() {
 
             override fun onQueryTextChange(newText: String): Boolean {
                 try {
-                    adapter.allowAutoLaunch = !isSearchComposing()
+                    updateSearchGravity(newText)
+                    val asking = AskCommand.isCommand(newText)
+                    binding.askGemini.isVisible = asking
+                    adapter.allowAutoLaunch = !asking && !isSearchComposing()
                     adapter.filter.filter(newText)
                     binding.appRename.visibility =
-                        if (canRename && newText.isNotBlank()) View.VISIBLE else View.GONE
+                        if (canRename && !asking && newText.isNotBlank()) View.VISIBLE else View.GONE
                     return true
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -129,6 +142,22 @@ class AppDrawerFragment : BaseFragment() {
                 return false
             }
         })
+    }
+
+    /**
+     * Typed text follows its own direction (Latin from the left, Persian from the right); the empty field's
+     * placeholder keeps the app-label alignment so it lines up with the list.
+     */
+    private fun updateSearchGravity(text: CharSequence) {
+        val horizontal = if (text.isEmpty()) prefs.appLabelAlignment else Gravity.START
+        searchTextView?.gravity = horizontal or Gravity.CENTER_VERTICAL
+    }
+
+    private fun askGemini(query: CharSequence?) {
+        val question = AskCommand.question(query) ?: return
+        binding.search.hideKeyboard()
+        if (!GeminiHandoff.ask(requireContext(), question))
+            requireContext().showToast(getString(R.string.wp_gemini_unavailable))
     }
 
     private fun isSearchComposing(): Boolean {
@@ -320,6 +349,7 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun initClickListeners() {
+        binding.askGemini.setOnClickListener { askGemini(binding.search.query) }
         binding.appRename.setOnClickListener {
             val name = binding.search.query.toString().trim()
             if (name.isEmpty()) {

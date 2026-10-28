@@ -61,7 +61,11 @@ tap "Monochrome glass"; sleep 3
 home; shot 13b-home-glass-mono
 open_settings; tap "Appearance"; tap "Monochrome glass"; sleep 3
 home; shot 13-home-glass
-adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 14-drawer-glass; home
+adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 14-drawer-glass
+# Typed search text follows its own direction (Latin from the left); "?" turns it into an Ask Gemini command
+adb shell input text "e"; sleep 1; shot 14b-drawer-search-typing
+adb shell input keyevent 67; adb shell input text "?hello"; sleep 1; shot 14c-drawer-ask-gemini
+home
 open_settings; shot 15-settings-glass
 tap "World clock"; shot 16-world-clock-glass
 home

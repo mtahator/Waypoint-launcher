@@ -1,7 +1,11 @@
 # Changelog
 
 ## 1.1.0 (2026-10-27)
+### Added
+- **Ask Gemini** from the drawer search: type `?question` (or `؟`) and press Enter. Handed to the Gemini
+  app via a share intent; Gemini on the web if the app is missing.
 ### Changed
+- Drawer search text follows its own direction: Latin types from the left, Persian from the right.
 - **Glass is now reeded glass** (Nothing style): a fluted-glass backdrop rendered over the built-in
   *Aurora* gradient or your own photo, optional monochrome glass, three reed widths; the blurred system
   wallpaper stays as an option. Home shows a round-dot matrix clock and a dotted date (`TUE, 27 OCT`).
