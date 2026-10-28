@@ -22,7 +22,8 @@ choose Waypoint.
 ۴. **تم شیشه‌ای (الهام از Nothing):** تنظیمات ← Waypoint ← Appearance ← Glass. کل والپیپر پشت همهٔ صفحه‌ها بلور می‌شود، ساعت با فونت نقطه‌ای، متن‌های مونو و یک نقطهٔ قرمز. بلور واقعی نیاز به اندروید ۱۲ به بالا دارد.
 ۵. **چیدمان صفحهٔ اصلی:** اپ‌ها به‌طور پیش‌فرض سمت راست هستند. در Appearance با اسلایدر **Apps position** ارتفاع بخش اپ‌ها را از بالا تا پایین تنظیم کنید؛ جای آن ثابت می‌ماند.
 ۶. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
-۷. **پرسیدن از Gemini:** در جستجوی لیست اپ‌ها، اول متن علامت `?` یا `؟` بگذارید (مثلاً `؟ هوای تهران چطوره`) و Enter بزنید؛ سؤال در اپ Gemini باز می‌شود (اگر نصب نباشد، Gemini در مرورگر). خود Waypoint هیچ درخواست اینترنتی نمی‌فرستد.
+۷. **پرسیدن از Gemini:** در جستجوی لیست اپ‌ها علامت `؟` یا `?` را بزنید؛ یک کادر بزرگ چندخطی باز می‌شود که می‌توانید پاراگراف کامل بنویسید (Enter = خط جدید). دکمهٔ قرمز **SEND** سؤال را به اپ Gemini می‌دهد (اگر نصب نباشد، Gemini در مرورگر). خود Waypoint هیچ درخواست اینترنتی نمی‌فرستد.
+۸. **جواب فوری (مثل Spotlight اپل):** در همان جستجو بنویسید: `12×3+4` یا `۱۵% of 80` یا `5 km to mi` یا `100 f to c` یا `time in tokyo`. جواب بزرگ بالای لیست نشان داده می‌شود؛ با لمس یا Enter کپی می‌شود.
 
 </div>
 
@@ -36,7 +37,8 @@ no database, registers no receivers and schedules no work.
 | **Glass theme** (Nothing-inspired): the whole wallpaper blurred behind every screen, dot-matrix clock, monospaced captions, one red accent, hairline glass cards and search capsule | Settings → Waypoint → Appearance |
 | **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
 | **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
-| **Ask Gemini**: in drawer search, start with `?` (or `؟`) and press Enter; the question is handed to the Gemini app (or Gemini on the web if the app isn't installed). Waypoint itself sends nothing over the network | App drawer search |
+| **Ask Gemini**: in drawer search, type `?` (or `؟`) to open a large multi-line composer; *Send* hands the question to the Gemini app (or Gemini on the web). Waypoint itself sends nothing over the network | App drawer search |
+| **Quick answers** (Spotlight-style, offline): `12×3+4`, `15% of 80`, `5 km to mi`, `100 f to c`, `2 gb to mb`, `time in tokyo`; tap or Enter copies the result | App drawer search |
 | **Home layout**: right-aligned by default; *Apps position* slider moves the app list from top to bottom | Appearance |
 | **Launcher monochrome & OLED black**: instant, no recreation, no GPU filters | Appearance |
 | **System grayscale**: guidance to Android's own options, plus an optional ADB-granted toggle | Appearance |

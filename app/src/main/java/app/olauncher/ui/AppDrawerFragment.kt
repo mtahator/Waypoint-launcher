@@ -40,6 +40,18 @@ import app.olauncher.helper.uninstall
 import app.olauncher.core.waypoint
 import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.features.assistant.domain.AskCommand
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.graphics.Typeface
+import androidx.activity.OnBackPressedCallback
+import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.lifecycleScope
+import app.olauncher.core.ui.focusAndShowKeyboard
+import app.olauncher.features.quickanswers.domain.QuickAnswers
+import app.olauncher.features.worldclock.data.WorldClockRepository
+import app.olauncher.features.worldclock.domain.City
+import app.olauncher.features.worldclock.domain.CitySearch
+import kotlinx.coroutines.launch
 import app.olauncher.features.assistant.platform.GeminiHandoff
 
 class AppDrawerFragment : BaseFragment() {
@@ -92,8 +104,15 @@ class AppDrawerFragment : BaseFragment() {
             binding.search.queryHint = "Please select an app"
         try {
             searchTextView = binding.search.findViewById(R.id.search_src_text)
-            searchTextView?.textDirection = View.TEXT_DIRECTION_FIRST_STRONG
-            updateSearchGravity("")
+            searchTextView?.let { field ->
+                // Typed text follows its own direction (Latin from the left, Persian from the right),
+                // with a visible cursor so the field feels like a text field
+                field.textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+                field.gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                field.isCursorVisible = true
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) field.setTextCursorDrawable(R.drawable.wp_cursor)
+                field.setHintTextColor(field.currentTextColor and 0x00FFFFFF or 0x66000000)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -106,17 +125,23 @@ class AppDrawerFragment : BaseFragment() {
                 binding.search.layoutParams = it
             }
             searchTextView?.setShadowLayer(0f, 0f, 0f, 0)
-            GlassStyler.styleCaption(binding.askGemini, accentDot = true)
+            GlassStyler.styleCaption(binding.geminiTitle, accentDot = true)
+            GlassStyler.styleCaption(binding.quickAnswerDetail, accentDot = true)
+            GlassStyler.styleCaption(binding.geminiCancel)
+            GlassStyler.styleCaption(binding.geminiCount)
+            binding.geminiInput.background = GlassStyler.card(requireContext(), 22f)
+            binding.geminiInput.setShadowLayer(0f, 0f, 0f, 0)
+            binding.quickAnswerValue.setShadowLayer(0f, 0f, 0f, 0)
+            binding.geminiSend.typeface = Typeface.MONOSPACE
+            binding.geminiSend.letterSpacing = 0.12f
         }
+        initComposer()
     }
 
     private fun initSearch() {
         binding.search.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
-                if (AskCommand.isCommand(query)) {
-                    askGemini(query)
-                    return true
-                }
+                if (copyQuickAnswer()) return true
                 if (query?.startsWith("!") == true)
                     requireContext().openUrl(Constants.URL_DUCK_SEARCH + query.replace(" ", "%20"))
                 else if (adapter.itemCount == 0)
@@ -128,13 +153,15 @@ class AppDrawerFragment : BaseFragment() {
 
             override fun onQueryTextChange(newText: String): Boolean {
                 try {
-                    updateSearchGravity(newText)
-                    val asking = AskCommand.isCommand(newText)
-                    binding.askGemini.isVisible = asking
-                    adapter.allowAutoLaunch = !asking && !isSearchComposing()
+                    if (searchExtras && AskCommand.isCommand(newText)) {
+                        openComposer(newText.trimStart().drop(1).trimStart())
+                        return true
+                    }
+                    val answered = showQuickAnswer(newText)
+                    adapter.allowAutoLaunch = !answered && !isSearchComposing()
                     adapter.filter.filter(newText)
                     binding.appRename.visibility =
-                        if (canRename && !asking && newText.isNotBlank()) View.VISIBLE else View.GONE
+                        if (canRename && newText.isNotBlank()) View.VISIBLE else View.GONE
                     return true
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -144,20 +171,107 @@ class AppDrawerFragment : BaseFragment() {
         })
     }
 
-    /**
-     * Typed text follows its own direction (Latin from the left, Persian from the right); the empty field's
-     * placeholder keeps the app-label alignment so it lines up with the list.
-     */
-    private fun updateSearchGravity(text: CharSequence) {
-        val horizontal = if (text.isEmpty()) prefs.appLabelAlignment else Gravity.START
-        searchTextView?.gravity = horizontal or Gravity.CENTER_VERTICAL
+    /** Gemini composer and quick answers only belong to the normal app drawer, not app pickers. */
+    private val searchExtras get() = flag == Constants.FLAG_LAUNCH_APP
+
+    // ---- Quick answers (Spotlight-style: 12×3, 15% of 80, 5 km to mi, time in tokyo) ----
+
+    private var quickAnswer: QuickAnswers.Answer? = null
+    private var citySearch: CitySearch? = null
+    private var cityLoading = false
+
+    /** @return true if an answer is shown for [text]. */
+    private fun showQuickAnswer(text: String): Boolean {
+        val answer = if (searchExtras) QuickAnswers.answer(text, cityLookup(text), is24h = is24Hour()) else null
+        quickAnswer = answer
+        binding.quickAnswer.isVisible = answer != null
+        if (answer != null) {
+            binding.quickAnswerValue.text = answer.value
+            binding.quickAnswerDetail.text = "${answer.detail}  ·  ${getString(R.string.wp_tap_to_copy)}"
+            val g = prefs.appLabelAlignment
+            binding.quickAnswerValue.gravity = g
+            binding.quickAnswerDetail.gravity = g
+        }
+        return answer != null
     }
 
-    private fun askGemini(query: CharSequence?) {
-        val question = AskCommand.question(query) ?: return
-        binding.search.hideKeyboard()
-        if (!GeminiHandoff.ask(requireContext(), question))
-            requireContext().showToast(getString(R.string.wp_gemini_unavailable))
+    private fun is24Hour() = android.text.format.DateFormat.is24HourFormat(requireContext())
+
+    /** City lookup for "time in …"; the offline city list loads on first use only. */
+    private fun cityLookup(text: String): ((String) -> City?)? {
+        val t = text.trimStart().lowercase()
+        if (!(t.startsWith("time") || t.endsWith(" time") || t.startsWith("ساعت") || t.startsWith("زمان"))) return null
+        citySearch?.let { s -> return { name -> s.search(name, 1).firstOrNull() } }
+        if (!cityLoading) {
+            cityLoading = true
+            val ctx = requireContext().applicationContext
+            val container = ctx.waypoint
+            viewLifecycleOwner.lifecycleScope.launch {
+                citySearch = runCatching {
+                    WorldClockRepository(ctx, container.prefs).loadSearch(container.dispatchers.io)
+                }.getOrNull()
+                if (_binding != null) showQuickAnswer(binding.search.query.toString())
+            }
+        }
+        return null
+    }
+
+    private fun copyQuickAnswer(): Boolean {
+        val answer = quickAnswer ?: return false
+        val ctx = requireContext()
+        ctx.getSystemService(ClipboardManager::class.java)
+            ?.setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name), answer.copy))
+        ctx.showToast(getString(R.string.wp_copied, answer.copy))
+        return true
+    }
+
+    // ---- Gemini composer ----
+
+    private val composerBack = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() = closeComposer(showKeyboard = true)
+    }
+
+    private fun initComposer() {
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, composerBack)
+        binding.quickAnswer.setOnClickListener { copyQuickAnswer() }
+        binding.geminiCancel.setOnClickListener { closeComposer(showKeyboard = true) }
+        binding.geminiSend.setOnClickListener { sendToGemini() }
+        binding.geminiInput.doAfterTextChanged { text ->
+            val n = text?.trim()?.length ?: 0
+            binding.geminiCount.text = if (n == 0) "" else n.toString()
+            binding.geminiSend.alpha = if (n == 0) 0.4f else 1f
+            binding.geminiSend.isEnabled = n > 0
+        }
+    }
+
+    private fun openComposer(initial: String) {
+        binding.search.setQuery("", false)
+        binding.searchRow.isVisible = false
+        binding.quickAnswer.isVisible = false
+        binding.recyclerView.isVisible = false
+        binding.geminiComposer.isVisible = true
+        composerBack.isEnabled = true
+        binding.geminiInput.setText(initial)
+        binding.geminiInput.setSelection(binding.geminiInput.length())
+        binding.geminiInput.focusAndShowKeyboard()
+    }
+
+    private fun closeComposer(showKeyboard: Boolean) {
+        if (_binding == null) return
+        composerBack.isEnabled = false
+        binding.geminiInput.text = null
+        binding.geminiComposer.isVisible = false
+        binding.searchRow.isVisible = true
+        binding.recyclerView.isVisible = true
+        if (showKeyboard) binding.search.showKeyboard() else binding.geminiInput.hideKeyboard()
+    }
+
+    private fun sendToGemini() {
+        val question = binding.geminiInput.text?.toString()?.trim().orEmpty()
+        if (question.isEmpty()) return
+        binding.geminiInput.hideKeyboard()
+        if (GeminiHandoff.ask(requireContext(), question)) closeComposer(showKeyboard = false)
+        else requireContext().showToast(getString(R.string.wp_gemini_unavailable))
     }
 
     private fun isSearchComposing(): Boolean {
@@ -349,7 +463,6 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun initClickListeners() {
-        binding.askGemini.setOnClickListener { askGemini(binding.search.query) }
         binding.appRename.setOnClickListener {
             val name = binding.search.query.toString().trim()
             if (name.isEmpty()) {

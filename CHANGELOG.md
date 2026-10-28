@@ -2,10 +2,13 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
-- **Ask Gemini** from the drawer search: type `?question` (or `؟`) and press Enter. Handed to the Gemini
-  app via a share intent; Gemini on the web if the app is missing.
+- **Ask Gemini** from the drawer search: type `?` (or `؟`) to open a multi-line composer for whole
+  paragraphs; *Send* hands it to the Gemini app (share intent), or Gemini on the web if the app is missing.
+- **Quick answers** in the drawer search, offline: arithmetic (`12×3+4`, `√2`, `2^10`), `15% of 80`, unit
+  conversion (length, mass, volume, speed, temperature, data) and `time in <city>`. Tap or Enter copies.
 ### Changed
-- Drawer search text follows its own direction: Latin types from the left, Persian from the right.
+- Drawer search: text starts at the left (Persian from the right) with a visible blinking cursor, and a
+  hint that lists the shortcuts.
 - **Glass is now reeded glass** (Nothing style): a fluted-glass backdrop rendered over the built-in
   *Aurora* gradient or your own photo, optional monochrome glass, three reed widths; the blurred system
   wallpaper stays as an option. Home shows a round-dot matrix clock and a dotted date (`TUE, 27 OCT`).

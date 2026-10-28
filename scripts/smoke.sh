@@ -64,7 +64,13 @@ home; shot 13-home-glass
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; shot 14-drawer-glass
 # Typed search text follows its own direction (Latin from the left); "?" turns it into an Ask Gemini command
 adb shell input text "e"; sleep 1; shot 14b-drawer-search-typing
-adb shell input keyevent 67; adb shell input text "?hello"; sleep 1; shot 14c-drawer-ask-gemini
+adb shell input keyevent 67; adb shell input text "12x3+4"; sleep 1; shot 14d-drawer-calculator
+adb shell input keyevent 67 67 67 67 67 67; adb shell input text "5%skm%sto%smi"; sleep 1; shot 14e-drawer-units
+adb shell input keyevent 67 67 67 67 67 67 67 67 67 67 67 67
+# "?" opens the Gemini composer (multi-line)
+adb shell input text "?How%sdoes%sreeded%sglass%swork"; sleep 1
+adb shell input keyevent 66; adb shell input text "Explain%sin%sa%sshort%sparagraph."; sleep 1; shot 14c-drawer-ask-gemini
+adb shell input keyevent 4; sleep 1; adb shell input keyevent 4
 home
 open_settings; shot 15-settings-glass
 tap "World clock"; shot 16-world-clock-glass
