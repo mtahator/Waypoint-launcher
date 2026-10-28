@@ -187,7 +187,7 @@ class AppDrawerFragment : BaseFragment() {
         binding.quickAnswer.isVisible = answer != null
         if (answer != null) {
             binding.quickAnswerValue.text = answer.value
-            binding.quickAnswerDetail.text = "${answer.detail}  ·  ${getString(R.string.wp_tap_to_copy)}"
+            binding.quickAnswerDetail.text = "${answer.detail}  ·  ${getString(R.string.wp_tap_copy_short)}"
             val g = prefs.appLabelAlignment
             binding.quickAnswerValue.gravity = g
             binding.quickAnswerDetail.gravity = g

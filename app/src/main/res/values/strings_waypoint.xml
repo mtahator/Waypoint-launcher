@@ -160,7 +160,7 @@
     <string name="wp_cancel">Cancel</string>
     <string name="wp_search_hint">Search · ? Gemini · 12×3</string>
     <string name="wp_copied">Copied %1$s</string>
-    <string name="wp_tap_to_copy">Tap to copy</string>
+    <string name="wp_tap_copy_short">Tap to copy</string>
     <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
     <string name="wp_home_layout">Home layout</string>
