@@ -1,4 +1,5 @@
 [versions]
+json = "20240303"
 appcompat = "1.7.0"
 coreKtx = "1.16.0"
 gradle = "8.9.1"
@@ -13,6 +14,7 @@ junit = "4.13.2"
 desugarJdkLibs = "2.1.5"
 profileinstaller = "1.4.1"
 [libraries]
+json = { module = "org.json:json", version.ref = "json" }
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 gradle = { module = "com.android.tools.build:gradle", version.ref = "gradle" }

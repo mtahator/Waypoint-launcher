@@ -20,6 +20,18 @@ in **Settings → Assistant & chats**:
 - **System prompt**: optional, sent with every conversation.
 - **Test connection** sends a one-line request and shows the reply.
 
+## Image generation
+- **Image model** (Assistant settings → Image generation) uses the same provider, URL and key as chat.
+  Presets fill a default: OpenRouter `google/gemini-2.5-flash-image-preview`, OpenAI `gpt-image-1`,
+  Gemini API `imagen-3.0-generate-002`. Leave it empty to turn images off.
+- **Image API**: *Auto* (chat style for OpenRouter, Images endpoint elsewhere), *Chat* (`/chat/completions`
+  with `modalities: ["image","text"]`; images come back as data URLs) or *Images endpoint*
+  (`/images/generations`, `b64_json`/`url`). *Size* applies to the Images endpoint.
+- In Chat, tap **▣** (image mode) or start a message with `/image …` (also `/img`, `/draw`). The picture is
+  saved in app storage (`files/chat_images`) with the conversation; tap it to **Share** or **Save to
+  Photos** (Pictures/Waypoint, Android 10+). Image turns aren't sent as context to the text model.
+- `?/image a red fox` in the app search works too (API mode).
+
 ## Chat
 - Conversation list, newest first: tap to continue, long-press to rename or delete.
 - Messages render basic Markdown (code blocks, `code`, **bold**, *italic*, headings, lists).

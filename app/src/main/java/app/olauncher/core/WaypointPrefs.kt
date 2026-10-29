@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import app.olauncher.features.assistant.domain.ApiFormat
 import app.olauncher.features.assistant.domain.AssistantMode
+import app.olauncher.features.assistant.domain.ImageApi
 import app.olauncher.features.gestures.domain.Corner
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.worldclock.domain.WorldClockCodec
@@ -99,6 +100,19 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getString(API_MODEL, null) ?: ""
         set(value) = prefs.edit { putString(API_MODEL, value.trim()) }
 
+    /** Image model for `/image` in Chat (same provider and key); blank = image generation off. */
+    var imageModel: String
+        get() = prefs.getString(IMAGE_MODEL, null) ?: ""
+        set(value) = prefs.edit { putString(IMAGE_MODEL, value.trim()) }
+
+    var imageApi: ImageApi
+        get() = runCatching { ImageApi.valueOf(prefs.getString(IMAGE_API, null) ?: "") }.getOrDefault(ImageApi.AUTO)
+        set(value) = prefs.edit { putString(IMAGE_API, value.name) }
+
+    var imageSize: String
+        get() = prefs.getString(IMAGE_SIZE, null) ?: "1024x1024"
+        set(value) = prefs.edit { putString(IMAGE_SIZE, value) }
+
     var systemPrompt: String
         get() = prefs.getString(SYSTEM_PROMPT, null) ?: ""
         set(value) = prefs.edit { putString(SYSTEM_PROMPT, value) }
@@ -170,6 +184,9 @@ class WaypointPrefs(context: Context) {
         const val API_BASE_URL = "WP_API_BASE_URL"
         const val API_MODEL = "WP_API_MODEL"
         const val SYSTEM_PROMPT = "WP_SYSTEM_PROMPT"
+        const val IMAGE_MODEL = "WP_IMAGE_MODEL"
+        const val IMAGE_API = "WP_IMAGE_API"
+        const val IMAGE_SIZE = "WP_IMAGE_SIZE"
         const val API_KEY_SEALED = "WP_API_KEY_SEALED"
         const val GRAPH_LINES = "WP_GRAPH_LINES"
         private const val GRAPH_SEP = "\u001F"

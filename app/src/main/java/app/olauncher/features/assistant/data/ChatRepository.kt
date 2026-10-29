@@ -9,12 +9,16 @@ import kotlinx.coroutines.withContext
 
 data class Conversation(val id: Long, val title: String, val updated: Long, val preview: String, val count: Int)
 
-data class Message(val id: Long, val conversationId: Long, val role: String, val content: String, val created: Long, val error: Boolean) {
+data class Message(
+    val id: Long, val conversationId: Long, val role: String, val content: String, val created: Long, val error: Boolean,
+    /** Generated images: file names in files/chat_images. */
+    val images: List<String> = emptyList(),
+) {
     val isUser get() = role == "user"
 }
 
 /** Conversations stay on the phone (chats.db, excluded from backup). */
-private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 1) {
+private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 2) {
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -22,12 +26,14 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         db.execSQL(
             "CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER NOT NULL " +
                 "REFERENCES conversations(id) ON DELETE CASCADE, role TEXT NOT NULL, content TEXT NOT NULL, " +
-                "created INTEGER NOT NULL, error INTEGER NOT NULL DEFAULT 0)",
+                "created INTEGER NOT NULL, error INTEGER NOT NULL DEFAULT 0, images TEXT NOT NULL DEFAULT '')",
         )
         db.execSQL("CREATE INDEX messages_conv ON messages(conversation_id, id)")
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) db.execSQL("ALTER TABLE messages ADD COLUMN images TEXT NOT NULL DEFAULT ''")
+    }
 }
 
 class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
@@ -56,11 +62,12 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
 
     suspend fun messages(conversationId: Long): List<Message> = withContext(io) {
         db.rawQuery(
-            "SELECT id, conversation_id, role, content, created, error FROM messages WHERE conversation_id = ? ORDER BY id",
+            "SELECT id, conversation_id, role, content, created, error, images FROM messages WHERE conversation_id = ? ORDER BY id",
             arrayOf(conversationId.toString()),
         ).use { c ->
             buildList {
-                while (c.moveToNext()) add(Message(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getLong(4), c.getInt(5) != 0))
+                while (c.moveToNext()) add(Message(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getLong(4), c.getInt(5) != 0,
+                    c.getString(6).split('\n').filter { it.isNotBlank() }))
             }
         }
     }
@@ -84,6 +91,17 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
     suspend fun update(messageId: Long, content: String, error: Boolean = false) = withContext(io) {
         db.update("messages", ContentValues().apply { put("content", content); put("error", if (error) 1 else 0) },
             "id = ?", arrayOf(messageId.toString()))
+    }
+
+    suspend fun setImages(messageId: Long, images: List<String>) = withContext(io) {
+        db.update("messages", ContentValues().apply { put("images", images.joinToString("\n")) }, "id = ?", arrayOf(messageId.toString()))
+    }
+
+    /** Image files referenced by any message (to clean up orphans after deletes). */
+    suspend fun allImages(): Set<String> = withContext(io) {
+        db.rawQuery("SELECT images FROM messages WHERE images != ''", null).use { c ->
+            buildSet { while (c.moveToNext()) c.getString(0).split('\n').filter { it.isNotBlank() }.forEach { add(it) } }
+        }
     }
 
     suspend fun deleteMessage(messageId: Long) = withContext(io) { db.delete("messages", "id = ?", arrayOf(messageId.toString())) }

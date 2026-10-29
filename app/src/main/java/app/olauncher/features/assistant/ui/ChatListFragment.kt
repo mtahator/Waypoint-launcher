@@ -107,7 +107,7 @@ class ChatListFragment : Fragment() {
                 viewLifecycleOwner.lifecycleScope.launch { chats.rename(conv.id, t.ifBlank { conv.title }); reload() }
             } else viewLifecycleOwner.lifecycleScope.launch {
                 ctx.waypoint.chatEngine.stop(conv.id)
-                chats.delete(conv.id); reload()
+                chats.delete(conv.id); ctx.waypoint.chatEngine.pruneImages(); reload()
             }
         }
     }

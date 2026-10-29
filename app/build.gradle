@@ -100,4 +100,6 @@ dependencies {
     implementation libs.profileinstaller
 
     testImplementation libs.junit
+    // real org.json for JVM unit tests (android.jar only has stubs)
+    testImplementation libs.json
 }

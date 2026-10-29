@@ -2,6 +2,9 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Image generation** in Chat with its own **Image model** setting (same provider and key): OpenRouter image
+  models via chat `modalities`, or the OpenAI-style `/images/generations` (gpt-image-1, dall-e-3, Imagen).
+  Image mode button or `/image …`; images saved with the conversation, share or save to Photos.
 - **Assistant modes** for `?`: the Gemini app, or your own API (OpenAI-compatible or Anthropic; presets for
   OpenAI, Gemini API, Claude, OpenRouter, Groq, Ollama). API key encrypted with the Android Keystore.
 - **Chat** app (its own entry in the app list): streamed replies saved as conversations you can continue,

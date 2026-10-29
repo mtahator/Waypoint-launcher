@@ -49,7 +49,7 @@ class PrivacyDataFragment : WpPageFragment() {
         page.card {
             header(getString(R.string.wp_chats))
             row(getString(R.string.wp_delete_chats)) {
-                confirm(R.string.wp_delete_chats, R.string.wp_delete_chats_message) { container.chats.deleteAll() }
+                confirm(R.string.wp_delete_chats, R.string.wp_delete_chats_message) { container.chats.deleteAll(); container.chatEngine.pruneImages() }
             }
             row(getString(R.string.wp_api_key_forget)) { container.apiKeys.set(null); rebuild() }
             note(getString(R.string.wp_assistant_privacy_note))

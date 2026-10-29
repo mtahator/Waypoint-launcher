@@ -7,6 +7,7 @@ import app.olauncher.features.appearance.ui.AppearanceController
 import app.olauncher.features.assistant.data.ChatRepository
 import app.olauncher.features.assistant.platform.ApiKeyStore
 import app.olauncher.features.assistant.platform.ChatEngine
+import app.olauncher.features.assistant.platform.ImageClient
 import app.olauncher.features.notifications.platform.CaptureController
 import app.olauncher.features.quickanswers.platform.ExchangeRateRepository
 import app.olauncher.features.transactions.data.LedgerDatabase
@@ -28,7 +29,7 @@ class AppContainer(context: Context) {
 
     val apiKeys by lazy { ApiKeyStore(prefs) }
     val chats by lazy { ChatRepository(app, dispatchers.io) }
-    val chatEngine by lazy { ChatEngine(prefs, apiKeys, chats, scope, dispatchers.io) }
+    val chatEngine by lazy { ChatEngine(prefs, apiKeys, chats, ImageClient(app), scope, dispatchers.io) }
     val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }

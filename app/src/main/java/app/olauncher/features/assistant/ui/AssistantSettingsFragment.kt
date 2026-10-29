@@ -9,6 +9,8 @@ import app.olauncher.core.ui.chooseOne
 import app.olauncher.core.ui.promptText
 import app.olauncher.features.assistant.domain.ApiFormat
 import app.olauncher.features.assistant.domain.AssistantMode
+import app.olauncher.features.assistant.domain.ImageApi
+import app.olauncher.features.assistant.domain.ImageProtocol
 import app.olauncher.features.assistant.domain.Presets
 import app.olauncher.features.assistant.domain.Turn
 import app.olauncher.features.assistant.platform.ChatClient
@@ -68,6 +70,32 @@ class AssistantSettingsFragment : WpPageFragment() {
                 note(getString(R.string.wp_api_key_note))
             }
             page.card {
+                header(getString(R.string.wp_image_generation))
+                row(getString(R.string.wp_image_model), prefs.imageModel.ifBlank { getString(R.string.wp_image_off) }) {
+                    requireContext().promptText(R.string.wp_image_model, prefs.imageModel, hint = R.string.wp_image_model_hint,
+                        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {
+                        prefs.imageModel = it; rebuild()
+                    }
+                }
+                row(getString(R.string.wp_image_api), when (prefs.imageApi) {
+                    ImageApi.AUTO -> getString(R.string.wp_image_api_auto)
+                    ImageApi.CHAT -> getString(R.string.wp_image_api_chat)
+                    ImageApi.OPENAI_IMAGES -> getString(R.string.wp_image_api_images)
+                }) {
+                    val options = listOf(ImageApi.AUTO, ImageApi.CHAT, ImageApi.OPENAI_IMAGES)
+                    requireContext().chooseOne(R.string.wp_image_api, listOf(
+                        getString(R.string.wp_image_api_auto), getString(R.string.wp_image_api_chat), getString(R.string.wp_image_api_images),
+                    )) { i -> prefs.imageApi = options[i]; rebuild() }
+                }
+                if (ImageProtocol.resolve(prefs.imageApi, prefs.apiBaseUrl) == ImageApi.OPENAI_IMAGES) {
+                    row(getString(R.string.wp_image_size), prefs.imageSize) {
+                        val sizes = listOf("1024x1024", "1024x1536", "1536x1024", "1792x1024", "1024x1792", "512x512")
+                        requireContext().chooseOne(R.string.wp_image_size, sizes) { i -> prefs.imageSize = sizes[i]; rebuild() }
+                    }
+                }
+                note(getString(R.string.wp_image_note))
+            }
+            page.card {
                 header(getString(R.string.wp_api_behaviour))
                 row(getString(R.string.wp_system_prompt), prefs.systemPrompt.ifBlank { getString(R.string.wp_none) }.take(40)) {
                     requireContext().promptText(R.string.wp_system_prompt, prefs.systemPrompt, multiLine = true) {
@@ -99,6 +127,8 @@ class AssistantSettingsFragment : WpPageFragment() {
         prefs.apiFormat = p.format
         prefs.apiBaseUrl = p.baseUrl
         prefs.apiModel = p.model
+        prefs.imageModel = p.imageModel
+        prefs.imageApi = ImageApi.AUTO
     }
 
     private fun testConnection() {
