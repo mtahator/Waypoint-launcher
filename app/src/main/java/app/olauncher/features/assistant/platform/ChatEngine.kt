@@ -212,7 +212,9 @@ class ChatEngine(
                 ChatClient.stream(config(), listOf(Turn(Turn.Role.USER, WebSearch.plannerPrompt(question, recent, aboutMe, today, forced)))) { planText.append(it) }
             }
         }
-        val plan = WebSearch.parsePlan(planText.toString(), forced).let { p ->
+        // the model plans; if its reply isn't a readable plan, decide on the phone (works with any provider)
+        val plan = (if (WebSearch.hasPlan(planText.toString())) WebSearch.parsePlan(planText.toString(), forced)
+        else WebSearch.heuristicPlan(question, forced)).let { p ->
             if (p.search && p.queries.isEmpty()) p.copy(queries = listOf(question.take(120))) else p
         }
         if (!plan.search) return Research(null, emptyList(), false, plan.useAboutMe)

@@ -120,6 +120,29 @@ object WebSearch {
         return SearchPlan(search && (queries.isNotEmpty() || forceSearch), queries, o?.optBoolean("use_about_me") ?: false)
     }
 
+    private val NEEDS_WEB = Regex(
+        "\\b(weather|temperature|forecast|news|today|tonight|tomorrow|yesterday|now|current|currently|latest|recent|price|prices|" +
+            "cost|stock|score|result|results|schedule|open|opening hours|near me|release|released|election|exchange rate|who won|" +
+            "2025|2026|2027)\\b|هوا|دما|اخبار|خبر|امروز|الان|فردا|قیمت|نرخ|جدید|آخرین",
+        RegexOption.IGNORE_CASE,
+    )
+
+    /**
+     * On-phone fallback when the model's plan can't be read (some providers ignore the JSON format):
+     * search for questions that look time-sensitive or factual-live, using the question itself.
+     */
+    fun heuristicPlan(question: String, forced: Boolean): SearchPlan {
+        val q = question.trim().replace(Regex("\\s+"), " ")
+        val search = forced || NEEDS_WEB.containsMatchIn(q)
+        return SearchPlan(search, if (search) listOf(q.take(120)) else emptyList(), useAboutMe = true)
+    }
+
+    /** True when [reply] contains a readable plan object. */
+    fun hasPlan(reply: String): Boolean {
+        val start = reply.indexOf('{'); val end = reply.lastIndexOf('}')
+        return start in 0 until end && runCatching { JSONObject(reply.substring(start, end + 1)).has("search") }.getOrDefault(false)
+    }
+
     // ---- answering with sources
 
     fun sourcesPrompt(results: List<SearchResult>, today: String): String = buildString {

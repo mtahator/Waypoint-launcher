@@ -62,4 +62,13 @@ class WebSearchTest {
         assertTrue(prompt.contains("[1] T\nURL: https://x\nbody"))
         assertEquals(listOf("1", "3"), WebSearch.CITATION.findAll("see [1] and [3].").map { it.groupValues[1] }.toList())
     }
+
+    @Test fun heuristic() {
+        assertTrue(WebSearch.heuristicPlan("What is the temperature there right now?", false).search)
+        assertTrue(WebSearch.heuristicPlan("قیمت دلار امروز", false).search)
+        assertFalse(WebSearch.heuristicPlan("Write me a poem about rain", false).search)
+        assertTrue(WebSearch.heuristicPlan("hello", true).search)
+        assertTrue(WebSearch.hasPlan("ok {\"search\": false, \"queries\": []}"))
+        assertFalse(WebSearch.hasPlan("I think you should search"))
+    }
 }

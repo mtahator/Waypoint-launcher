@@ -29,6 +29,7 @@ object Presets {
         ApiPreset("Anthropic (Claude)", ApiFormat.ANTHROPIC, "https://api.anthropic.com/v1", "claude-sonnet-5-5", "console.anthropic.com → API keys"),
         ApiPreset("OpenRouter", ApiFormat.OPENAI, "https://openrouter.ai/api/v1", "openai/gpt-4o-mini", "openrouter.ai → Keys", imageModel = "google/gemini-2.5-flash-image-preview", transcribeModel = "google/gemini-2.5-flash"),
         ApiPreset("Groq", ApiFormat.OPENAI, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "console.groq.com → API keys", transcribeModel = "whisper-large-v3-turbo"),
+        ApiPreset("GapGPT", ApiFormat.OPENAI, "https://api.gapgpt.app/v1", "gpt-4o-mini", "gapgpt.app → API keys"),
         ApiPreset("Ollama (local)", ApiFormat.OPENAI, "http://127.0.0.1:11434/v1", "llama3.2", "No key needed"),
     )
 }

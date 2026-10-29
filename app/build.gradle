@@ -75,6 +75,11 @@ android {
     }
 }
 
+// The optional live check reruns unit tests with a fresh input so Gradle doesn't treat them as up to date
+tasks.withType(Test).configureEach {
+    inputs.property("liveRun", project.findProperty("liveRun") ?: "")
+}
+
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation libs.kotlin.stdlib

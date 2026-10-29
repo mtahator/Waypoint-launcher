@@ -86,3 +86,11 @@ Wayfinder. Long-press: start recording a voice note.
 The pieces are separated so the chat can grow into an agent: `ChatProtocol` (pure request/response and
 SSE handling, tested), `ChatClient` (HTTP streaming), `ChatEngine` (runs turns in the app scope and
 persists them), `ChatRepository` (storage). Tool calling would slot into `ChatProtocol` + `ChatEngine`.
+
+## Live check in CI (optional)
+To verify a provider end to end on GitHub's runners, add a repository secret **`WAYFINDER_LIVE_KEY`**
+(Settings → Secrets and variables → Actions) and, optionally, variables `WAYFINDER_LIVE_URL`
+(default `https://api.gapgpt.app/v1`) and `WAYFINDER_LIVE_MODEL` (default `gpt-4o-mini`). Each CI run then
+executes `LiveApiTest` with the app's own code: streaming chat → search planner → DuckDuckGo search → page
+reading → cited answer, and writes the result to the job summary. The key is read from the secret only
+(never stored in the repo or printed). Without the secret the check is skipped.

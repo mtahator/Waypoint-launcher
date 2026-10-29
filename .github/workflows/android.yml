@@ -30,11 +30,31 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Detect optional secrets
+        shell: bash
+        env:
+          LIVE: ${{ secrets.WAYFINDER_LIVE_KEY }}
+        run: echo "HAS_LIVE_KEY=$([ -n "$LIVE" ] && echo true || echo false)" >> "$GITHUB_ENV"
+
       - name: Unit tests
         shell: bash
         run: |
           set -o pipefail
           ./gradlew --no-daemon testDebugUnitTest 2>&1 | tee -a build.log
+
+      - name: Live API check (optional)
+        # Runs only when the WAYFINDER_LIVE_KEY secret is set: real chat, planner, DuckDuckGo search,
+        # page reading and a cited answer, using the app's own code. Never fails the build.
+        if: ${{ env.HAS_LIVE_KEY == 'true' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          WAYFINDER_LIVE_KEY: ${{ secrets.WAYFINDER_LIVE_KEY }}
+          WAYFINDER_LIVE_URL: ${{ vars.WAYFINDER_LIVE_URL }}
+          WAYFINDER_LIVE_MODEL: ${{ vars.WAYFINDER_LIVE_MODEL }}
+        run: |
+          ./gradlew --no-daemon testDebugUnitTest --tests '*LiveApiTest*' -PliveRun=$GITHUB_RUN_ID || true
+          [ -f app/build/live-report.md ] && cat app/build/live-report.md >> "$GITHUB_STEP_SUMMARY" && cat app/build/live-report.md
 
       - name: Build release APK
         shell: bash
