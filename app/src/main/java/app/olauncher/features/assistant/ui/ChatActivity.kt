@@ -18,8 +18,12 @@ import app.olauncher.helper.showToast
  */
 class ChatActivity : AppCompatActivity() {
 
+    /** The Glass setting the screens were built with; they're styled at creation, so a change rebuilds them. */
+    private var builtWithGlass = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        builtWithGlass = waypoint.prefs.glassTheme
         WindowCompat.setDecorFitsSystemWindows(window, false)
         waypoint.appearance.apply(this)
         setContentView(FrameLayout(this).apply { id = CONTAINER })
@@ -33,6 +37,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Glass / wallpaper / monochrome may have changed in the launcher's settings
+        if (waypoint.prefs.glassTheme != builtWithGlass) { recreate(); return }
         waypoint.appearance.apply(this)
     }
 
