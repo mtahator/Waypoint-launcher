@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import app.olauncher.features.assistant.domain.ChatCommand
+import app.olauncher.features.assistant.domain.MemoryItem
 import app.olauncher.features.websearch.domain.Source
 import app.olauncher.features.websearch.domain.WebSearch
 import kotlinx.coroutines.CoroutineDispatcher
@@ -22,7 +24,7 @@ data class Message(
 }
 
 /** Conversations stay on the phone (chats.db, excluded from backup). */
-private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 3) {
+private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 4) {
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -33,11 +35,22 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
                 "created INTEGER NOT NULL, error INTEGER NOT NULL DEFAULT 0, images TEXT NOT NULL DEFAULT '', sources TEXT NOT NULL DEFAULT '')",
         )
         db.execSQL("CREATE INDEX messages_conv ON messages(conversation_id, id)")
+        createV4(db)
+    }
+
+    /** Memory about the user (tagged facts) and the user's own /commands. */
+    private fun createV4(db: SQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE memories (id INTEGER PRIMARY KEY AUTOINCREMENT, tag TEXT NOT NULL, text TEXT NOT NULL, " +
+                "core INTEGER NOT NULL DEFAULT 0, source TEXT NOT NULL DEFAULT 'you', updated INTEGER NOT NULL)",
+        )
+        db.execSQL("CREATE TABLE commands (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, instruction TEXT NOT NULL)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("ALTER TABLE messages ADD COLUMN images TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 3) db.execSQL("ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT ''")
+        if (oldVersion < 4) createV4(db)
     }
 }
 
@@ -130,6 +143,47 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
     suspend fun count(): Int = withContext(io) {
         db.rawQuery("SELECT COUNT(*) FROM conversations", null).use { if (it.moveToFirst()) it.getInt(0) else 0 }
     }
+
+    // ---- memory
+
+    suspend fun memories(): List<MemoryItem> = withContext(io) {
+        db.rawQuery("SELECT id, tag, text, core, source, updated FROM memories ORDER BY core DESC, tag, id", null).use { c ->
+            buildList { while (c.moveToNext()) add(MemoryItem(c.getLong(0), c.getString(1), c.getString(2), c.getInt(3) != 0, c.getString(4), c.getLong(5))) }
+        }
+    }
+
+    suspend fun addMemory(tag: String, text: String, core: Boolean = false, source: String = MemoryItem.SOURCE_USER): Long = withContext(io) {
+        db.insert("memories", null, ContentValues().apply {
+            put("tag", tag); put("text", text); put("core", if (core) 1 else 0); put("source", source); put("updated", System.currentTimeMillis())
+        })
+    }
+
+    suspend fun updateMemory(id: Long, tag: String? = null, text: String? = null, core: Boolean? = null) = withContext(io) {
+        db.update("memories", ContentValues().apply {
+            tag?.let { put("tag", it) }; text?.let { put("text", it) }; core?.let { put("core", if (it) 1 else 0) }
+            put("updated", System.currentTimeMillis())
+        }, "id = ?", arrayOf(id.toString()))
+    }
+
+    suspend fun deleteMemory(id: Long) = withContext(io) { db.delete("memories", "id = ?", arrayOf(id.toString())) }
+
+    suspend fun clearMemories() = withContext(io) { db.delete("memories", null, null) }
+
+    // ---- commands
+
+    suspend fun commands(): List<ChatCommand> = withContext(io) {
+        db.rawQuery("SELECT id, name, instruction FROM commands ORDER BY name", null).use { c ->
+            buildList { while (c.moveToNext()) add(ChatCommand(c.getLong(0), c.getString(1), c.getString(2))) }
+        }
+    }
+
+    /** Adds or replaces the command called [name]. */
+    suspend fun saveCommand(name: String, instruction: String) = withContext(io) {
+        db.insertWithOnConflict("commands", null, ContentValues().apply { put("name", name); put("instruction", instruction) },
+            SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    suspend fun deleteCommand(id: Long) = withContext(io) { db.delete("commands", "id = ?", arrayOf(id.toString())) }
 
     private fun touch(conversationId: Long, now: Long) {
         db.update("conversations", ContentValues().apply { put("updated", now) }, "id = ?", arrayOf(conversationId.toString()))

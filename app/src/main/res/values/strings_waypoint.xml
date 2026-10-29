@@ -420,4 +420,58 @@
         <item quantity="one">−%1$d day</item>
         <item quantity="other">−%1$d days</item>
     </plurals>
+
+    <!-- Wayfinder memory, commands and tools -->
+    <string name="wp_memory">Memory about you</string>
+    <string name="wp_memory_subtitle">Short tagged facts. Each message gets only the ones that matter for it.</string>
+    <string name="wp_memory_row_hint">Import your profile once; it stays organised and updates from chats</string>
+    <plurals name="wp_memory_facts">
+        <item quantity="one">%d fact</item>
+        <item quantity="other">%d facts</item>
+    </plurals>
+    <string name="wp_memory_use_hint">Core facts and the ones relevant to each message are sent with it, never the whole memory</string>
+    <string name="wp_memory_learn">Learn from chats</string>
+    <string name="wp_memory_learn_hint">After you mention something about yourself, the model adds or corrects facts here (marked “learned”)</string>
+    <string name="wp_memory_import">Import a profile</string>
+    <string name="wp_memory_import_hint">Paste a long “about me”; the AI splits it into tagged facts</string>
+    <string name="wp_memory_import_paste">Paste text about yourself (any length, any language)</string>
+    <string name="wp_memory_merge">Add to my memory</string>
+    <string name="wp_memory_replace">Replace my memory</string>
+    <string name="wp_memory_imported">Saved %1$d facts</string>
+    <string name="wp_memory_add">Add a fact</string>
+    <string name="wp_memory_add_hint">e.g. I climb at Depot on Tuesdays</string>
+    <string name="wp_memory_note">Organising and learning use your chat API. Facts stay on the phone; only the relevant few are sent with a message.</string>
+    <string name="wp_memory_note_offline">No chat API set: imports are split by headings and lines on the phone.</string>
+    <string name="wp_memory_empty">Nothing yet. Import your profile or add a fact.</string>
+    <string name="wp_memory_core">Core · sent with every message</string>
+    <string name="wp_memory_learned">learned</string>
+    <string name="wp_memory_fact">Fact</string>
+    <string name="wp_memory_edit">Edit</string>
+    <string name="wp_memory_tag">Change tag</string>
+    <string name="wp_memory_new_tag">New tag…</string>
+    <string name="wp_memory_make_core">Send with every message</string>
+    <string name="wp_memory_uncore">Only when relevant</string>
+    <string name="wp_memory_clear">Clear memory</string>
+    <string name="wp_memory_clear_message">Delete every fact in the memory about you?</string>
+    <string name="wp_commands">Commands</string>
+    <string name="wp_commands_subtitle">Your own /commands for chats</string>
+    <string name="wp_commands_row_hint">/review, /explain… with your instructions</string>
+    <string name="wp_commands_note">In a chat, type /name and your message. Put {input} in an instruction to place the message there.</string>
+    <string name="wp_command_new">New command</string>
+    <string name="wp_command_name">Command name</string>
+    <string name="wp_command_name_hint">e.g. review</string>
+    <string name="wp_command_instruction">Instruction</string>
+    <string name="wp_command_instruction_hint">What the assistant should do with the message ({input})</string>
+    <string name="wp_command_examples">Examples · tap to add</string>
+    <string name="wp_command_add_example">Add</string>
+    <string name="wp_tools">Tools</string>
+    <string name="wp_tools_enabled">Let the assistant use tools</string>
+    <string name="wp_tools_hint">Your location, places nearby, distance and travel time, weather, reminders and your Space notes</string>
+    <string name="wp_tools_location">Location</string>
+    <string name="wp_tools_location_on">Allowed</string>
+    <string name="wp_tools_location_off">Allow</string>
+    <string name="wp_tools_location_hint">For “nearest…”, “how far…” and weather here. Without it, name a place.</string>
+    <string name="wp_tools_unsupported">This model rejected tools</string>
+    <string name="wp_tools_retry">Try again</string>
+    <string name="wp_tools_note">Maps: OpenStreetMap (search and routing). Weather: Open-Meteo. No keys; only the place names or coordinates are sent to them. Needs a model with tool calling.</string>
 </resources>

@@ -125,8 +125,14 @@ class ChatFragment : Fragment() {
             setOnClickListener { onSend() }
         }
         composer.addView(send, LinearLayout.LayoutParams(style.dp(48), style.dp(48)).apply { marginStart = style.dp(8) })
+        // "/": the user's commands as chips above the composer
+        suggestions = LinearLayout(ctx).apply { setPadding(style.dp(12), style.dp(4), style.dp(12), 0); isVisible = false }
+        column.addView(android.widget.HorizontalScrollView(ctx).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(suggestions)
+        })
         column.addView(composer)
-        input.doAfterTextChanged { updateSend() }
+        input.doAfterTextChanged { updateSend(); updateSuggestions() }
         styleImageToggle()
 
         // edge-to-edge: status bar on top, keyboard (or nav bar) below the composer
@@ -153,6 +159,7 @@ class ChatFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { engine.busy.collect { busy = conversationId in it; updateSend(); list.adapter?.notifyDataSetChanged() } }
                 launch { engine.status.collect { status = it[conversationId]; list.adapter?.notifyDataSetChanged() } }
+                commands = container.chats.commands()
                 reload()
                 engine.changes.filter { it == conversationId }.collect { reload() }
             }
@@ -178,6 +185,29 @@ class ChatFragment : Fragment() {
     private fun scrollToEnd() {
         val n = list.adapter?.itemCount ?: 0
         if (n > 0) list.scrollToPosition(n - 1)
+    }
+
+    private lateinit var suggestions: LinearLayout
+    private var commands: List<app.olauncher.features.assistant.domain.ChatCommand> = emptyList()
+
+    private fun updateSuggestions() {
+        if (!::suggestions.isInitialized) return
+        val t = input.text.toString()
+        val typing = t.startsWith("/") && !t.contains(' ') && !t.contains('\n')
+        val prefix = t.drop(1).lowercase()
+        val matches = if (typing) commands.filter { it.name.startsWith(prefix) } else emptyList()
+        suggestions.removeAllViews()
+        suggestions.isVisible = matches.isNotEmpty()
+        matches.forEach { c ->
+            suggestions.addView(TextView(requireContext(), null, 0, R.style.TextSmall).apply {
+                text = "/${c.name}"
+                setTextColor(style.ink)
+                typeface = android.graphics.Typeface.MONOSPACE
+                background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 100, style.hairline)
+                setPadding(style.dp(14), style.dp(8), style.dp(14), style.dp(8))
+                setOnClickListener { input.setText("/${c.name} "); input.setSelection(input.text.length) }
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = style.dp(8) })
+        }
     }
 
     private fun updateSend() {

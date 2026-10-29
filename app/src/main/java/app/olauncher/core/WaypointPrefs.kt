@@ -125,6 +125,21 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(USE_ABOUT_ME, true)
         set(value) = prefs.edit { putBoolean(USE_ABOUT_ME, value) }
 
+    /** After a chat, the model may add or correct facts in the memory about you. */
+    var learnFromChats: Boolean
+        get() = prefs.getBoolean(LEARN_FROM_CHATS, true)
+        set(value) = prefs.edit { putBoolean(LEARN_FROM_CHATS, value) }
+
+    /** The assistant's tools: location, places, routes, weather, reminders, Space search. */
+    var toolsEnabled: Boolean
+        get() = prefs.getBoolean(TOOLS_ENABLED, true)
+        set(value) = prefs.edit { putBoolean(TOOLS_ENABLED, value) }
+
+    /** "url|model" of a provider that rejected tool calls; tools are skipped for it until the setting changes. */
+    var toolsUnsupported: String
+        get() = prefs.getString(TOOLS_UNSUPPORTED, null) ?: ""
+        set(value) = prefs.edit { putString(TOOLS_UNSUPPORTED, value) }
+
     /** Cloud speech-to-text model for Space (only used when transcription isn't on-device). */
     var transcribeModel: String
         get() = prefs.getString(TRANSCRIBE_MODEL, null) ?: ""
@@ -255,6 +270,9 @@ class WaypointPrefs(context: Context) {
         const val TRANSCRIBE_LANGUAGE = "WP_TRANSCRIBE_LANGUAGE"
         const val SPACE_SUMMARIZE = "WP_SPACE_SUMMARIZE"
         const val SPACE_CLEANUP = "WP_SPACE_CLEANUP"
+        const val LEARN_FROM_CHATS = "WP_LEARN_FROM_CHATS"
+        const val TOOLS_ENABLED = "WP_TOOLS_ENABLED"
+        const val TOOLS_UNSUPPORTED = "WP_TOOLS_UNSUPPORTED"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val AUTO_SCREENSHOTS = "WP_AUTO_SCREENSHOTS"
         const val LAST_SCREENSHOT = "WP_LAST_SCREENSHOT"

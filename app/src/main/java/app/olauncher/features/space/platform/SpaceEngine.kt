@@ -216,6 +216,33 @@ class SpaceEngine(
 
     // ---- tasks and reminders
 
+    /** For the assistant's add_reminder tool. */
+    suspend fun toolReminder(title: String, due: Long): String {
+        if (title.isBlank()) return "Nothing to add"
+        addTask(title, due, due > 0)
+        return if (due > 0) "Reminder set: $title at " + android.text.format.DateUtils.formatDateTime(context, due,
+            android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME)
+        else "Added to to-dos: $title (no reminder time)"
+    }
+
+    /** For the assistant's search_my_notes tool: the best matching notes and to-dos as short text. */
+    suspend fun searchText(query: String): String {
+        val words = app.olauncher.features.assistant.domain.Memories.words(query).toSet()
+        if (words.isEmpty()) return "Nothing to search for"
+        fun score(text: String) = app.olauncher.features.assistant.domain.Memories.words(text).count { it in words }
+        val hits = notes.all().map { it to score(it.text) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(5)
+        val todos = notes.tasks().map { it to score(it.title) }.filter { it.second > 0 }.sortedByDescending { it.second }.take(5)
+        if (hits.isEmpty() && todos.isEmpty()) return "No matching notes or to-dos"
+        val df = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+        return buildString {
+            hits.forEach { (n, _) ->
+                append("- ").append(n.kind.name.lowercase()).append(" note \"").append(n.displayTitle).append("\" (").append(df.format(java.util.Date(n.created))).append("): ")
+                append((n.summary.ifBlank { n.body.ifBlank { n.transcript } }).replace('\n', ' ').take(500)).append('\n')
+            }
+            todos.forEach { (t, _) -> append("- to-do: ").append(t.title).append(if (t.done) " (done)" else "").append('\n') }
+        }.trim()
+    }
+
     /** A chat message like "remind me tonight to do the dishes" becomes a to-do/reminder; returns the confirmation. */
     suspend fun chatRequest(text: String): String? {
         val r = ReminderRequest.parse(text, System.currentTimeMillis()) ?: return null

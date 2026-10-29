@@ -3,6 +3,9 @@ package app.olauncher.features.assistant.platform
 import app.olauncher.features.assistant.domain.ApiFormat
 import app.olauncher.features.assistant.domain.ChatProtocol
 import app.olauncher.features.assistant.domain.SseReader
+import app.olauncher.features.assistant.domain.ToolCall
+import app.olauncher.features.assistant.domain.ToolCallCollector
+import app.olauncher.features.assistant.domain.ToolSpec
 import app.olauncher.features.assistant.domain.Turn
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -12,7 +15,8 @@ import java.net.URL
 
 data class ApiConfig(val format: ApiFormat, val baseUrl: String, val model: String, val apiKey: String?)
 
-open class ApiException(message: String) : IOException(message)
+/** [code]: the HTTP status when the server answered with an error (0 = not an HTTP error). */
+open class ApiException(message: String, val code: Int = 0) : IOException(message)
 
 /**
  * Streams a reply from the configured provider (server-sent events), calling [onDelta] with each piece
@@ -23,6 +27,7 @@ object ChatClient {
     /**
      * [onConnection] receives the socket so a Stop button can close it even while a read blocks.
      * A connection dropped before any text arrived (reset, EOF, TLS hiccup) is retried once on a fresh socket.
+     * With [tools] offered, returns the calls the model made (empty = it answered in text).
      */
     suspend fun stream(
         config: ApiConfig,
@@ -30,18 +35,19 @@ object ChatClient {
         onConnection: (HttpURLConnection) -> Unit = {},
         webPlugin: Boolean = false,
         onCitations: (List<Pair<String, String>>) -> Unit = {},
+        tools: List<ToolSpec> = emptyList(),
         onDelta: (String) -> Unit,
-    ) {
+    ): List<ToolCall> {
         var got = false
         val track: (String) -> Unit = { got = true; onDelta(it) }
-        try {
-            once(config, turns, onConnection, webPlugin, onCitations, track)
+        return try {
+            once(config, turns, onConnection, webPlugin, onCitations, tools, track)
         } catch (e: IOException) {
             if (e is ApiException || got) throw friendly(e, config)
             currentCoroutineContext().ensureActive()
             kotlinx.coroutines.delay(400)
             try {
-                once(config, turns, onConnection, webPlugin, onCitations, track)
+                once(config, turns, onConnection, webPlugin, onCitations, tools, track)
             } catch (e2: IOException) {
                 throw friendly(e2, config)
             }
@@ -67,9 +73,11 @@ object ChatClient {
         onConnection: (HttpURLConnection) -> Unit,
         webPlugin: Boolean,
         onCitations: (List<Pair<String, String>>) -> Unit,
+        tools: List<ToolSpec>,
         onDelta: (String) -> Unit,
-    ) {
-        val req = ChatProtocol.request(config.format, config.baseUrl, config.apiKey, config.model, turns, webPlugin = webPlugin)
+    ): List<ToolCall> {
+        val req = ChatProtocol.request(config.format, config.baseUrl, config.apiKey, config.model, turns, webPlugin = webPlugin, tools = tools)
+        val collector = ToolCallCollector(config.format)
         val conn = (URL(req.url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             doOutput = true
@@ -86,15 +94,18 @@ object ChatClient {
             val code = conn.responseCode
             if (code !in 200..299) {
                 val err = conn.errorStream?.bufferedReader()?.use { it.readText() }
-                throw ApiException(ChatProtocol.errorMessage(code, err))
+                throw ApiException(ChatProtocol.errorMessage(code, err), code)
             }
             val type = conn.contentType.orEmpty()
             if (!type.contains("event-stream")) {
                 // Some servers ignore "stream": read the whole JSON answer instead
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
-                onDelta(ChatProtocol.fullText(config.format, body) ?: throw ApiException("Empty reply"))
+                collector.feed(body)
+                val text = ChatProtocol.fullText(config.format, body)
+                if (text == null && collector.calls().isEmpty()) throw ApiException("Empty reply")
+                text?.let(onDelta)
                 if (webPlugin) ChatProtocol.citations(body).takeIf { it.isNotEmpty() }?.let(onCitations)
-                return
+                return collector.calls()
             }
             val sse = SseReader()
             var got = false
@@ -108,10 +119,13 @@ object ChatClient {
                         throw ApiException(ChatProtocol.errorMessage(code, event.second))
                     }
                     ChatProtocol.delta(config.format, event.second)?.let { got = true; onDelta(it) }
+                    if (tools.isNotEmpty()) collector.feed(event.second)
                     if (webPlugin) ChatProtocol.citations(event.second).takeIf { it.isNotEmpty() }?.let(onCitations)
                 }
             }
-            if (!got) throw ApiException("The model returned no text")
+            val calls = collector.calls()
+            if (!got && calls.isEmpty()) throw ApiException("The model returned no text")
+            return calls
         } finally {
             conn.disconnect()
         }

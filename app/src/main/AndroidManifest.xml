@@ -12,6 +12,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Space voice notes (Compass): recording only while the user records, shown by a notification -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Wayfinder tools: "nearest …", distance and weather from where you are (asked for only when you turn it on) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

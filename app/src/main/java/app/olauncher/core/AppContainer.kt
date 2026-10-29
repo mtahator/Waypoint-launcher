@@ -7,6 +7,8 @@ import app.olauncher.features.appearance.ui.AppearanceController
 import app.olauncher.features.assistant.data.ChatRepository
 import app.olauncher.features.assistant.platform.ApiKeyStore
 import app.olauncher.features.assistant.platform.ChatEngine
+import app.olauncher.features.assistant.platform.ToolHost
+import app.olauncher.features.assistant.platform.ToolRunner
 import app.olauncher.features.assistant.platform.ImageClient
 import app.olauncher.features.notifications.platform.CaptureController
 import app.olauncher.features.quickanswers.platform.ExchangeRateRepository
@@ -32,7 +34,11 @@ class AppContainer(context: Context) {
     val apiKeys by lazy { ApiKeyStore(prefs) }
     val chats by lazy { ChatRepository(app, dispatchers.io) }
     val braveKeys by lazy { ApiKeyStore(prefs, ApiKeyStore.Slot.BRAVE) }
-    val chatEngine: ChatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) }) }
+    val chatEngine: ChatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) },
+        tools = ToolRunner(app, object : ToolHost {
+            override suspend fun addReminder(title: String, due: Long) = space.toolReminder(title, due)
+            override suspend fun searchNotes(query: String) = space.searchText(query)
+        })) }
     val space: SpaceEngine by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
     }

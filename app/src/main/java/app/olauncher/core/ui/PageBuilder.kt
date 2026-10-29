@@ -193,7 +193,8 @@ fun Context.promptText(
                 multiLine -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                 else -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             }
-            if (!multiLine) maxLines = 1
+            // long texts (a pasted profile) scroll inside the field instead of pushing the dialog off screen
+            if (!multiLine) maxLines = 1 else { minLines = 3; maxLines = 10; isVerticalScrollBarEnabled = true }
             styleInput()
             layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = (16 * resources.displayMetrics.density).toInt() }

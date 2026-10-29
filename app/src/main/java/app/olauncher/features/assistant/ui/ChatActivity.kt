@@ -50,6 +50,11 @@ class ChatActivity : AppCompatActivity() {
         val id = intent?.getLongExtra(EXTRA_CONVERSATION, 0L) ?: 0L
         if (id > 0) showConversation(id)
         if (intent?.getBooleanExtra(EXTRA_SETTINGS, false) == true) show(AssistantSettingsFragment())
+        when (intent?.getStringExtra(EXTRA_PAGE)) {
+            PAGE_MEMORY -> show(MemoryFragment())
+            PAGE_COMMANDS -> show(CommandsFragment())
+        }
+        intent?.removeExtra(EXTRA_PAGE)
         if (intent?.getBooleanExtra(EXTRA_SPACE, false) == true || intent?.getBooleanExtra(EXTRA_RECORD, false) == true) showTab(space = true)
         if (intent?.getBooleanExtra(EXTRA_RECORD, false) == true) startRecording()
     }
@@ -100,11 +105,23 @@ class ChatActivity : AppCompatActivity() {
             .commit()
     }
 
+    /** Opens [fragment] on top of the current screen (Back returns to it), e.g. Memory from Setup. */
+    fun push(fragment: Fragment) {
+        supportFragmentManager.beginTransaction()
+            .setCustomAnimations(android.R.anim.fade_in, 0, android.R.anim.fade_in, 0)
+            .replace(CONTAINER, fragment)
+            .addToBackStack(null)
+            .commit()
+    }
+
     companion object {
         const val EXTRA_CONVERSATION = "conversation"
         const val EXTRA_SETTINGS = "settings"
         const val EXTRA_SPACE = "space"
         const val EXTRA_RECORD = "record"
+        const val EXTRA_PAGE = "page"
+        const val PAGE_MEMORY = "memory"
+        const val PAGE_COMMANDS = "commands"
         private val CONTAINER = R.id.wp_chat_container
 
         fun intent(context: Context, conversationId: Long = 0L, settings: Boolean = false, space: Boolean = false, record: Boolean = false) =

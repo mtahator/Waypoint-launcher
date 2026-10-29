@@ -3,6 +3,10 @@ package app.olauncher.features.assistant.platform
 import app.olauncher.core.WaypointPrefs
 import app.olauncher.features.assistant.data.ChatRepository
 import app.olauncher.features.assistant.domain.ChatProtocol
+import app.olauncher.features.assistant.domain.Commands
+import app.olauncher.features.assistant.domain.Memories
+import app.olauncher.features.assistant.domain.MemoryItem
+import app.olauncher.features.assistant.domain.Tools
 import app.olauncher.features.assistant.domain.ImageProtocol
 import app.olauncher.features.websearch.domain.SearchEngine
 import app.olauncher.features.websearch.domain.Source
@@ -37,6 +41,8 @@ class ChatEngine(
     private val io: CoroutineDispatcher,
     /** Requests done on the phone instead of by the model (reminders, to-dos); returns the reply, or null. */
     private val localAction: suspend (String) -> String? = { null },
+    /** Runs the model's tool calls (location, places, routes, weather, reminders, notes); null = no tools. */
+    private val tools: ToolRunner? = null,
 ) {
     private val jobs = ConcurrentHashMap<Long, Job>()
     private val sockets = ConcurrentHashMap<Long, HttpURLConnection>()
@@ -153,16 +159,30 @@ class ChatEngine(
         }
         val msgId = repo.add(conversationId, "assistant", "")
         _changes.tryEmit(conversationId)
-        val aboutMe = prefs.aboutMe.takeIf { prefs.useAboutMe && it.isNotBlank() }
-        val web = try { research(conversationId, history, aboutMe, forceSearch) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) {
-            Research(null, emptyList(), false, aboutMe != null, note = e.message)
+        val lastUser = history.lastOrNull { it.isUser }
+        val question = lastUser?.content.orEmpty()
+        // "/name …": the user's own command adds its instruction; the model sees only the rest as the message
+        val command = Commands.match(question, repo.commands())
+        val asked = command?.second?.ifBlank { null } ?: question
+        val recentText = history.dropLast(1).takeLast(4).joinToString(" ") { it.content.take(300) }
+        val memory = if (prefs.useAboutMe) Memories.promptBlock(Memories.select(memories(), asked, recentText)) else null
+        val toolsOn = toolsAvailable()
+        // places, routes and weather come from the tools, not from a web search
+        val web = if (toolsOn && !forceSearch && Tools.wantsTools(asked)) Research(null, emptyList(), false, true)
+        else try { research(conversationId, history, memory, forceSearch) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) {
+            Research(null, emptyList(), false, memory != null, note = e.message)
         }
         fun turns(research: Research) = buildList {
             prefs.systemPrompt.takeIf { it.isNotBlank() }?.let { add(Turn(Turn.Role.SYSTEM, it)) }
-            if (aboutMe != null && research.useAboutMe) add(Turn(Turn.Role.SYSTEM, ABOUT_PREFIX + aboutMe))
+            add(Turn(Turn.Role.SYSTEM, nowLine()))
+            if (memory != null && research.useAboutMe) add(Turn(Turn.Role.SYSTEM, memory))
+            command?.let { (cmd, input) -> add(Turn(Turn.Role.SYSTEM, Commands.instruction(cmd, input))) }
             research.prompt?.let { add(Turn(Turn.Role.SYSTEM, it)) }
             research.note?.let { add(Turn(Turn.Role.SYSTEM, "Web search was attempted but failed ($it). Answer from general knowledge and say that live results were unavailable.")) }
-            history.forEach { add(Turn(if (it.isUser) Turn.Role.USER else Turn.Role.ASSISTANT, it.content)) }
+            history.forEach {
+                val content = if (it.id == lastUser?.id && command != null) asked else it.content
+                add(Turn(if (it.isUser) Turn.Role.USER else Turn.Role.ASSISTANT, content))
+            }
         }
         if (web.sources.isNotEmpty()) repo.setSources(msgId, web.sources)
         val pluginSources = ArrayList<Source>()
@@ -170,17 +190,47 @@ class ChatEngine(
         val text = StringBuilder()
         var lastSave = 0L
         try {
-            suspend fun answer(research: Research) = withContext(io) {
-                ChatClient.stream(config(), turns(research), onConnection = { sockets[conversationId] = it }, webPlugin = research.plugin,
-                    onCitations = { list -> list.forEach { (t, u) -> if (pluginSources.none { it.url == u }) pluginSources += Source(t.ifBlank { u }, u) } },
-                ) { piece ->
-                    text.append(piece)
-                    val now = System.currentTimeMillis()
-                    if (now - lastSave > 120) {
-                        lastSave = now
-                        val snapshot = text.toString()
-                        scope.launch { repo.update(msgId, snapshot); _changes.tryEmit(conversationId) }
+            suspend fun answer(research: Research) {
+                val base = turns(research)
+                val extra = ArrayList<Turn>()
+                var offer = if (toolsOn && !research.plugin) Tools.ALL else emptyList()
+                var round = 0
+                while (true) {
+                    val roundStart = text.length
+                    val calls = try {
+                        withContext(io) {
+                            ChatClient.stream(config(), base + extra, onConnection = { sockets[conversationId] = it }, webPlugin = research.plugin,
+                                onCitations = { list -> list.forEach { (t, u) -> if (pluginSources.none { it.url == u }) pluginSources += Source(t.ifBlank { u }, u) } },
+                                tools = offer,
+                            ) { piece ->
+                                text.append(piece)
+                                val now = System.currentTimeMillis()
+                                if (now - lastSave > 120) {
+                                    lastSave = now
+                                    val snapshot = text.toString()
+                                    scope.launch { repo.update(msgId, snapshot); _changes.tryEmit(conversationId) }
+                                }
+                            }
+                        }
+                    } catch (e: ApiException) {
+                        // a provider/model without tool calls: remember that and answer without them
+                        if (offer.isEmpty() || round > 0 || text.length > roundStart || e.code !in 400..422) throw e
+                        prefs.toolsUnsupported = toolsKey()
+                        offer = emptyList()
+                        continue
                     }
+                    if (calls.isEmpty() || tools == null) break
+                    round++
+                    extra += Turn(Turn.Role.ASSISTANT, text.substring(roundStart), toolCalls = calls)
+                    for (call in calls) {
+                        setStatus(conversationId, Tools.status(call.name, runCatching { org.json.JSONObject(call.arguments) }.getOrDefault(org.json.JSONObject())))
+                        _changes.tryEmit(conversationId)
+                        extra += Turn(Turn.Role.TOOL, tools.run(call).take(6_000), toolCallId = call.id, toolName = call.name)
+                    }
+                    setStatus(conversationId, "Writing the answer…")
+                    if (text.isNotEmpty() && !text.endsWith("\n")) text.append("\n\n")
+                    // enough rounds: the last one must answer in text
+                    if (round >= 4) offer = emptyList()
                 }
             }
             try {
@@ -191,8 +241,9 @@ class ChatEngine(
                 repo.setSources(msgId, emptyList())
                 answer(Research(null, emptyList(), false, web.useAboutMe, note = "the provider dropped the request with the results"))
             }
-            repo.update(msgId, text.toString())
+            repo.update(msgId, text.toString().trim())
             if (pluginSources.isNotEmpty()) repo.setSources(msgId, pluginSources)
+            if (prefs.useAboutMe && prefs.learnFromChats && lastUser != null && Memories.mentionsSelf(question)) learnLater(conversationId)
         } catch (e: Throwable) {
             val stopped = e is kotlinx.coroutines.CancellationException || jobs[conversationId] == null
             withContext(kotlinx.coroutines.NonCancellable) {
@@ -210,6 +261,92 @@ class ChatEngine(
             _busy.value = _busy.value - conversationId
             _changes.tryEmit(conversationId)
         }
+    }
+
+    // ---- memory, commands, tools
+
+    private var migrated = false
+
+    /** The memory, after moving an old single "About you" text into it once. */
+    suspend fun memories(): List<MemoryItem> {
+        if (!migrated) {
+            migrated = true
+            val old = prefs.aboutMe
+            if (old.isNotBlank() && repo.memories().isEmpty()) {
+                Memories.fallbackOrganize(old).forEach { repo.addMemory(it.tag, it.text, it.core) }
+                prefs.aboutMe = ""
+            }
+        }
+        return repo.memories()
+    }
+
+    private val _memoryChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 8)
+    /** The memory changed (learned from a chat, or edited). */
+    val memoryChanges: SharedFlow<Unit> = _memoryChanges
+    fun memoryEdited() { _memoryChanges.tryEmit(Unit) }
+
+    /**
+     * Organises a long text about the user into tagged facts (with the chat model when one is set, else on
+     * the phone) and adds them; [replace] clears the memory first. Returns how many facts were saved.
+     */
+    suspend fun importMemory(raw: String, replace: Boolean): Int {
+        val drafts = if (isConfigured()) {
+            // long profiles go in parts at blank lines so nothing is cut off
+            val parts = ArrayList<String>()
+            val cur = StringBuilder()
+            for (para in raw.split(Regex("\n\\s*\n"))) {
+                if (cur.length + para.length > 12_000 && cur.isNotEmpty()) { parts += cur.toString(); cur.clear() }
+                cur.append(para).append("\n\n")
+            }
+            if (cur.isNotBlank()) parts += cur.toString()
+            parts.flatMap { part ->
+                val reply = StringBuilder()
+                runCatching { withContext(io) { ChatClient.stream(config(), listOf(Turn(Turn.Role.USER, Memories.organizePrompt(part)))) { reply.append(it) } } }
+                Memories.parseOrganized(reply.toString()).ifEmpty { Memories.fallbackOrganize(part) }
+            }
+        } else Memories.fallbackOrganize(raw)
+        if (drafts.isEmpty()) return 0
+        if (replace) repo.clearMemories()
+        val known = repo.memories().map { it.text.lowercase() }.toSet()
+        var n = 0
+        for (d in drafts) if (d.text.lowercase() !in known) { repo.addMemory(d.tag, d.text, d.core); n++ }
+        memoryEdited()
+        return n
+    }
+
+    private val learnedUpTo = ConcurrentHashMap<Long, Long>()
+
+    /** In the background: new facts from the user's recent messages in this conversation. */
+    private fun learnLater(conversationId: Long) = scope.launch {
+        runCatching {
+            val since = learnedUpTo[conversationId] ?: 0L
+            val users = repo.messages(conversationId).filter { it.isUser && it.id > since && ImageProtocol.command(it.content) == null }.takeLast(3)
+            if (users.isEmpty()) return@launch
+            learnedUpTo[conversationId] = users.last().id
+            val existing = memories()
+            val reply = StringBuilder()
+            withContext(io) { ChatClient.stream(config(), listOf(Turn(Turn.Role.USER, Memories.learnPrompt(existing, users.map { it.content })))) { reply.append(it) } }
+            val changes = Memories.parseLearn(reply.toString(), existing)
+            if (changes.isEmpty) return@launch
+            changes.add.forEach { repo.addMemory(it.tag, it.text, source = MemoryItem.SOURCE_CHAT) }
+            changes.update.forEach { (id, text) -> repo.updateMemory(id, text = text) }
+            changes.delete.forEach { repo.deleteMemory(it) }
+            memoryEdited()
+        }
+    }
+
+    private fun toolsKey() = prefs.apiBaseUrl.trim() + "|" + prefs.apiModel.trim()
+
+    private fun toolsAvailable() = tools != null && prefs.toolsEnabled && prefs.toolsUnsupported != toolsKey()
+
+    /** Lets a provider that once rejected tools try again (after the user changes model or turns tools on). */
+    fun resetToolSupport() { prefs.toolsUnsupported = "" }
+
+    /** Date, time and zone, so "tonight", "tomorrow at 5" and weekdays mean the right thing. */
+    private fun nowLine(): String {
+        val now = java.time.ZonedDateTime.now()
+        return "Now: " + now.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", java.util.Locale.ENGLISH)) +
+            " (${now.zone.id})."
     }
 
     /** Result of the planning/search step: an extra system prompt with numbered sources, and the sources. */
@@ -259,11 +396,5 @@ class ChatEngine(
         val sources = results.map { Source(it.title.ifBlank { it.url }, it.url) }
         setStatus(conversationId, "Writing the answer…")
         return Research(WebSearch.sourcesPrompt(results, today), sources, false, plan.useAboutMe)
-    }
-
-    private companion object {
-        /** Personal context, used only when it helps (the model is told not to bring it up otherwise). */
-        const val ABOUT_PREFIX = "Background about the user, for personalising answers. Use it only when it is relevant " +
-            "to the question; don't mention it otherwise.\n"
     }
 }

@@ -29,6 +29,26 @@ class AssistantSettingsFragment : WpPageFragment() {
     override val pageSubtitle = R.string.wp_assistant_subtitle
 
     private var testing = false
+    private var memoryCount: Int? = null
+    private var commandCount: Int? = null
+
+    private val locationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { rebuild() }
+
+    override fun onResume() {
+        super.onResume()
+        launchUi {
+            memoryCount = container.chatEngine.memories().size
+            commandCount = container.chats.commands().size
+            rebuild()
+        }
+    }
+
+    /** Memory and Commands live in Wayfinder; from the launcher's settings they open there. */
+    private fun openPage(page: String) {
+        val a = activity
+        if (a is ChatActivity) a.push(if (page == ChatActivity.PAGE_MEMORY) MemoryFragment() else CommandsFragment())
+        else startActivity(ChatActivity.intent(requireContext()).putExtra(ChatActivity.EXTRA_PAGE, page))
+    }
 
     private val photoPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) container.prefs.autoScreenshots = false
@@ -135,19 +155,37 @@ class AssistantSettingsFragment : WpPageFragment() {
             }
             page.card {
                 header(getString(R.string.wp_api_behaviour))
-                row(getString(R.string.wp_about_you), prefs.aboutMe.ifBlank { getString(R.string.wp_none) }.replace('\n', ' ').take(40),
-                    getString(R.string.wp_about_you_hint)) {
-                    requireContext().promptText(R.string.wp_about_you, prefs.aboutMe, hint = R.string.wp_about_you_example, multiLine = true) {
-                        prefs.aboutMe = it; rebuild()
-                    }
-                }
-                toggle(getString(R.string.wp_use_about_you), prefs.useAboutMe) { prefs.useAboutMe = it }
+                row(getString(R.string.wp_memory), memoryCount?.let { resources.getQuantityString(R.plurals.wp_memory_facts, it, it) } ?: "…",
+                    getString(R.string.wp_memory_row_hint)) { openPage(ChatActivity.PAGE_MEMORY) }
+                row(getString(R.string.wp_commands), commandCount?.let { if (it == 0) getString(R.string.wp_none) else "$it" } ?: "…",
+                    getString(R.string.wp_commands_row_hint)) { openPage(ChatActivity.PAGE_COMMANDS) }
                 row(getString(R.string.wp_system_prompt), prefs.systemPrompt.ifBlank { getString(R.string.wp_none) }.take(40)) {
                     requireContext().promptText(R.string.wp_system_prompt, prefs.systemPrompt, multiLine = true) {
                         prefs.systemPrompt = it; rebuild()
                     }
                 }
                 row(getString(R.string.wp_api_test), if (testing) "…" else null) { testConnection() }
+            }
+            page.card {
+                header(getString(R.string.wp_tools))
+                toggle(getString(R.string.wp_tools_enabled), prefs.toolsEnabled, getString(R.string.wp_tools_hint)) {
+                    prefs.toolsEnabled = it; container.chatEngine.resetToolSupport()
+                }
+                val located = androidx.core.content.ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED || androidx.core.content.ContextCompat.checkSelfPermission(requireContext(),
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                row(getString(R.string.wp_tools_location), getString(if (located) R.string.wp_tools_location_on else R.string.wp_tools_location_off),
+                    getString(R.string.wp_tools_location_hint)) {
+                    if (!located) locationPermission.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION))
+                    else startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.fromParts("package", requireContext().packageName, null)))
+                }
+                if (prefs.toolsUnsupported.isNotEmpty() && prefs.toolsUnsupported == prefs.apiBaseUrl.trim() + "|" + prefs.apiModel.trim()) {
+                    row(getString(R.string.wp_tools_unsupported), getString(R.string.wp_tools_retry)) { container.chatEngine.resetToolSupport(); rebuild() }
+                }
+                note(getString(R.string.wp_tools_note))
+            }
+            page.card {
+                header(getString(R.string.wp_chats))
                 row(getString(R.string.wp_open_chats)) { startActivity(Intent(requireContext(), ChatActivity::class.java)) }
             }
         }

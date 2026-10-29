@@ -86,6 +86,14 @@ adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 open_settings; tap "Wayfinder (assistant"; sleep 1; shot 16a-assistant-settings
 tap "Your API (chat app)"; sleep 1; shot 16b-assistant-api
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 16c-chat-list
+# Memory (import a short profile; organised on the phone without an API) and Commands
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --es page memory; sleep 2; shot 16c1-memory
+tap "Import a profile"; sleep 1
+adb shell "input text 'Name:%sAlex%sRivera.%sI%slive%sin%sLeeds.%sI%sgo%sbouldering%stwice%sa%sweek.'"; sleep 1
+tap "Okay" exact; sleep 4; shot 16c2-memory-imported
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --es page commands; sleep 2; shot 16c3-commands
+tap "/review"; sleep 2; shot 16c4-commands-added
+adb shell input keyevent 4; sleep 1
 tap "+ New"; sleep 2; adb shell "input text 'Hello'"; sleep 1; shot 16d-chat-new
 # a reminder request is done on the phone (no model, no search) and confirmed in the chat
 for i in 1 2 3 4 5; do adb shell input keyevent 67; done
