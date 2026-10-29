@@ -60,4 +60,20 @@ class ReminderRequestTest {
         assertNull(TranscriptCleanup.accept(part, "Budget and timeline."))  // summarised
         assertNull(TranscriptCleanup.accept(part, ""))
     }
+
+    @Test fun talksAreNotTodos() {
+        val talk = "Hey, how are you? So, this is a test that I want to do on a long, long talk about PINNs, which are " +
+            "the flagship physics-informed neural networks. Basically, what you do is create neural networks. I have to say " +
+            "the loss function is the physics equation. With automatic differentiation we calculate derivatives and the residual."
+        assertTrue(app.olauncher.features.space.domain.ReminderParser.parse(talk, now, zone).isEmpty())
+        // a long note still keeps explicit reminders
+        assertEquals("Email the slides", app.olauncher.features.space.domain.ReminderParser.parse("$talk Remind me to email the slides tomorrow.", now, zone).single().title)
+    }
+
+    @Test fun incompleteRecognition() {
+        val chunks = app.olauncher.features.space.domain.SpeechChunks
+        assertTrue(chunks.looksIncomplete(words = 9, speechMs = 14_000))
+        assertEquals(false, chunks.looksIncomplete(words = 30, speechMs = 12_000))
+        assertEquals(false, chunks.looksIncomplete(words = 1, speechMs = 1_200))
+    }
 }

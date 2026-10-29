@@ -16,6 +16,7 @@ import app.olauncher.features.assistant.platform.ApiException
 import app.olauncher.features.space.domain.SpeechChunks
 import app.olauncher.features.space.domain.Wav
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -65,50 +66,83 @@ object LocalTranscriber {
 
     /**
      * [onProgress] gets (pieces done, pieces total, text so far) after each piece, so a long recording
-     * (a meeting) shows its text as it comes and nothing is lost if it's interrupted.
+     * (a meeting) shows its text as it comes and nothing is lost if it's interrupted. [log] collects one
+     * line per piece (length, words, retries), shown under the note's "Transcription details".
      */
     suspend fun transcribe(
-        context: Context, wav: File, language: String,
+        context: Context, wav: File, language: String, log: StringBuilder? = null,
         onProgress: suspend (done: Int, total: Int, text: String) -> Unit = { _, _, _ -> },
     ): String {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) throw ApiException("On-device transcription needs Android 13 or newer")
         if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) throw ApiException("This phone has no on-device speech recognizer")
-        // The recognizer ends its session at a long pause, so feed the note one utterance at a time,
-        // with long silences shortened, and pick up again wherever a session stopped early.
+        // The recognizer stops listening after a pause (sometimes while still reading the audio), so the
+        // note goes in short utterance-sized pieces with long silences shortened; a piece whose text is
+        // too short for the speech in it is split again and redone.
         val energies = withContext(Dispatchers.IO) { energies(wav) }
         val quiet = SpeechChunks.silenceThreshold(energies)
-        val pieces = SpeechChunks.split(energies)
+        val pieces = SpeechChunks.split(energies, minMs = 1_500, maxMs = 8_000)
         val total = (wav.length() - Wav.HEADER).coerceAtLeast(0)
         val parts = ArrayList<String>()
         RandomAccessFile(wav, "r").use { file ->
-            for ((i, range) in pieces.withIndex()) {
+            suspend fun pcm(range: IntRange): ByteArray {
                 val start = range.first.toLong() * SpeechChunks.FRAME_BYTES
                 val end = if (range.last == energies.size - 1) total else (range.last + 1).toLong() * SpeechChunks.FRAME_BYTES
-                val pcm = withContext(Dispatchers.IO) {
-                    ByteArray((end - start).toInt()).also { file.seek(Wav.HEADER + start); file.readFully(it) }
-                }
-                val piece = ArrayList<String>()
-                var from = 0
-                var attempts = 0
-                while (from < pcm.size - Wav.BYTES_PER_SECOND / 2 && attempts < 12) {
-                    attempts++
-                    val r = withContext(Dispatchers.Main) {
-                        // one retry with a fresh recognizer if a session fails for a reason other than the language
-                        runCatching { run(context, pcm, from, quiet, language) }.getOrElse { e ->
-                            if (e is LanguageException || e is kotlinx.coroutines.CancellationException) throw e
-                            run(context, pcm, from, quiet, language)
-                        }
+                return withContext(Dispatchers.IO) { ByteArray((end - start).toInt()).also { file.seek(Wav.HEADER + start); file.readFully(it) } }
+            }
+
+            suspend fun recognize(range: IntRange, depth: Int): String {
+                val speechMs = SpeechChunks.speechMs(energies, range, quiet)
+                var text = session(context, pcm(range), quiet, language)
+                var tries = 1
+                // nothing back for a piece with clear speech: a fresh recognizer once more
+                if (text.isBlank() && speechMs >= 800) { delay(250); text = session(context, pcm(range), quiet, language); tries++ }
+                val words = SpeechChunks.words(text)
+                var note = ""
+                if (depth < 2 && SpeechChunks.looksIncomplete(words, speechMs)) {
+                    val sub = SpeechChunks.split(energies.copyOfRange(range.first, range.last + 1), minMs = 700,
+                        maxMs = (range.count() * SpeechChunks.FRAME_MS / 2).coerceAtLeast(1_400))
+                        .map { (it.first + range.first)..(it.last + range.first) }
+                    if (sub.size > 1) {
+                        val again = sub.map { recognize(it, depth + 1) }.filter { it.isNotBlank() }.joinToString(" ")
+                        if (SpeechChunks.words(again) > words) { note = " → split ${sub.size}: ${SpeechChunks.words(again)}w"; text = again }
                     }
-                    if (r.text.isNotBlank()) piece += r.text
-                    // stopped before the end of the piece: continue from about where it was listening
-                    if (r.resumeAt <= from + Wav.BYTES_PER_SECOND / 2) break
-                    from = r.resumeAt
                 }
-                piece.joinToString(" ").trim().takeIf { it.isNotEmpty() }?.let { parts += it }
+                if (depth == 0) log?.append("%5.1fs  speech %4.1fs  %3dw%s%s\n".format(
+                    range.count() * SpeechChunks.FRAME_MS / 1000f, speechMs / 1000f, words, if (tries > 1) "  retried" else "", note))
+                return text
+            }
+
+            for ((i, range) in pieces.withIndex()) {
+                recognize(range, 0).takeIf { it.isNotBlank() }?.let { parts += it }
                 onProgress(i + 1, pieces.size, parts.joinToString("\n"))
             }
         }
+        log?.insert(0, "${pieces.size} pieces, ${energies.size * SpeechChunks.FRAME_MS / 1000}s audio\n")
         return parts.joinToString("\n").trim()
+    }
+
+    /** All of [pcm] through recognizer sessions, resuming wherever one stopped reading early. */
+    private suspend fun session(context: Context, pcm: ByteArray, quiet: Float, language: String): String {
+        val piece = ArrayList<String>()
+        var from = 0
+        var attempts = 0
+        while (from < pcm.size - Wav.BYTES_PER_SECOND / 3 && attempts < 12) {
+            attempts++
+            val r = withContext(Dispatchers.Main) {
+                // one retry with a fresh recognizer if a session fails for a reason other than the language
+                runCatching { run(context, pcm, from, quiet, language) }.getOrElse { e ->
+                    if (e is LanguageException || e is kotlinx.coroutines.CancellationException) throw e
+                    delay(300)
+                    run(context, pcm, from, quiet, language)
+                }
+            }
+            if (r.text.isNotBlank()) piece += r.text
+            // the recognizer service needs a moment between sessions
+            delay(120)
+            if (r.resumeAt <= from + Wav.BYTES_PER_SECOND / 3) break
+            from = r.resumeAt
+        }
+        return piece.joinToString(" ").trim()
     }
 
     /** Per-frame energies of the WAV, read in a stream (an hour of audio is ~115 MB). */

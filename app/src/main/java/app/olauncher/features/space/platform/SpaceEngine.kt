@@ -78,7 +78,8 @@ class SpaceEngine(
         try {
             notes.update(id) { put("status", Note.Status.TRANSCRIBING.name); put("error", "") }
             _changes.tryEmit(id)
-            val raw = if (isLocal) LocalTranscriber.transcribe(context, audioFile(note), prefs.transcribeLanguage) { done, total, sofar ->
+            val log = StringBuilder()
+            val raw = if (isLocal) LocalTranscriber.transcribe(context, audioFile(note), prefs.transcribeLanguage, log) { done, total, sofar ->
                 // the text so far is saved as it comes, so a long meeting shows up while it's still being transcribed
                 notes.update(id) { put("transcript", sofar); put("raw", "") }
                 setProgress(id, if (total > 1) "${done * 100 / total}%" else null)
@@ -90,7 +91,8 @@ class SpaceEngine(
                 )
             }
             setProgress(id, null)
-            notes.update(id) { put("transcript", raw); put("raw", ""); put("title", Transcription.fallbackTitle(raw)) }
+            // with status DONE the error column holds the per-piece log ("Transcription details")
+            notes.update(id) { put("transcript", raw); put("raw", ""); put("title", Transcription.fallbackTitle(raw)); put("error", log.toString()) }
             if (raw.isBlank()) throw ApiException("No speech was recognised")
             val clean = cleanUp(id, raw)
             if (clean != raw) notes.update(id) { put("transcript", clean); put("raw", raw); put("title", Transcription.fallbackTitle(clean)) }
@@ -149,7 +151,8 @@ class SpaceEngine(
                 a.category?.let { category = it }
                 if (a.title.isNotBlank()) title = a.title
                 if (a.summary.isNotBlank()) summary = a.summary
-                if (a.tasks.isNotEmpty() || tasks.isEmpty()) tasks = a.tasks
+                // the model read the whole thing in context: its list (possibly empty) replaces the phone's guesses
+                tasks = a.tasks
             } ?: run {
                 // not JSON: treat as the older "title, blank line, summary" format
                 if (reply.isNotBlank() && note.kind == Note.Kind.VOICE) {

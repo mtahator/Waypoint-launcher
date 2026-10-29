@@ -79,4 +79,16 @@ object SpeechChunks {
         for (i in from until to) if (e[i] < e[q]) q = i
         return q.coerceAtLeast(from + 1)
     }
+
+    /** Milliseconds of speech (frames above the pause level) in [range]. */
+    fun speechMs(energies: FloatArray, range: IntRange, quiet: Float): Int =
+        range.count { it in energies.indices && energies[it] >= quiet } * FRAME_MS
+
+    fun words(text: String) = text.split(Regex("\\s+")).count { w -> w.any(Char::isLetterOrDigit) }
+
+    /**
+     * People say ~2–3 words a second; under one word a second of speech means the recognizer stopped
+     * listening part-way (it does this after an internal pause), so the piece should be split and redone.
+     */
+    fun looksIncomplete(words: Int, speechMs: Int): Boolean = speechMs >= 2_500 && words < speechMs / 1000.0 * 1.0
 }

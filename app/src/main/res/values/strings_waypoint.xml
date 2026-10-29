@@ -298,6 +298,7 @@
     <string name="wp_space_show_original">Show original transcript</string>
     <string name="wp_space_show_clean">Show cleaned transcript</string>
     <string name="wp_space_original">Original transcript</string>
+    <string name="wp_space_details">Transcription details</string>
     <string name="wp_space_summarize">AI title &amp; summary</string>
     <string name="wp_space_summarize_hint">Sends the transcript (not the audio) to your chat API. Turn off to keep Space fully on the phone.</string>
     <string name="wp_web_mode">Search the web</string>

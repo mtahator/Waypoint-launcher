@@ -274,10 +274,13 @@ class NoteFragment : Fragment() {
         val n = note ?: return
         val options = mutableListOf(getString(R.string.rename), getString(R.string.wp_space_retranscribe), getString(R.string.wp_delete))
         if (n.raw.isNotBlank()) options += getString(if (showRaw) R.string.wp_space_show_clean else R.string.wp_space_show_original)
+        val details = n.status == Note.Status.DONE && n.error.isNotBlank()
+        if (details) options += getString(R.string.wp_space_details)
         requireContext().chooseOne(R.string.wp_space, options) { i ->
             when (i) {
                 0 -> rename()
-                3 -> { showRaw = !showRaw; viewLifecycleOwner.lifecycleScope.launch { reload() } }
+                3 -> if (n.raw.isNotBlank()) { showRaw = !showRaw; viewLifecycleOwner.lifecycleScope.launch { reload() } } else showDetails(n)
+                4 -> showDetails(n)
                 1 -> if (n.kind == Note.Kind.VOICE) space.process(n.id) else viewLifecycleOwner.lifecycleScope.launch { space.analyze(n.id) }
                 2 -> requireContext().createDialog(R.string.wp_delete, R.string.wp_delete, message = R.string.wp_space_delete_message, onAction = {
                     releasePlayer()
@@ -287,6 +290,19 @@ class NoteFragment : Fragment() {
                 }).showRespectingStatusBar()
             }
         }
+    }
+
+    private fun showDetails(n: Note) {
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle(R.string.wp_space_details)
+            .setMessage(n.error)
+            .setPositiveButton(R.string.copy) { _, _ ->
+                val cm = requireContext().getSystemService(android.content.ClipboardManager::class.java)
+                cm.setPrimaryClip(android.content.ClipData.newPlainText("details", n.error))
+            }
+            .setNegativeButton(android.R.string.ok, null)
+            .show()
+            .findViewById<TextView>(android.R.id.message)?.typeface = android.graphics.Typeface.MONOSPACE
     }
 
     private fun releasePlayer() { player?.release(); player = null }

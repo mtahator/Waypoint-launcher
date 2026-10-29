@@ -10,13 +10,13 @@
         android:name="app.olauncher.ui.HomeFragment"
         android:label="main_fragment"
         tools:layout="@layout/fragment_home">
+        <!-- No exit animations: Home and the drawer are both see-through, and an exit animation that doesn't
+             finish leaves the old screen drawn under the new one (both visible at once without Glass). -->
         <action
             android:id="@+id/action_mainFragment_to_appListFragment"
             app:destination="@id/appListFragment"
             app:enterAnim="@anim/fade_enter"
-            app:exitAnim="@anim/slide_out_top"
-            app:popEnterAnim="@anim/slide_in_top"
-            app:popExitAnim="@anim/fade_exit" />
+            app:popEnterAnim="@anim/slide_in_top" />
         <action
             android:id="@+id/action_mainFragment_to_settingsFragment"
             app:destination="@id/settingsFragment"

@@ -22,16 +22,24 @@ object ReminderParser {
         Regex("""\b(?:please\s+)?remind me (?:to |that |about )?(.+)""", RegexOption.IGNORE_CASE),
         Regex("""\bremember to (.+)""", RegexOption.IGNORE_CASE),
         Regex("""\bdon'?t forget (?:to |the |about )?(.+)""", RegexOption.IGNORE_CASE),
-        Regex("""\bi (?:need|have|must|should) to (.+)""", RegexOption.IGNORE_CASE),
-        Regex("""\b(?:todo|to-do|to do):?\s+(.+)""", RegexOption.IGNORE_CASE),
-        Regex("""(?:یادم (?:بنداز|باشه)|یادآوری کن|فراموش نکنم|باید)\s+(.+)"""),
+        // "to do" only as a label ("To do: …"), never inside a sentence ("a test I want to do on…")
+        Regex("""^\s*(?:todo|to-do|to do)\s*[:\-]\s*(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""(?:یادم (?:بنداز|باشه)|یادآوری کن|فراموش نکنم)\s+(.+)"""),
     )
+
+    /** Weaker cues, only for short notes: in a talk or meeting "I have to say…" is not a to-do. */
+    private val WEAK = listOf(
+        Regex("""^\s*(?:so\s+|and\s+|ok\s+)?i (?:need|have|must|should) to (.+)""", RegexOption.IGNORE_CASE),
+        Regex("""^\s*باید\s+(.+)"""),
+    )
+    private val NOT_TASKS = Regex("""^(?:say|admit|tell you|be honest|talk|explain|mention|point out|think)\b""", RegexOption.IGNORE_CASE)
 
     fun parse(text: String, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<ParsedTask> {
         val sentences = normalizeDigits(text).split(Regex("""(?<=[.!?؟\n])\s+|\n"""))
+        val triggers = if (text.length <= SHORT_NOTE) TRIGGERS + WEAK else TRIGGERS
         val out = ArrayList<ParsedTask>()
         for (s in sentences) {
-            val body = TRIGGERS.firstNotNullOfOrNull { it.find(s)?.groupValues?.get(1) } ?: continue
+            val body = triggers.firstNotNullOfOrNull { it.find(s)?.groupValues?.get(1) }?.takeUnless { NOT_TASKS.containsMatchIn(it) } ?: continue
             val (when_, rest) = extractTime(body, now, zone)
             val title = rest.trim().trimEnd('.', '!', '?', ',', '؟').trim().replace(Regex("\\s+"), " ")
                 .replaceFirstChar { it.uppercase() }
@@ -39,6 +47,9 @@ object ReminderParser {
         }
         return out.distinctBy { it.title.lowercase() }
     }
+
+    /** Notes up to this length are dictated reminders; longer ones are talks and meetings. */
+    const val SHORT_NOTE = 280
 
     private val WEEKDAYS = mapOf(
         "monday" to DayOfWeek.MONDAY, "tuesday" to DayOfWeek.TUESDAY, "wednesday" to DayOfWeek.WEDNESDAY,

@@ -17,7 +17,10 @@ object SpaceAi {
         "Analyse this $kind. Reply with JSON only:\n" +
             "{\"title\": \"≤6 words\", \"summary\": ${if (long) "\"2-3 sentence overview, then lines starting with '- ' for the key points, decisions and action items\"" else "\"1-3 sentences\""}, \"category\": one of ${Categories.ALL.joinToString(", ", "[", "]") { "\"$it\"" }}, " +
             "\"tasks\": [{\"title\": \"…\", \"due\": \"YYYY-MM-DDTHH:MM\" or null}]}\n" +
-            "tasks: things the user must do or asked to be reminded of (\"remind me…\", \"remember to…\", deadlines). " +
+            "tasks: only concrete actions the user explicitly says they must do, or asks to be reminded of " +
+            "(\"remind me…\", \"remember to…\", \"I need to buy…\", deadlines, action items assigned to them). " +
+            "NOT topics they talk about or plan to talk about, explanations, or what others did. " +
+            "Talks, lectures and tests usually have no tasks: then use []. " +
             "Resolve relative times against now = $now (local). Use the language of the content for title/summary/tasks.\n\n" +
             "Content:\n${clip(text)}"
 
