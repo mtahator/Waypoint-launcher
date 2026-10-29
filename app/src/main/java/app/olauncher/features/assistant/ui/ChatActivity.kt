@@ -37,7 +37,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Glass / wallpaper / monochrome may have changed in the launcher's settings
-        if (waypoint.prefs.glassTheme != builtWithGlass) { recreate(); return }
+        if (waypoint.prefs.glassTheme != builtWithGlass) { waypoint.appearance.restartFresh(this); return }
         waypoint.appearance.apply(this)
     }
 

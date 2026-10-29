@@ -57,6 +57,21 @@ class AppearanceController(private val prefs: WaypointPrefs, private val backdro
         }
     }
 
+    /**
+     * Restarts [activity] in a brand-new window. recreate() keeps the old window, and when that was opaque
+     * (a Glass backdrop) the wallpaper stays hidden and old frames show through the see-through screens.
+     */
+    fun restartFresh(activity: Activity, extras: android.content.Intent.() -> Unit = {}) {
+        // clearing the task destroys the old instance (singleTask activities would otherwise get the intent back)
+        val intent = android.content.Intent(activity.intent).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            extras()
+        }
+        activity.startActivity(intent)
+        activity.overridePendingTransition(0, 0)
+    }
+
     /** @return the new monochrome value. */
     fun setMonochrome(on: Boolean): Boolean {
         prefs.launcherMonochrome = on

@@ -90,6 +90,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         navController = this.findNavController(R.id.nav_host_fragment)
+        // restarted from Appearance after switching Glass: go back to that page
+        if (savedInstanceState == null && intent?.getBooleanExtra(EXTRA_OPEN_APPEARANCE, false) == true) {
+            intent.removeExtra(EXTRA_OPEN_APPEARANCE)
+            runCatching { navController.navigate(R.id.appearanceSettingsFragment) }
+        }
         viewModel = ViewModelProvider(this)[MainViewModel::class.java]
         waypoint.appearance.apply(this)
 
@@ -397,5 +402,9 @@ class MainActivity : AppCompatActivity() {
                     resetLauncherViaFakeActivity()
             }
         }
+    }
+
+    companion object {
+        const val EXTRA_OPEN_APPEARANCE = "wp_open_appearance"
     }
 }

@@ -104,8 +104,8 @@ class AppearanceSettingsFragment : WpPageFragment() {
             header(getString(R.string.wp_theme))
             toggle(getString(R.string.wp_glass_theme), prefs.glassTheme, getString(R.string.wp_glass_theme_hint)) {
                 prefs.glassTheme = it
-                // Surfaces are styled at view creation; recreate once so every screen picks it up.
-                requireActivity().recreate()
+                // Surfaces are styled at view creation: restart in a fresh window, back on this page.
+                container.appearance.restartFresh(requireActivity()) { putExtra(app.olauncher.MainActivity.EXTRA_OPEN_APPEARANCE, true) }
             }
             if (prefs.glassTheme) {
                 row(getString(R.string.wp_glass_background), backgroundLabel(prefs.glassBackground)) { chooseBackground() }
