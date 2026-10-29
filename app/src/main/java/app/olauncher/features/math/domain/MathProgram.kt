@@ -6,7 +6,7 @@ package app.olauncher.features.math.domain
  */
 class MathProgram(lines: List<String>) {
 
-    enum class Kind { EMPTY, VALUE, VARIABLE, FUNCTION, GRAPH_Y, GRAPH_X, IMPLICIT, POINT, ERROR }
+    enum class Kind { EMPTY, VALUE, VARIABLE, FUNCTION, GRAPH_Y, GRAPH_X, IMPLICIT, POINT, REGION_Y, REGION_X, REGION, ERROR }
 
     data class Line(
         val text: String,
@@ -21,8 +21,13 @@ class MathProgram(lines: List<String>) {
         val curve: ((Double) -> Double)? = null,
         val implicit: Fn2? = null,
         val point: Pair<Double, Double>? = null,
+        /** Inequalities: +1 shades above (REGION_Y) / right (REGION_X), −1 below / left. */
+        val side: Int = 0,
+        /** `<` / `>`: the boundary is dashed (not included). */
+        val strict: Boolean = false,
     ) {
         val plottable get() = curve != null || implicit != null || point != null
+        val isRegion get() = kind == Kind.REGION_Y || kind == Kind.REGION_X || kind == Kind.REGION
     }
 
     val lines: List<Line>
@@ -85,7 +90,7 @@ class MathProgram(lines: List<String>) {
         val c = Compiler(values, functions)
         val lhs = s.lhs
         val rhs = s.rhs
-        if (s.relation != null && s.relation != "=") throw IllegalArgumentException("inequalities aren't supported yet")
+        if (s.relation != null && s.relation != "=") return inequality(text, s, c)
 
         if (assignment != null) {
             val name = assignment.first
@@ -125,6 +130,40 @@ class MathProgram(lines: List<String>) {
         }
         val l = c.compile(lhs); val r = c.compile(rhs)
         return Line(text, Kind.IMPLICIT, implicit = { x, y -> l(x, y) - r(x, y) })
+    }
+
+    /**
+     * `y > f(x)`, `f(x) <= y`, `x < g(y)` shade one side of a curve; anything else (`x^2 + y^2 < 9`)
+     * shades where F(x, y) = lhs − rhs has the right sign ([Line.implicit] is positive inside).
+     */
+    private fun inequality(text: String, s: Statement, c: Compiler): Line {
+        var lhs = s.lhs
+        var rhs = s.rhs!!
+        var rel = s.relation!!
+        val strict = rel == "<" || rel == ">"
+        // put y (or x) on the left
+        if ((rhs is Expr.Var && (rhs.name == "y" || rhs.name == "x")) && !(lhs is Expr.Var && (lhs.name == "y" || lhs.name == "x"))) {
+            val t = lhs; lhs = rhs; rhs = t
+            rel = when (rel) { "<" -> ">"; ">" -> "<"; "<=" -> ">="; else -> "<=" }
+        }
+        val greater = rel.startsWith(">")
+        if (lhs is Expr.Var && lhs.name == "y" && "y" !in rhs.variables()) {
+            val f = c.compile(rhs)
+            return Line(text, Kind.REGION_Y, curve = { x -> f(x, 0.0) }, side = if (greater) 1 else -1, strict = strict)
+        }
+        if (lhs is Expr.Var && lhs.name == "x" && "x" !in rhs.variables()) {
+            val g = c.compile(rhs)
+            return Line(text, Kind.REGION_X, curve = { y -> g(0.0, y) }, side = if (greater) 1 else -1, strict = strict)
+        }
+        val vars = lhs.variables() + rhs.variables()
+        val l = c.compile(lhs); val r = c.compile(rhs)
+        if ("x" !in vars && "y" !in vars) {
+            val a = l(0.0, 0.0); val b = r(0.0, 0.0)
+            val ok = if (greater) (if (strict) a > b else a >= b) else (if (strict) a < b else a <= b)
+            return Line(text, Kind.VALUE, value = if (ok) 1.0 else 0.0, error = if (ok) null else "false")
+        }
+        val sign = if (greater) 1.0 else -1.0
+        return Line(text, Kind.REGION, implicit = { x, y -> sign * (l(x, y) - r(x, y)) }, strict = strict)
     }
 
     private fun point(text: String, t: Expr.Tuple, c: Compiler): Line {

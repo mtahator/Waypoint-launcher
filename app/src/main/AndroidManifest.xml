@@ -53,6 +53,20 @@
             </intent-filter>
         </activity>
 
+        <!-- Waypoint Chat: its own entry in the app list; conversations with the user's chosen API -->
+        <activity
+            android:name=".features.assistant.ui.ChatActivity"
+            android:exported="true"
+            android:label="@string/wp_chat_app_label"
+            android:launchMode="singleTask"
+            android:taskAffinity="app.waypoint.launcher.chat"
+            android:windowSoftInputMode="adjustResize|stateHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".helper.PinItemActivity"
             android:exported="true"

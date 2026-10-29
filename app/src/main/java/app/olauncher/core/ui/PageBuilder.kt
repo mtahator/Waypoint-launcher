@@ -176,6 +176,8 @@ fun Context.promptText(
     @StringRes hint: Int = 0,
     multiLine: Boolean = false,
     numeric: Boolean = false,
+    /** Overrides the keyboard type (URLs, passwords…). */
+    inputType: Int? = null,
     onDone: (String) -> Unit,
 ) {
     lateinit var field: EditText
@@ -185,7 +187,8 @@ fun Context.promptText(
             setText(initial)
             setSelection(initial.length)
             if (hint != 0) setHint(hint)
-            inputType = when {
+            this.inputType = when {
+                inputType != null -> inputType
                 numeric -> InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
                 multiLine -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
                 else -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES

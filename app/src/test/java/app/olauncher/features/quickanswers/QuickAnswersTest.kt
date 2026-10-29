@@ -86,12 +86,15 @@ class QuickAnswersMoreTest {
 
     @Test fun graphs() {
         val a = QuickAnswers.answer("sin(x)")!!
-        assertEquals("sin(x)", a.graph)
+        assertEquals(listOf("sin(x)"), a.graph)
         assertEquals("y = sin(x)", a.value)
-        assertEquals("x^2+y^2=9", QuickAnswers.answer("x^2+y^2=9")!!.graph)
+        assertEquals(listOf("x^2+y^2=9"), QuickAnswers.answer("x^2+y^2=9")!!.graph)
+        assertEquals(listOf("x^2+y^2=r", "r = 1"), QuickAnswers.answer("x^2+y^2=r")!!.graph)
+        assertEquals(listOf("y=a*x+b", "a = 1", "b = 1"), QuickAnswers.answer("y=a*x+b")!!.graph)
+        assertEquals("y > x^2", QuickAnswers.answer("y>x^2")!!.value)
         assertNull(QuickAnswers.answer("xbox"))
         assertNull(QuickAnswers.answer("x"))
-        assertEquals("", QuickAnswers.answer("graph")!!.graph)
+        assertEquals(emptyList<String>(), QuickAnswers.answer("graph")!!.graph)
     }
 
     @Test fun unitPowers() {

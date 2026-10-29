@@ -104,8 +104,9 @@ suspend fun getAppsList(
                             user = profile
                         )
 
-                        // if the current app is not OLauncher
-                        if (app.applicationInfo.packageName != BuildConfig.APPLICATION_ID) {
+                        // if the current app is not OLauncher (Waypoint's own Chat app is listed like any other)
+                        if (app.applicationInfo.packageName != BuildConfig.APPLICATION_ID ||
+                            app.componentName.className.endsWith(".ChatActivity")) {
                             // is this a hidden app?
                             if (hiddenApps.contains(app.applicationInfo.packageName + "|" + profile.toString())) {
                                 if (includeHiddenApps) {

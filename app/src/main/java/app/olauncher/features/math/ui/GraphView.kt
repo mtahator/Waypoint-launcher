@@ -29,7 +29,12 @@ import kotlin.math.max
 class GraphView(context: Context, private val interactive: Boolean = true) : View(context) {
 
     var program: MathProgram? = null
-        set(value) { field = value; invalidate() }
+        set(value) {
+            field = value
+            if (selected >= (value?.lines?.size ?: 0)) selected = -1
+            pinned = null
+            invalidate()
+        }
 
     /** Line indexes the user has hidden (tapping a row's colour dot). */
     var hidden: Set<Int> = emptySet()
@@ -64,6 +69,21 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
 
     private var traceX = Float.NaN
     private var traceY = Float.NaN
+
+    /** Curve the user tapped: drawn bolder, with its roots, extrema and y-intercept. */
+    private var selected = -1
+    /** Point the user tapped, shown with its coordinates until the next tap. */
+    private var pinned: Plotter.Poi? = null
+    /** POIs drawn in the last frame, for hit-testing taps. */
+    private val drawnPois = ArrayList<Plotter.Poi>()
+
+    private val regionPaint = Paint().apply { style = Paint.Style.FILL }
+    private val dashPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; strokeWidth = 2.4f * resources.displayMetrics.density
+        pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f * resources.displayMetrics.density, 7f * resources.displayMetrics.density), 0f)
+    }
+    private val poiPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val poiRing = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 2f * resources.displayMetrics.density }
 
     init {
         applyTheme()
@@ -112,6 +132,7 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
         canvas.clipRect(0, 0, width, height)
         drawGrid(canvas)
         drawPlots(canvas)
+        if (interactive) drawPois(canvas)
         drawTrace(canvas)
         canvas.restore()
     }
@@ -172,35 +193,72 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
             if (i in hidden || !line.plottable) return@forEachIndexed
             val color = colorFor(i)
             curvePaint.color = color
+            curvePaint.strokeWidth = (if (i == selected) 3.6f else 2.6f) * density
+            dashPaint.color = color
+            val stroke = if (line.strict) dashPaint else curvePaint
             when (line.kind) {
-                MathProgram.Kind.GRAPH_Y -> {
-                    val n = max(64, width / 2)
-                    for (poly in Plotter.explicit(line.curve!!, x0, x1, n, y0, y1)) {
-                        path.reset()
-                        path.moveTo(sx(poly[0]), sy(poly[1]))
-                        var k = 2
-                        while (k < poly.size) { path.lineTo(sx(poly[k]), sy(poly[k + 1])); k += 2 }
-                        canvas.drawPath(path, curvePaint)
+                MathProgram.Kind.GRAPH_Y, MathProgram.Kind.REGION_Y -> {
+                    val polys = Plotter.explicit(line.curve!!, x0, x1, max(64, width / 2), y0, y1)
+                    if (line.kind == MathProgram.Kind.REGION_Y) {
+                        regionPaint.color = withAlpha(color, 0.22f)
+                        val edge = if (line.side > 0) 0f else height.toFloat()
+                        for (poly in polys) {
+                            path.reset()
+                            path.moveTo(sx(poly[0]), edge)
+                            var k = 0
+                            while (k < poly.size) { path.lineTo(sx(poly[k]), sy(poly[k + 1])); k += 2 }
+                            path.lineTo(sx(poly[poly.size - 2]), edge)
+                            path.close()
+                            canvas.drawPath(path, regionPaint)
+                        }
                     }
+                    for (poly in polys) canvas.drawPath(polyline(poly, swap = false), if (line.kind == MathProgram.Kind.REGION_Y) stroke else curvePaint)
                 }
-                MathProgram.Kind.GRAPH_X -> {
-                    val n = max(64, height / 2)
-                    for (poly in Plotter.explicit(line.curve!!, y0, y1, n, x0, x1)) {
-                        path.reset()
-                        path.moveTo(sx(poly[1]), sy(poly[0]))
-                        var k = 2
-                        while (k < poly.size) { path.lineTo(sx(poly[k + 1]), sy(poly[k])); k += 2 }
-                        canvas.drawPath(path, curvePaint)
+                MathProgram.Kind.GRAPH_X, MathProgram.Kind.REGION_X -> {
+                    val polys = Plotter.explicit(line.curve!!, y0, y1, max(64, height / 2), x0, x1)
+                    if (line.kind == MathProgram.Kind.REGION_X) {
+                        regionPaint.color = withAlpha(color, 0.22f)
+                        val edge = if (line.side > 0) width.toFloat() else 0f
+                        for (poly in polys) {
+                            path.reset()
+                            path.moveTo(edge, sy(poly[0]))
+                            var k = 0
+                            while (k < poly.size) { path.lineTo(sx(poly[k + 1]), sy(poly[k])); k += 2 }
+                            path.lineTo(edge, sy(poly[poly.size - 2]))
+                            path.close()
+                            canvas.drawPath(path, regionPaint)
+                        }
                     }
+                    for (poly in polys) canvas.drawPath(polyline(poly, swap = true), if (line.kind == MathProgram.Kind.REGION_X) stroke else curvePaint)
                 }
-                MathProgram.Kind.IMPLICIT -> {
+                MathProgram.Kind.IMPLICIT, MathProgram.Kind.REGION -> {
+                    val f = line.implicit!!
+                    if (line.kind == MathProgram.Kind.REGION) {
+                        // shade cells where the inequality holds
+                        regionPaint.color = withAlpha(color, 0.22f)
+                        val cell = 5 * density
+                        var py = 0f
+                        while (py < height) {
+                            var px = 0f
+                            var runStart = -1f
+                            val wy0 = wy(py + cell / 2)
+                            while (px <= width) {
+                                val inside = px < width && Plotter.safe({ xx -> f(xx, wy0) }, wx(px + cell / 2)) > 0
+                                if (inside && runStart < 0) runStart = px
+                                if (!inside && runStart >= 0) { canvas.drawRect(runStart, py, px, py + cell, regionPaint); runStart = -1f }
+                                px += cell
+                            }
+                            py += cell
+                        }
+                    }
                     val cell = 7 * density
                     val nx = (width / cell).toInt().coerceIn(24, 160)
                     val ny = (height / cell).toInt().coerceIn(24, 240)
-                    val seg = Plotter.implicit(line.implicit!!, x0, x1, y0, y1, nx, ny)
+                    val seg = Plotter.implicit(f, x0, x1, y0, y1, nx, ny)
+                    val paint = if (line.kind == MathProgram.Kind.REGION && line.strict) dashPaint else curvePaint
                     var k = 0
                     while (k + 3 < seg.size) {
-                        canvas.drawLine(sx(seg[k]), sy(seg[k + 1]), sx(seg[k + 2]), sy(seg[k + 3]), curvePaint)
+                        canvas.drawLine(sx(seg[k]), sy(seg[k + 1]), sx(seg[k + 2]), sy(seg[k + 3]), paint)
                         k += 4
                     }
                 }
@@ -218,6 +276,107 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
         }
     }
 
+    private fun polyline(poly: DoubleArray, swap: Boolean): Path {
+        path.reset()
+        if (swap) path.moveTo(sx(poly[1]), sy(poly[0])) else path.moveTo(sx(poly[0]), sy(poly[1]))
+        var k = 2
+        while (k < poly.size) {
+            if (swap) path.lineTo(sx(poly[k + 1]), sy(poly[k])) else path.lineTo(sx(poly[k]), sy(poly[k + 1]))
+            k += 2
+        }
+        return path
+    }
+
+    /** Explicit curves y = f(x) (incl. inequality boundaries) that can intersect, by line index. */
+    private fun explicitCurves(p: MathProgram): List<Pair<Int, (Double) -> Double>> =
+        p.lines.mapIndexedNotNull { i, l ->
+            if (i in hidden) null
+            else if ((l.kind == MathProgram.Kind.GRAPH_Y || l.kind == MathProgram.Kind.REGION_Y) && l.curve != null) i to l.curve
+            else null
+        }
+
+    /** x = c lines (constant in y), for intersections with curves. */
+    private fun verticalLines(p: MathProgram): List<Double> = p.lines.mapIndexedNotNull { i, l ->
+        if (i in hidden || l.kind != MathProgram.Kind.GRAPH_X || l.curve == null) return@mapIndexedNotNull null
+        val a = Plotter.safe(l.curve, -1.0); val b = Plotter.safe(l.curve, 1.0)
+        if (a.isFinite() && a == b) a else null
+    }
+
+    /** Grey dots like Desmos: intersections always; roots, extrema and y-intercept of the selected curve. */
+    private fun drawPois(canvas: Canvas) {
+        drawnPois.clear()
+        val p = program ?: return
+        val x0 = wx(0f); val x1 = wx(width.toFloat())
+        val n = max(80, width / 3)
+        val curves = explicitCurves(p)
+        for (a in curves.indices) for (b in a + 1 until curves.size) {
+            drawnPois += Plotter.crossings(curves[a].second, curves[b].second, x0, x1, n, Plotter.PoiKind.INTERSECTION)
+        }
+        for (c in verticalLines(p)) for ((_, f) in curves) {
+            val y = Plotter.safe(f, c)
+            if (y.isFinite()) drawnPois += Plotter.Poi(c, y, Plotter.PoiKind.INTERSECTION)
+        }
+        curves.firstOrNull { it.first == selected }?.second?.let { f ->
+            drawnPois += Plotter.crossings(f, { 0.0 }, x0, x1, n, Plotter.PoiKind.ROOT)
+            drawnPois += Plotter.extrema(f, x0, x1, n)
+            val y0 = Plotter.safe(f, 0.0)
+            if (y0.isFinite()) drawnPois += Plotter.Poi(0.0, y0, Plotter.PoiKind.Y_INTERCEPT)
+        }
+        if (drawnPois.size > 60) drawnPois.subList(60, drawnPois.size).clear()
+        poiPaint.color = if (dark) 0xFF9A9A9A.toInt() else 0xFF6E6E6E.toInt()
+        poiRing.color = if (dark) 0xFF101010.toInt() else Color.WHITE
+        for (poi in drawnPois) {
+            val px = sx(poi.x); val py = sy(poi.y)
+            if (px < -20 || px > width + 20 || py < -20 || py > height + 20) continue
+            canvas.drawCircle(px, py, 5f * density, poiPaint)
+            canvas.drawCircle(px, py, 5f * density, poiRing)
+        }
+        pinned?.let { poi ->
+            val title = when (poi.kind) {
+                Plotter.PoiKind.INTERSECTION -> null
+                Plotter.PoiKind.ROOT -> "root"
+                Plotter.PoiKind.MAXIMUM -> "max"
+                Plotter.PoiKind.MINIMUM -> "min"
+                Plotter.PoiKind.Y_INTERCEPT -> "y-int"
+            }
+            val px = sx(poi.x); val py = sy(poi.y)
+            dotPaint.color = tracePaint.color
+            canvas.drawCircle(px, py, 6.5f * density, dotPaint)
+            bubble(canvas, px, py, (title?.let { "$it " } ?: "") + "(${label(poi.x)}, ${label(poi.y)})")
+        }
+    }
+
+    private fun bubble(canvas: Canvas, px: Float, py: Float, text: String) {
+        val w = tracePaint.measureText(text)
+        val pad = 8 * density
+        var bx = px + 12 * density
+        if (bx + w + pad * 2 > width) bx = px - 12 * density - w - pad * 2
+        if (bx < 0) bx = 0f
+        var by = py - 40 * density
+        if (by < 0) by = py + 16 * density
+        rect.set(bx, by, bx + w + pad * 2, by + 28 * density)
+        canvas.drawRoundRect(rect, 14 * density, 14 * density, traceBg)
+        canvas.drawText(text, bx + pad, by + 19 * density, tracePaint)
+    }
+
+    /** Tap: a dot shows its coordinates; a curve becomes selected; empty space clears both. */
+    private fun onTap(tx: Float, ty: Float) {
+        val hit = drawnPois.minByOrNull { (sx(it.x) - tx).let { d -> d * d } + (sy(it.y) - ty).let { d -> d * d } }
+        val reach = 24 * density
+        if (hit != null && abs(sx(hit.x) - tx) < reach && abs(sy(hit.y) - ty) < reach) {
+            pinned = hit; invalidate(); return
+        }
+        val p = program
+        val x = wx(tx)
+        val near = p?.let { explicitCurves(it) }
+            ?.map { (i, f) -> i to Plotter.safe(f, x) }
+            ?.filter { it.second.isFinite() }
+            ?.minByOrNull { abs(sy(it.second) - ty) }
+        pinned = null
+        selected = if (near != null && abs(sy(near.second) - ty) < reach) near.first else -1
+        invalidate()
+    }
+
     private fun drawTrace(canvas: Canvas) {
         if (traceX.isNaN()) return
         val p = program ?: return
@@ -225,7 +384,7 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
         var best: Pair<Int, Double>? = null
         var bestDist = Float.MAX_VALUE
         p.lines.forEachIndexed { i, line ->
-            if (i in hidden || line.kind != MathProgram.Kind.GRAPH_Y) return@forEachIndexed
+            if (i in hidden || !(line.kind == MathProgram.Kind.GRAPH_Y || line.kind == MathProgram.Kind.REGION_Y)) return@forEachIndexed
             val y = Plotter.safe(line.curve!!, x)
             if (!y.isFinite()) return@forEachIndexed
             val d = abs(sy(y) - traceY)
@@ -237,16 +396,7 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
         canvas.drawCircle(px, py, 7 * density, dotPaint)
         dotPaint.color = traceBg.color
         canvas.drawCircle(px, py, 3 * density, dotPaint)
-        val text = "(${label(x)}, ${label(y)})"
-        val w = tracePaint.measureText(text)
-        val pad = 8 * density
-        var bx = px + 12 * density
-        if (bx + w + pad * 2 > width) bx = px - 12 * density - w - pad * 2
-        var by = py - 40 * density
-        if (by < 0) by = py + 16 * density
-        rect.set(bx, by, bx + w + pad * 2, by + 28 * density)
-        canvas.drawRoundRect(rect, 14 * density, 14 * density, traceBg)
-        canvas.drawText(text, bx + pad, by + 19 * density, tracePaint)
+        bubble(canvas, px, py, "(${label(x)}, ${label(y)})")
     }
 
     fun colorFor(index: Int): Int = PALETTE[index % PALETTE.size]
@@ -283,7 +433,7 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
             invalidate()
         }
-        override fun onSingleTapUp(e: MotionEvent): Boolean { performClick(); return true }
+        override fun onSingleTapConfirmed(e: MotionEvent): Boolean { onTap(e.x, e.y); performClick(); return true }
     })
 
     @SuppressLint("ClickableViewAccessibility")

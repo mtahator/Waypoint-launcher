@@ -104,3 +104,38 @@ class MathEngineTest {
         assertEquals(0.5, Plotter.gridStep(4.0, 8), 1e-12)
     }
 }
+
+class GraphFeaturesTest {
+    @Test fun inequalities() {
+        val p = MathProgram(listOf("y > x^2", "x^2 <= y", "x < 2", "x^2 + y^2 < 9", "2 < 3", "sin(x) >= y"))
+        assertEquals(Kind.REGION_Y, p.lines[0].kind); assertEquals(1, p.lines[0].side); assertTrue(p.lines[0].strict)
+        assertEquals(Kind.REGION_Y, p.lines[1].kind); assertEquals(1, p.lines[1].side); assertTrue(!p.lines[1].strict)
+        assertEquals(Kind.REGION_X, p.lines[2].kind); assertEquals(-1, p.lines[2].side)
+        assertEquals(Kind.REGION, p.lines[3].kind)
+        assertTrue(p.lines[3].implicit!!(0.0, 0.0) > 0) // inside the disc
+        assertTrue(p.lines[3].implicit!!(4.0, 0.0) < 0)
+        assertEquals(Kind.VALUE, p.lines[4].kind)
+        assertEquals(Kind.REGION_Y, p.lines[5].kind); assertEquals(-1, p.lines[5].side)
+    }
+
+    @Test fun intersections() {
+        val pts = Plotter.crossings({ it * it }, { it + 2 }, -10.0, 10.0, 400, Plotter.PoiKind.INTERSECTION)
+        assertEquals(2, pts.size)
+        assertEquals(-1.0, pts[0].x, 1e-9); assertEquals(1.0, pts[0].y, 1e-9)
+        assertEquals(2.0, pts[1].x, 1e-9); assertEquals(4.0, pts[1].y, 1e-9)
+    }
+
+    @Test fun poleIsNotAnIntersection() {
+        val pts = Plotter.crossings({ kotlin.math.tan(it) }, { 100.0 + 0 * it }, -1.5, 1.5, 300, Plotter.PoiKind.INTERSECTION)
+        assertTrue(pts.all { kotlin.math.abs(it.y - 100.0) < 1e-6 })
+        val none = Plotter.crossings({ 1 / it }, { 0.0 }, -1.0, 1.0, 201, Plotter.PoiKind.ROOT)
+        assertTrue(none.isEmpty())
+    }
+
+    @Test fun extrema() {
+        val e = Plotter.extrema({ sin(it) }, 0.0, 7.0, 300)
+        assertEquals(2, e.size)
+        assertEquals(PI / 2, e[0].x, 1e-6); assertEquals(Plotter.PoiKind.MAXIMUM, e[0].kind)
+        assertEquals(3 * PI / 2, e[1].x, 1e-6); assertEquals(Plotter.PoiKind.MINIMUM, e[1].kind)
+    }
+}

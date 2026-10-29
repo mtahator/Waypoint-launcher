@@ -40,6 +40,8 @@ import app.olauncher.helper.uninstall
 import app.olauncher.core.waypoint
 import app.olauncher.features.appearance.ui.GlassStyler
 import app.olauncher.features.assistant.domain.AskCommand
+import app.olauncher.features.assistant.domain.AssistantMode
+import app.olauncher.features.assistant.ui.ChatActivity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.graphics.Typeface
@@ -223,7 +225,7 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     private fun detailFor(a: QuickAnswers.Answer): String {
-        if (a.graph != null) return getString(R.string.wp_graph_open)
+        if (a.graph != null) return listOf(getString(R.string.wp_graph_open), a.detail).filter { it.isNotEmpty() }.joinToString("  ·  ")
         if (a.currency == null) return "${a.detail}  ·  ${getString(R.string.wp_tap_copy_short)}"
         val r = rates
         if (r == null) return when {
@@ -263,8 +265,8 @@ class AppDrawerFragment : BaseFragment() {
     }
 
     /** A small, non-interactive plot under the answer for `sin(x)`, `x^2+y^2=9`, … */
-    private fun showMiniGraph(expr: String?) {
-        if (expr == null) { miniGraph?.isVisible = false; return }
+    private fun showMiniGraph(lines: List<String>?) {
+        if (lines == null) { miniGraph?.isVisible = false; return }
         val g = miniGraph ?: GraphView(requireContext(), interactive = false).also { v ->
             v.dark = requireContext().isDarkThemeOn()
             v.panelColor = if (requireContext().isDarkThemeOn()) 0x66000000 else 0x99FFFFFF.toInt()
@@ -273,12 +275,12 @@ class AppDrawerFragment : BaseFragment() {
             miniGraph = v
         }
         g.isVisible = true
-        g.program = MathProgram(listOf(expr))
+        g.program = MathProgram(lines)
     }
 
-    private fun openGraph(expr: String) {
+    private fun openGraph(lines: List<String>) {
         binding.search.hideKeyboard()
-        findNavController().navigate(R.id.graphFragment, bundleOf(GraphFragment.ARG_EXPR to expr))
+        findNavController().navigate(R.id.graphFragment, bundleOf(GraphFragment.ARG_LINES to ArrayList(lines)))
     }
 
     private fun is24Hour() = android.text.format.DateFormat.is24HourFormat(requireContext())
@@ -339,6 +341,9 @@ class AppDrawerFragment : BaseFragment() {
         // INVISIBLE keeps the list's weight, so the composer stays at the top, above the keyboard
         binding.recyclerView.visibility = View.INVISIBLE
         binding.geminiComposer.isVisible = true
+        val wp = requireContext().waypoint.prefs
+        binding.geminiTitle.text = if (wp.assistantMode == AssistantMode.API && wp.apiModel.isNotBlank())
+            getString(R.string.wp_ask_model, wp.apiModel) else getString(R.string.wp_ask_gemini)
         composerBack.isEnabled = true
         binding.geminiInput.setText(initial)
         binding.geminiInput.setSelection(binding.geminiInput.length())
@@ -359,6 +364,22 @@ class AppDrawerFragment : BaseFragment() {
         val question = binding.geminiInput.text?.toString()?.trim().orEmpty()
         if (question.isEmpty()) return
         binding.geminiInput.hideKeyboard()
+        val container = requireContext().waypoint
+        if (container.prefs.assistantMode == AssistantMode.API) {
+            // Your own API: start a conversation in Chat (it keeps streaming in the background)
+            val engine = container.chatEngine
+            if (!engine.isConfigured()) {
+                ChatActivity.open(requireContext(), settings = true)
+                return
+            }
+            val app = requireContext().applicationContext
+            container.scope.launch {
+                val id = engine.startConversation(question)
+                ChatActivity.open(app, id)
+            }
+            closeComposer(showKeyboard = false)
+            return
+        }
         if (GeminiHandoff.ask(requireContext(), question)) closeComposer(showKeyboard = false)
         else requireContext().showToast(getString(R.string.wp_gemini_unavailable))
     }
@@ -625,6 +646,10 @@ class AppDrawerFragment : BaseFragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         searchTextView = null
+        // views belong to the destroyed layout; recreate them with the next one
+        miniGraph = null
+        quickAnswer = null
+        ratesJob = null
         _binding = null
     }
 }

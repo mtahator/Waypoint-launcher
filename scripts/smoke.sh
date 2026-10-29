@@ -71,10 +71,22 @@ clear_search; adb shell "input text '=sin(pi/6)+5!'"; sleep 1; shot 14f-drawer-f
 clear_search; adb shell "input text '2%sm3%sto%sl'"; sleep 1; shot 14g-drawer-units-power
 clear_search; adb shell "input text '100%susd%sto%seur'"; sleep 6; shot 14h-drawer-currency
 clear_search; adb shell "input text 'x^2+y^2=9'"; sleep 1; shot 14i-drawer-mini-graph
+clear_search; adb shell "input text '=x^2+y^2=r'"; sleep 1; shot 14j-drawer-graph-slider
 clear_search; adb shell "input text '=sin(x)'"; sleep 1; adb shell input keyevent 66; sleep 3; shot 15a-graph-page
+adb shell input keyevent 4; sleep 1
+clear_search; adb shell "input text '=y>x^2-2'"; sleep 1; adb shell input keyevent 66; sleep 3
+tap "+ Add expression"; sleep 1; adb shell "input text 'y=2-x'"; sleep 1; shot 15c-graph-typing
+adb shell input keyevent 4; sleep 2; shot 15d-graph-inequality-intersections
 adb shell input keyevent 4; sleep 1; adb shell input keyevent 4; sleep 1
 open_settings; tap "Graphing calculator"; sleep 2
 adb shell input swipe $((W/2)) $((H/4)) $((W/3)) $((H/3)) 300; sleep 1; shot 15b-graph-panned
+home
+adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
+# Assistant settings and the Chat app
+open_settings; tap "Assistant & chats"; sleep 1; shot 16a-assistant-settings
+tap "Your API (chat app)"; sleep 1; shot 16b-assistant-api
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 16c-chat-list
+tap "+ New"; sleep 2; adb shell "input text 'Hello'"; sleep 1; shot 16d-chat-new
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # "?" opens the Gemini composer (multi-line)

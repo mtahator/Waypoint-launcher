@@ -23,13 +23,14 @@ object QuickAnswers {
 
     /**
      * [value] is shown big; [detail] is the caption; [copy] goes to the clipboard on tap/Enter.
-     * [graph] is an expression to plot; [currency] means rates are needed and [value] is a placeholder.
+     * [graph] are grapher lines to plot (the equation, then a `r = 1` slider per unknown letter; empty to
+     * just open the grapher); [currency] means rates are needed and [value] is a placeholder.
      */
     data class Answer(
         val value: String,
         val detail: String,
         val copy: String,
-        val graph: String? = null,
+        val graph: List<String>? = null,
         val currency: CurrencyQuery.Query? = null,
     )
 
@@ -49,7 +50,7 @@ object QuickAnswers {
         val q = query.trim().lowercase(Locale.ROOT)
         if (q.isEmpty() || (!forced && q.length < 2)) return null
 
-        if (q in GRAPH_WORDS) return Answer("Graphing calculator", "Graphs · sliders · equations", "", graph = "")
+        if (q in GRAPH_WORDS) return Answer("Graphing calculator", "Graphs · sliders · equations", "", graph = emptyList())
 
         CurrencyQuery.parse(q)?.let { c -> return currency(c, rates) }
 
@@ -78,17 +79,26 @@ object QuickAnswers {
         return graph(query.trim(), forced)
     }
 
-    /** `sin(x)`, `y = x^2`, `x^2 + y^2 = 9`: shown as a small graph that opens the full grapher. */
+    /**
+     * `sin(x)`, `y = x^2`, `x^2 + y^2 = 9`, `y > x^2`: shown as a small graph that opens the full grapher.
+     * Unknown single letters (`x^2 + y^2 = r`) become sliders starting at 1, like Desmos.
+     */
     private fun graph(text: String, forced: Boolean): Answer? {
         val src = Calculator.prepare(text)
         val stmt = runCatching { MathParser().parseStatement(src) }.getOrNull() ?: return null
         val vars = (stmt.lhs.variables() + (stmt.rhs?.variables() ?: emptySet())) - Builtins.CONSTANTS.keys
-        if (vars.isEmpty() || !vars.all { it == "x" || it == "y" }) return null
-        if (!forced && src.none { it in "+-*/^()=|√!" }) return null // "x", "xy" alone aren't questions
-        val line = MathProgram(listOf(src)).lines.first()
+        if ("x" !in vars && "y" !in vars) return null
+        val unknown = (vars - setOf("x", "y")).sorted()
+        if (unknown.size > 3 || unknown.any { it.length > 1 && !it.contains('_') }) return null
+        if (!forced && src.none { it in "+-*/^()=<>|√!" }) return null // "x", "xy", "xbox" aren't questions
+        val lines = listOf(src) + unknown.map { "$it = 1" }
+        val line = MathProgram(lines).lines.first()
         if (!line.plottable || line.point != null) return null
-        val shown = if (stmt.rhs == null) "y = ${Calculator.display(src)}" else Calculator.display(src).replace("=", " = ")
-        return Answer(shown, "Graph · tap to open", src, graph = src)
+        val pretty = Calculator.display(src).replace(Regex("(<=|>=|=|<|>)")) { " ${it.value} " }
+            .replace("<=", "≤").replace(">=", "≥")
+        val shown = if (stmt.rhs == null) "y = $pretty" else pretty
+        val detail = if (unknown.isEmpty()) "" else unknown.joinToString(", ") { "$it = 1" }
+        return Answer(shown, detail, src, graph = lines)
     }
 
     private fun currency(c: CurrencyQuery.Query, rates: ExchangeRates?): Answer {

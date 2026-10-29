@@ -5,4 +5,8 @@
     <exclude domain="database" path="ledger.db-journal" />
     <exclude domain="database" path="ledger.db-wal" />
     <exclude domain="database" path="ledger.db-shm" />
+        <exclude domain="database" path="chats.db" />
+        <exclude domain="database" path="chats.db-journal" />
+        <exclude domain="database" path="chats.db-wal" />
+        <exclude domain="database" path="chats.db-shm" />
 </full-backup-content>

@@ -21,6 +21,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import app.olauncher.R
 import app.olauncher.core.ui.focusAndShowKeyboard
@@ -61,6 +63,14 @@ class GraphFragment : BaseFragment() {
     private var dark = true
     private var ink = 0
     private var focusedField: EditText? = null
+    private lateinit var scroll: ScrollView
+
+    /** Scrolls so the focused row sits at the top of the list, above the keyboard. */
+    private fun revealFocused(scroll: ScrollView) {
+        val f = focusedField ?: return
+        val row = rows.firstOrNull { it.field === f }?.root ?: return
+        scroll.smoothScrollTo(0, (row.top - dp(4)).coerceAtLeast(0))
+    }
 
     private val prefs get() = requireContext().waypoint.prefs
 
@@ -102,7 +112,7 @@ class GraphFragment : BaseFragment() {
 
         column.addView(keyBar(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
 
-        val scroll = ScrollView(ctx).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
+        scroll = ScrollView(ctx).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
         list = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4), 0, dp(24)) }
         scroll.addView(list)
         column.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -111,12 +121,28 @@ class GraphFragment : BaseFragment() {
         add.setPadding(dp(16), dp(12), dp(16), dp(12))
         list.addView(add)
 
-        var lines = prefs.graphLines
-        arguments?.getString(ARG_EXPR)?.takeIf { it.isNotBlank() }?.let { e ->
-            if (lines.none { it.trim() == e.trim() }) lines = listOf(e) + lines.filter { it.isNotBlank() }
-        }
+        // From the search box: show only that equation (a fresh sheet); from Settings: the saved sheet
+        // (only on first creation: after rotation the saved sheet already holds the edits)
+        val fromSearch = arguments?.getStringArrayList(ARG_LINES)?.takeIf { it.isNotEmpty() && savedInstanceState == null }
+        val lines: List<String> = fromSearch ?: prefs.graphLines
         setLines(lines.ifEmpty { listOf("") })
+        if (fromSearch != null) prefs.graphLines = lines
         recompute()
+
+        // Edge-to-edge (Android 15+ ignores adjustResize): make room for status bar and keyboard ourselves,
+        // and shrink the plane while typing so the line being edited stays visible above the keyboard.
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val typing = insets.isVisible(WindowInsetsCompat.Type.ime())
+            column.setPadding(dp(12), bars.top + dp(8), dp(12), max(ime.bottom, bars.bottom) + dp(4))
+            (graph.layoutParams as LinearLayout.LayoutParams).let { lp ->
+                val w = if (typing) 0.62f else 1.15f
+                if (lp.weight != w) { lp.weight = w; graph.layoutParams = lp }
+            }
+            if (typing) scroll.post { revealFocused(scroll) }
+            insets
+        }
         return root
     }
 
@@ -168,7 +194,7 @@ class GraphFragment : BaseFragment() {
         val delete = TextView(ctx, null, 0, R.style.TextMedium).apply {
             this.text = "×"; setTextColor(ink); alpha = 0.6f
             setPadding(dp(14), dp(6), dp(10), dp(6))
-            contentDescription = getString(R.string.delete)
+            contentDescription = getString(R.string.wp_delete)
         }
         line.addView(delete)
         rootRow.addView(line)
@@ -198,7 +224,9 @@ class GraphFragment : BaseFragment() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
             override fun afterTextChanged(s: Editable?) { if (!row.settingText) persistAndRecompute() }
         })
-        field.setOnFocusChangeListener { v, has -> if (has) focusedField = v as EditText }
+        field.setOnFocusChangeListener { v, has ->
+            if (has) { focusedField = v as EditText; scroll.post { revealFocused(scroll) } }
+        }
         field.setOnEditorActionListener { _, action, event ->
             val enter = action == EditorInfo.IME_ACTION_NEXT || event?.keyCode == KeyEvent.KEYCODE_ENTER
             if (enter) { addRow(rows.indexOf(row) + 1, "", focus = true); persistAndRecompute() }
@@ -359,7 +387,7 @@ class GraphFragment : BaseFragment() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
 
     companion object {
-        const val ARG_EXPR = "expr"
+        const val ARG_LINES = "lines"
 
         private val KEYS = listOf(
             "x" to "x", "y" to "y", "=" to "=", "^" to "^", "²" to "^2", "√" to "sqrt()", "(" to "(", ")" to ")",

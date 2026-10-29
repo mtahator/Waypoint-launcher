@@ -47,6 +47,14 @@ class PrivacyDataFragment : WpPageFragment() {
             note(getString(R.string.wp_ledger_not_backed_up))
         }
         page.card {
+            header(getString(R.string.wp_chats))
+            row(getString(R.string.wp_delete_chats)) {
+                confirm(R.string.wp_delete_chats, R.string.wp_delete_chats_message) { container.chats.deleteAll() }
+            }
+            row(getString(R.string.wp_api_key_forget)) { container.apiKeys.set(null); rebuild() }
+            note(getString(R.string.wp_assistant_privacy_note))
+        }
+        page.card {
             header(getString(R.string.wp_rates_title))
             toggle(getString(R.string.wp_rates_toggle), container.prefs.onlineRates, getString(R.string.wp_rates_toggle_hint)) {
                 container.prefs.onlineRates = it

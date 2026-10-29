@@ -3,6 +3,8 @@ package app.olauncher.core
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import app.olauncher.features.assistant.domain.ApiFormat
+import app.olauncher.features.assistant.domain.AssistantMode
 import app.olauncher.features.gestures.domain.Corner
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.worldclock.domain.WorldClockCodec
@@ -73,8 +75,38 @@ class WaypointPrefs(context: Context) {
 
     /** Grapher lines, one expression per entry. */
     var graphLines: List<String>
-        get() = prefs.getString(GRAPH_LINES, null)?.split(GRAPH_SEP) ?: listOf("y = sin(x)", "a = 1", "y = a x^2")
+        get() = prefs.getString(GRAPH_LINES, null)?.split(GRAPH_SEP) ?: listOf("")
         set(value) = prefs.edit { putString(GRAPH_LINES, value.joinToString(GRAPH_SEP)) }
+
+    // ---- Assistant ("?" in the drawer search)
+    var assistantMode: AssistantMode
+        get() = runCatching { AssistantMode.valueOf(prefs.getString(ASSIST_MODE, null) ?: "") }.getOrDefault(AssistantMode.GEMINI_APP)
+        set(value) = prefs.edit { putString(ASSIST_MODE, value.name) }
+
+    var apiFormat: ApiFormat
+        get() = runCatching { ApiFormat.valueOf(prefs.getString(API_FORMAT, null) ?: "") }.getOrDefault(ApiFormat.OPENAI)
+        set(value) = prefs.edit { putString(API_FORMAT, value.name) }
+
+    var apiPreset: String
+        get() = prefs.getString(API_PRESET, null) ?: ""
+        set(value) = prefs.edit { putString(API_PRESET, value) }
+
+    var apiBaseUrl: String
+        get() = prefs.getString(API_BASE_URL, null) ?: ""
+        set(value) = prefs.edit { putString(API_BASE_URL, value.trim()) }
+
+    var apiModel: String
+        get() = prefs.getString(API_MODEL, null) ?: ""
+        set(value) = prefs.edit { putString(API_MODEL, value.trim()) }
+
+    var systemPrompt: String
+        get() = prefs.getString(SYSTEM_PROMPT, null) ?: ""
+        set(value) = prefs.edit { putString(SYSTEM_PROMPT, value) }
+
+    /** Encrypted with a non-exportable Android Keystore key (see ApiKeyStore). */
+    internal var apiKeySealed: String?
+        get() = prefs.getString(API_KEY_SEALED, null)
+        set(value) = prefs.edit { if (value == null) remove(API_KEY_SEALED) else putString(API_KEY_SEALED, value) }
 
     // ---- Gestures (corner swipe is opt-in)
     var cornerSwipeEnabled: Boolean
@@ -132,6 +164,13 @@ class WaypointPrefs(context: Context) {
         const val GLASS_RIB = "WP_GLASS_RIB"
         const val GLASS_PHOTO_STAMP = "WP_GLASS_PHOTO_STAMP"
         const val ONLINE_RATES = "WP_ONLINE_RATES"
+        const val ASSIST_MODE = "WP_ASSIST_MODE"
+        const val API_FORMAT = "WP_API_FORMAT"
+        const val API_PRESET = "WP_API_PRESET"
+        const val API_BASE_URL = "WP_API_BASE_URL"
+        const val API_MODEL = "WP_API_MODEL"
+        const val SYSTEM_PROMPT = "WP_SYSTEM_PROMPT"
+        const val API_KEY_SEALED = "WP_API_KEY_SEALED"
         const val GRAPH_LINES = "WP_GRAPH_LINES"
         private const val GRAPH_SEP = "\u001F"
         const val BG_AURORA = "aurora"

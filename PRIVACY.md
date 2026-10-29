@@ -5,8 +5,11 @@
   Waypoint downloads public USD rates from `open.er-api.com`. The request is a fixed URL; **nothing you
   type is sent**. Turn it off or clear the cache in *Privacy & data*. (The upstream optional "Daily
   wallpaper" feature downloads wallpapers only if you turn it on.)
-- **Ask Gemini** hands your question to the Gemini app (or Gemini in your browser) only when you tap
-  *Send*; Waypoint itself doesn't transmit it.
+- **Ask (`?`)**: in *Gemini app* mode the question is handed to the Gemini app (or Gemini in your
+  browser) only when you tap *Send*; Waypoint itself doesn't transmit it. In *Your API* mode, the
+  conversation is sent **only to the base URL you configured**, only when you send a message. Chats are
+  stored on the phone (`chats.db`, excluded from backup); the API key is encrypted with an Android
+  Keystore key. Delete chats or forget the key in *Privacy & data*.
 - **No analytics, no ads, no crash-reporting SDKs.**
 - **Notification capture** is off by default. When you enable it, Waypoint reads the title and text of
   notifications **only from the apps you select**, extracts amount / currency / merchant / direction /

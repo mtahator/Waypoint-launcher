@@ -76,6 +76,80 @@ object Plotter {
         return out.toArray()
     }
 
+    /** A labelled point of interest: an intersection, root, extremum or y-intercept. */
+    data class Poi(val x: Double, val y: Double, val kind: PoiKind)
+    enum class PoiKind { INTERSECTION, ROOT, MAXIMUM, MINIMUM, Y_INTERCEPT }
+
+    /**
+     * Where f(x) = g(x) on [x0, x1]: sign changes of f − g refined by bisection. Jumps through poles
+     * (tan x vs a line) are rejected because |f − g| doesn't shrink there.
+     */
+    fun crossings(f: (Double) -> Double, g: (Double) -> Double, x0: Double, x1: Double, n: Int, kind: PoiKind): List<Poi> {
+        val out = ArrayList<Poi>()
+        val step = (x1 - x0) / n
+        var pa = x0
+        var da = safe(f, pa) - safe(g, pa)
+        for (i in 1..n) {
+            val pb = x0 + step * i
+            val db = safe(f, pb) - safe(g, pb)
+            if (da.isFinite() && db.isFinite()) {
+                if (da == 0.0) add(out, pa, f, kind)
+                else if ((da < 0) != (db < 0) && db != 0.0) {
+                    var lo = pa; var hi = pb; var dlo = da
+                    repeat(48) {
+                        val mid = (lo + hi) / 2
+                        val dm = safe(f, mid) - safe(g, mid)
+                        if (!dm.isFinite()) return@repeat
+                        if ((dm < 0) == (dlo < 0)) { lo = mid; dlo = dm } else hi = mid
+                    }
+                    val x = (lo + hi) / 2
+                    val d = abs(safe(f, x) - safe(g, x))
+                    if (d.isFinite() && d < 1e-6 * (1 + abs(safe(f, x)))) add(out, x, f, kind)
+                }
+            }
+            pa = pb; da = db
+        }
+        return out
+    }
+
+    private fun add(out: MutableList<Poi>, x: Double, f: (Double) -> Double, kind: PoiKind) {
+        val y = safe(f, x)
+        if (!y.isFinite()) return
+        val clean = { v: Double -> if (abs(v) < 1e-10) 0.0 else v }
+        if (out.none { abs(it.x - x) < 1e-7 * (1 + abs(x)) }) out += Poi(clean(x), clean(y), kind)
+    }
+
+    /** Local maxima/minima of f on [x0, x1] (sampled, then golden-section refined). */
+    fun extrema(f: (Double) -> Double, x0: Double, x1: Double, n: Int): List<Poi> {
+        val out = ArrayList<Poi>()
+        val step = (x1 - x0) / n
+        var a = safe(f, x0); var b = safe(f, x0 + step)
+        for (i in 2..n) {
+            val c = safe(f, x0 + step * i)
+            if (a.isFinite() && b.isFinite() && c.isFinite()) {
+                val max = b > a && b >= c
+                val min = b < a && b <= c
+                if (max || min) {
+                    val x = golden(if (max) { t -> -safe(f, t) } else { t -> safe(f, t) }, x0 + step * (i - 2), x0 + step * i)
+                    add(out, x, f, if (max) PoiKind.MAXIMUM else PoiKind.MINIMUM)
+                }
+            }
+            a = b; b = c
+        }
+        return out
+    }
+
+    private fun golden(f: (Double) -> Double, lo0: Double, hi0: Double): Double {
+        val r = 0.6180339887498949
+        var lo = lo0; var hi = hi0
+        var c = hi - r * (hi - lo); var d = lo + r * (hi - lo)
+        repeat(60) {
+            if (f(c) < f(d)) hi = d else lo = c
+            c = hi - r * (hi - lo); d = lo + r * (hi - lo)
+        }
+        return (lo + hi) / 2
+    }
+
     /** Value of y = f(x) closest to the touch, for the trace readout. */
     fun safe(f: (Double) -> Double, x: Double): Double = try { f(x) } catch (_: Exception) { Double.NaN }
     private fun safe2(f: Fn2, x: Double, y: Double): Double = try { f(x, y) } catch (_: Exception) { Double.NaN }

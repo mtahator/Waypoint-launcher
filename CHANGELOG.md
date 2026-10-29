@@ -2,6 +2,13 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Assistant modes** for `?`: the Gemini app, or your own API (OpenAI-compatible or Anthropic; presets for
+  OpenAI, Gemini API, Claude, OpenRouter, Groq, Ollama). API key encrypted with the Android Keystore.
+- **Chat** app (its own entry in the app list): streamed replies saved as conversations you can continue,
+  rename or delete; Markdown, stop, regenerate/retry, copy. Stored on the phone, excluded from backup.
+- **Grapher**: inequalities with shading (`y > x^2`, `x <= 2`, `x^2+y^2 < 9`; strict ones dashed);
+  intersection dots (tap for coordinates); tap a curve for its roots, maxima/minima and y-intercept.
+- Search graphs accept unknown letters as sliders (`x^2+y^2=r` → `r = 1`).
 - **Graphing calculator** (Desmos-style): multiple expressions, sliders, `f(x)` definitions, `y =`, `x =`,
   implicit equations (marching squares), points; pan, pinch-zoom, double-tap zoom, hold to trace. Mini
   graph in the drawer search for `sin(x)` and friends. Settings → Graphing calculator.
@@ -18,6 +25,9 @@
 - **Quick answers** in the drawer search, offline: arithmetic (`12×3+4`, `√2`, `2^10`), `15% of 80`, unit
   conversion (length, mass, volume, speed, temperature, data) and `time in <city>`. Tap or Enter copies.
 ### Changed
+- Opening a graph from the search shows only that equation (a fresh sheet), and the plane shrinks while
+  typing so the edited line stays above the keyboard (edge-to-edge keyboard insets).
+- Fixed: the mini graph in the search didn't reappear after returning from the grapher.
 - Drawer search: text starts at the left (Persian from the right) with a visible blinking cursor, and a
   hint that lists the shortcuts.
 - **Glass is now reeded glass** (Nothing style): a fluted-glass backdrop rendered over the built-in

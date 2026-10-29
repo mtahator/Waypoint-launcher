@@ -91,5 +91,9 @@
     <fragment
         android:id="@+id/graphFragment"
         android:name="app.olauncher.features.math.ui.GraphFragment" />
+    <fragment
+        android:id="@+id/assistantSettingsFragment"
+        android:name="app.olauncher.features.assistant.ui.AssistantSettingsFragment"
+        tools:layout="@layout/fragment_wp_page" />
 
 </navigation>
