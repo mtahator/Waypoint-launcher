@@ -27,6 +27,8 @@ import androidx.recyclerview.widget.RecyclerView
 import app.olauncher.R
 import app.olauncher.core.ui.chooseOne
 import app.olauncher.core.ui.focusAndShowKeyboard
+import app.olauncher.core.ui.promptText
+import app.olauncher.helper.createDialog
 import app.olauncher.core.waypoint
 import app.olauncher.features.assistant.data.Message
 import app.olauncher.helper.showToast
@@ -71,6 +73,7 @@ class ChatFragment : Fragment() {
         modelView = style.caption()
         titles.addView(titleView); titles.addView(modelView)
         bar.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
+        bar.addView(style.action("⋯") { conversationMenu() }.apply { textSize = 22f; contentDescription = getString(R.string.wp_chat_options) })
         column.addView(bar)
 
         list = RecyclerView(ctx).apply {
@@ -281,6 +284,27 @@ class ChatFragment : Fragment() {
                 }.isSuccess
             }
             ctx.showToast(getString(if (ok) R.string.wp_image_saved else R.string.wp_image_save_failed))
+        }
+    }
+
+    /** Rename, delete or start a new conversation from inside the chat. */
+    private fun conversationMenu() {
+        val ctx = requireContext()
+        if (conversationId == 0L) { return }
+        val chats = container.chats
+        ctx.chooseOne(R.string.wp_chat_options, listOf(getString(R.string.rename), getString(R.string.wp_delete), getString(R.string.wp_new_chat_title))) { i ->
+            when (i) {
+                0 -> ctx.promptText(R.string.rename, titleView.text.toString()) { t ->
+                    viewLifecycleOwner.lifecycleScope.launch { if (t.isNotBlank()) chats.rename(conversationId, t.trim()); reload() }
+                }
+                1 -> ctx.createDialog(R.string.wp_delete, R.string.wp_delete, message = R.string.wp_delete_chat_message, onAction = {
+                    val id = conversationId
+                    container.chatEngine.stop(id)
+                    container.scope.launch { chats.delete(id); container.chatEngine.pruneImages() }
+                    requireActivity().onBackPressedDispatcher.onBackPressed()
+                }).showRespectingStatusBar()
+                else -> (activity as? ChatActivity)?.show(newInstance(0))
+            }
         }
     }
 

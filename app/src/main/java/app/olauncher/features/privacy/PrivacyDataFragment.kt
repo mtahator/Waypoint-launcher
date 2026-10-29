@@ -51,6 +51,9 @@ class PrivacyDataFragment : WpPageFragment() {
             row(getString(R.string.wp_delete_chats)) {
                 confirm(R.string.wp_delete_chats, R.string.wp_delete_chats_message) { container.chats.deleteAll(); container.chatEngine.pruneImages() }
             }
+            row(getString(R.string.wp_delete_notes)) {
+                confirm(R.string.wp_delete_notes, R.string.wp_delete_notes_message) { container.space.deleteAll() }
+            }
             row(getString(R.string.wp_api_key_forget)) { container.apiKeys.set(null); rebuild() }
             note(getString(R.string.wp_assistant_privacy_note))
         }
@@ -85,7 +88,7 @@ class PrivacyDataFragment : WpPageFragment() {
     }
 
     private fun confirm(title: Int, message: Int, block: suspend () -> Unit) {
-        requireContext().createDialog(title, R.string.delete, message = message, onAction = {
+        requireContext().createDialog(title, R.string.wp_delete, message = message, onAction = {
             launchUi {
                 block()
                 requireContext().showToast(R.string.wp_deleted)

@@ -2,6 +2,12 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Compass** (renamed from Chat) with a **Home corner button**: tap to open, long-press to record.
+- **Space** voice notes: record (foreground service, screen off OK) → transcribe with your provider
+  (audio chat models on OpenRouter/Gemini, or Whisper-style `/audio/transcriptions`; 5-minute parts) →
+  AI title + summary. Play, copy, share, ask Compass about a note, rename, delete.
+- **About you**: personal context the assistant uses only when relevant.
+- Delete / rename / new chat from inside a conversation (⋯).
 - **Image generation** in Chat with its own **Image model** setting (same provider and key): OpenRouter image
   models via chat `modalities`, or the OpenAI-style `/images/generations` (gpt-image-1, dall-e-3, Imagen).
   Image mode button or `/image …`; images saved with the conversation, share or save to Photos.

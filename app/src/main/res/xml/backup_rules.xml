@@ -9,4 +9,8 @@
         <exclude domain="database" path="chats.db-journal" />
         <exclude domain="database" path="chats.db-wal" />
         <exclude domain="database" path="chats.db-shm" />
+        <exclude domain="database" path="space.db" />
+        <exclude domain="database" path="space.db-journal" />
+        <exclude domain="file" path="space/" />
+        <exclude domain="file" path="chat_images/" />
 </full-backup-content>

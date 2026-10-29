@@ -124,6 +124,7 @@ class ChatEngine(
         }
         val turns = buildList {
             prefs.systemPrompt.takeIf { it.isNotBlank() }?.let { add(Turn(Turn.Role.SYSTEM, it)) }
+            if (prefs.useAboutMe && prefs.aboutMe.isNotBlank()) add(Turn(Turn.Role.SYSTEM, ABOUT_PREFIX + prefs.aboutMe))
             history.forEach { add(Turn(if (it.isUser) Turn.Role.USER else Turn.Role.ASSISTANT, it.content)) }
         }
         val msgId = repo.add(conversationId, "assistant", "")
@@ -159,5 +160,11 @@ class ChatEngine(
             _busy.value = _busy.value - conversationId
             _changes.tryEmit(conversationId)
         }
+    }
+
+    private companion object {
+        /** Personal context, used only when it helps (the model is told not to bring it up otherwise). */
+        const val ABOUT_PREFIX = "Background about the user, for personalising answers. Use it only when it is relevant " +
+            "to the question; don't mention it otherwise.\n"
     }
 }

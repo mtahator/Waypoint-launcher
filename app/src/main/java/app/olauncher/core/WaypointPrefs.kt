@@ -7,6 +7,7 @@ import app.olauncher.features.assistant.domain.ApiFormat
 import app.olauncher.features.assistant.domain.AssistantMode
 import app.olauncher.features.assistant.domain.ImageApi
 import app.olauncher.features.gestures.domain.Corner
+import app.olauncher.features.space.domain.TranscriptionApi
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.worldclock.domain.WorldClockCodec
 import app.olauncher.features.worldclock.domain.WorldClockEntry
@@ -113,6 +114,29 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getString(IMAGE_SIZE, null) ?: "1024x1024"
         set(value) = prefs.edit { putString(IMAGE_SIZE, value) }
 
+    /** Things the assistant may use when relevant (name, work, preferences…). */
+    var aboutMe: String
+        get() = prefs.getString(ABOUT_ME, null) ?: ""
+        set(value) = prefs.edit { putString(ABOUT_ME, value.trim()) }
+
+    var useAboutMe: Boolean
+        get() = prefs.getBoolean(USE_ABOUT_ME, true)
+        set(value) = prefs.edit { putBoolean(USE_ABOUT_ME, value) }
+
+    /** Speech-to-text model for Space voice notes (same provider and key); blank = record only. */
+    var transcribeModel: String
+        get() = prefs.getString(TRANSCRIBE_MODEL, null) ?: ""
+        set(value) = prefs.edit { putString(TRANSCRIBE_MODEL, value.trim()) }
+
+    var transcribeApi: TranscriptionApi
+        get() = runCatching { TranscriptionApi.valueOf(prefs.getString(TRANSCRIBE_API, null) ?: "") }.getOrDefault(TranscriptionApi.AUTO)
+        set(value) = prefs.edit { putString(TRANSCRIBE_API, value.name) }
+
+    /** Compass button on Home: "left", "right" (bottom corners) or "off". */
+    var compassShortcut: String
+        get() = prefs.getString(COMPASS_SHORTCUT, null) ?: "left"
+        set(value) = prefs.edit { putString(COMPASS_SHORTCUT, value) }
+
     var systemPrompt: String
         get() = prefs.getString(SYSTEM_PROMPT, null) ?: ""
         set(value) = prefs.edit { putString(SYSTEM_PROMPT, value) }
@@ -184,6 +208,11 @@ class WaypointPrefs(context: Context) {
         const val API_BASE_URL = "WP_API_BASE_URL"
         const val API_MODEL = "WP_API_MODEL"
         const val SYSTEM_PROMPT = "WP_SYSTEM_PROMPT"
+        const val ABOUT_ME = "WP_ABOUT_ME"
+        const val USE_ABOUT_ME = "WP_USE_ABOUT_ME"
+        const val TRANSCRIBE_MODEL = "WP_TRANSCRIBE_MODEL"
+        const val TRANSCRIBE_API = "WP_TRANSCRIBE_API"
+        const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val IMAGE_MODEL = "WP_IMAGE_MODEL"
         const val IMAGE_API = "WP_IMAGE_API"
         const val IMAGE_SIZE = "WP_IMAGE_SIZE"

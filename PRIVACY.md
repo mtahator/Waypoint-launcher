@@ -10,6 +10,10 @@
   conversation is sent **only to the base URL you configured**, only when you send a message. Chats are
   stored on the phone (`chats.db`, excluded from backup); the API key is encrypted with an Android
   Keystore key. Delete chats or forget the key in *Privacy & data*.
+- **Space voice notes** are recorded only while you record (with a visible notification), saved on the
+  phone (`space.db`, `files/space`, excluded from backup), and sent to your configured provider **only
+  for transcription and summary**, and only if you set a transcription model. *About you* is sent with
+  conversations only while its toggle is on.
 - **No analytics, no ads, no crash-reporting SDKs.**
 - **Notification capture** is off by default. When you enable it, Waypoint reads the title and text of
   notifications **only from the apps you select**, extracts amount / currency / merchant / direction /

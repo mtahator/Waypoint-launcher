@@ -22,10 +22,12 @@ choose Waypoint.
 ۴. **تم شیشه‌ای (الهام از Nothing):** تنظیمات ← Waypoint ← Appearance ← Glass. کل والپیپر پشت همهٔ صفحه‌ها بلور می‌شود، ساعت با فونت نقطه‌ای، متن‌های مونو و یک نقطهٔ قرمز. بلور واقعی نیاز به اندروید ۱۲ به بالا دارد.
 ۵. **چیدمان صفحهٔ اصلی:** اپ‌ها به‌طور پیش‌فرض سمت راست هستند. در Appearance با اسلایدر **Apps position** ارتفاع بخش اپ‌ها را از بالا تا پایین تنظیم کنید؛ جای آن ثابت می‌ماند.
 ۶. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
-۷. **پرسیدن (؟):** در جستجوی لیست اپ‌ها `؟` بزنید تا کادر بزرگ سؤال باز شود. در تنظیمات ← Assistant & chats انتخاب کنید سؤال به **اپ Gemini** برود یا به **API خودتان** (آدرس، مدل و کلید API؛ OpenAI، Gemini API، Claude، OpenRouter، Groq یا Ollama). در حالت API، گفتگو در اپ **Chat** (در لیست اپ‌ها) ذخیره می‌شود و می‌توانید ادامه‌اش بدهید.
+۷. **پرسیدن (؟):** در جستجوی لیست اپ‌ها `؟` بزنید تا کادر بزرگ سؤال باز شود. در تنظیمات ← Assistant & chats انتخاب کنید سؤال به **اپ Gemini** برود یا به **API خودتان** (آدرس، مدل و کلید API؛ OpenAI، Gemini API، Claude، OpenRouter، Groq یا Ollama). در حالت API، گفتگو در اپ **Compass** (در لیست اپ‌ها و دکمهٔ قطب‌نما در گوشهٔ صفحهٔ اصلی) ذخیره می‌شود و می‌توانید ادامه‌اش بدهید.
 ۸. **جواب فوری و ماشین‌حساب:** در جستجو بنویسید: `12×3+4`، `sin(30°)`، `15% of 80`، `2 m3 to l`، `100 km/h to mph`، `time in tokyo` یا ارز مثل `1$ to £` و `100 usd in toman`. با `=` در ابتدا، حالت ماشین‌حساب اجباری می‌شود. جواب با لمس یا Enter کپی می‌شود.
 ۹. **نمودار (مثل Desmos):** در جستجو `=sin(x)` یا `x^2+y^2=r` بنویسید؛ نمودار کوچک نشان داده می‌شود (حروف ناشناخته مثل r اسلایدر می‌شوند) و با لمس، فقط همان معادله در صفحهٔ نمودار باز می‌شود. نامساوی‌ها (`y > x^2`)، نقاط تلاقی (نقطهٔ خاکستری؛ لمس = مختصات)، با لمس منحنی ریشه‌ها و ماکزیمم/مینیمم، چند معادله، اسلایدر، `f(x)=…`، زوم و کشیدن.
 ۱۰. **نرخ ارز آنلاین:** فقط وقتی تبدیل ارز تایپ کنید، نرخ‌های عمومی دلار از open.er-api.com دانلود می‌شود (حداکثر هر ۶ ساعت). چیزی از متن شما ارسال نمی‌شود. خاموش‌کردن در Privacy & data. نرخ ریال/تومان نرخ رسمی است، نه بازار آزاد.
+۱۱. **Space (یادداشت صوتی، مثل Essential Space):** در Compass ← Space دکمهٔ قرمز را بزنید (یا دکمهٔ قطب‌نما را در صفحهٔ اصلی نگه دارید) تا ضبط شروع شود. صدا روی گوشی ذخیره می‌شود، با مدل تبدیل گفتار به متن (در تنظیمات Compass) به متن تبدیل می‌شود و عنوان و خلاصه می‌گیرد. با OpenRouter، مدل پیش‌فرض `google/gemini-2.5-flash` است.
+۱۲. **About you:** در تنظیمات Compass اطلاعاتی دربارهٔ خودتان بنویسید؛ دستیار فقط وقتی مرتبط باشد از آن استفاده می‌کند.
 
 </div>
 
@@ -40,7 +42,7 @@ no database, registers no receivers and schedules no work.
 | **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
 | **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
 | **Ask** with `?` in the drawer search: a large multi-line composer. Questions go to the **Gemini app**, or to **your own API** (OpenAI-compatible or Anthropic: OpenAI, Gemini API, Claude, OpenRouter, Groq, Ollama…) | App drawer search; Settings → Assistant & chats |
-| **Chat** app (in your app list): conversations with your API, streamed, saved on the phone, continue/rename/delete, Markdown, stop/regenerate | App list → Chat |
+| **Compass** app (in your app list, and a compass button on Home): chats with your API (streamed, saved, continue/rename/delete, Markdown, images, *About you*) and **Space** voice notes (record → transcribe → title + summary; like Essential Space) | App list → Compass; Home corner |
 | **Quick answers** (Spotlight-style): `12×3+4`, `sin(30°)`, `ln 2`, `5!`, `15% of 80`, units with powers and compounds (`2 m3 to l`, `1 m² to sq ft`, `100 km/h to mph`, `1 kWh to MJ`), `time in tokyo`, currencies (`1$ to £`, `100 usd in toman`). Start with `=` for calculator mode. Tap or Enter copies | App drawer search |
 | **Graphing calculator** (Desmos-style): many expressions, `y = …`, `f(x) = …`, `x = …`, implicit equations like `x^2 + y^2 = 9`, points `(2, 3)`, sliders (`a = 1`) with one-tap *add slider* for unknown letters; pan, pinch-zoom, double-tap, hold to trace. Typing `sin(x)` in search shows a mini graph | Drawer search, or Settings → Graphing calculator |
 | **Home layout**: right-aligned by default; *Apps position* slider moves the app list from top to bottom | Appearance |
@@ -76,7 +78,7 @@ can still be merged.
 ## Docs
 [Upstream notes](docs/upstream-notes.md) · [Dependencies](docs/dependencies.md) · [CSV format](docs/csv-format.md) ·
 [Performance](docs/perf-baseline.md) · [Battery test](docs/battery-test.md) · [Device tests](docs/device-tests.md) ·
-[Quick answers & grapher](docs/quick-answers.md) · [Assistant & Chat](docs/assistant.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
+[Quick answers & grapher](docs/quick-answers.md) · [Compass](docs/assistant.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
 ## License
 GPL-3.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Waypoint is based on Olauncher by tanujnotes.

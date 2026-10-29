@@ -13,6 +13,7 @@ import app.olauncher.features.assistant.domain.ImageApi
 import app.olauncher.features.assistant.domain.ImageProtocol
 import app.olauncher.features.assistant.domain.Presets
 import app.olauncher.features.assistant.domain.Turn
+import app.olauncher.features.space.domain.TranscriptionApi
 import app.olauncher.features.assistant.platform.ChatClient
 import app.olauncher.helper.showToast
 import kotlinx.coroutines.withContext
@@ -96,7 +97,34 @@ class AssistantSettingsFragment : WpPageFragment() {
                 note(getString(R.string.wp_image_note))
             }
             page.card {
+                header(getString(R.string.wp_space))
+                row(getString(R.string.wp_transcribe_model), prefs.transcribeModel.ifBlank { getString(R.string.wp_image_off) }) {
+                    requireContext().promptText(R.string.wp_transcribe_model, prefs.transcribeModel,
+                        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {
+                        prefs.transcribeModel = it; rebuild()
+                    }
+                }
+                row(getString(R.string.wp_transcribe_api), when (prefs.transcribeApi) {
+                    TranscriptionApi.AUTO -> getString(R.string.wp_image_api_auto)
+                    TranscriptionApi.WHISPER -> getString(R.string.wp_transcribe_whisper)
+                    TranscriptionApi.CHAT_AUDIO -> getString(R.string.wp_transcribe_chat)
+                }) {
+                    val options = listOf(TranscriptionApi.AUTO, TranscriptionApi.WHISPER, TranscriptionApi.CHAT_AUDIO)
+                    requireContext().chooseOne(R.string.wp_transcribe_api, listOf(
+                        getString(R.string.wp_image_api_auto), getString(R.string.wp_transcribe_whisper), getString(R.string.wp_transcribe_chat),
+                    )) { i -> prefs.transcribeApi = options[i]; rebuild() }
+                }
+                note(getString(R.string.wp_transcribe_note))
+            }
+            page.card {
                 header(getString(R.string.wp_api_behaviour))
+                row(getString(R.string.wp_about_you), prefs.aboutMe.ifBlank { getString(R.string.wp_none) }.replace('\n', ' ').take(40),
+                    getString(R.string.wp_about_you_hint)) {
+                    requireContext().promptText(R.string.wp_about_you, prefs.aboutMe, hint = R.string.wp_about_you_example, multiLine = true) {
+                        prefs.aboutMe = it; rebuild()
+                    }
+                }
+                toggle(getString(R.string.wp_use_about_you), prefs.useAboutMe) { prefs.useAboutMe = it }
                 row(getString(R.string.wp_system_prompt), prefs.systemPrompt.ifBlank { getString(R.string.wp_none) }.take(40)) {
                     requireContext().promptText(R.string.wp_system_prompt, prefs.systemPrompt, multiLine = true) {
                         prefs.systemPrompt = it; rebuild()
@@ -104,6 +132,16 @@ class AssistantSettingsFragment : WpPageFragment() {
                 }
                 row(getString(R.string.wp_api_test), if (testing) "…" else null) { testConnection() }
                 row(getString(R.string.wp_open_chats)) { startActivity(Intent(requireContext(), ChatActivity::class.java)) }
+            }
+        }
+        page.card {
+            header(getString(R.string.wp_compass_shortcut))
+            val choices = listOf("left" to R.string.wp_shortcut_left, "right" to R.string.wp_shortcut_right, "off" to R.string.wp_shortcut_off)
+            row(getString(R.string.wp_compass_shortcut_row), getString(choices.firstOrNull { it.first == prefs.compassShortcut }?.second ?: R.string.wp_shortcut_left),
+                getString(R.string.wp_compass_shortcut_hint)) {
+                requireContext().chooseOne(R.string.wp_compass_shortcut, choices.map { getString(it.second) }) { i ->
+                    prefs.compassShortcut = choices[i].first; rebuild()
+                }
             }
         }
         page.card {
@@ -128,6 +166,8 @@ class AssistantSettingsFragment : WpPageFragment() {
         prefs.apiBaseUrl = p.baseUrl
         prefs.apiModel = p.model
         prefs.imageModel = p.imageModel
+        prefs.transcribeModel = p.transcribeModel
+        prefs.transcribeApi = TranscriptionApi.AUTO
         prefs.imageApi = ImageApi.AUTO
     }
 

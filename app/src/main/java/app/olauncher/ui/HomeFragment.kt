@@ -19,6 +19,8 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.bundleOf
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.setPadding
 import androidx.lifecycle.Observer
@@ -80,6 +82,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private var dotDate: DotMatrixView? = null
     private var topSpace: Space? = null
     private var bottomSpace: Space? = null
+    private var compassButton: android.widget.ImageView? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -118,6 +121,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     override fun onResume() {
         super.onResume()
         populateHomeScreen(false)
+        applyCompassShortcut()
         viewModel.isOlauncherDefault()
         if (prefs.showStatusBar) showStatusBar()
         else hideStatusBar()
@@ -883,6 +887,47 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         GlassStyler.styleCaption(binding.firstRunTips)
     }
 
+    /**
+     * Compass button in a bottom corner of Home: tap opens Compass (chats), long-press starts a Space voice
+     * note immediately. Position (left / right / off) is set in Compass settings.
+     */
+    private fun applyCompassShortcut() {
+        val ctx = requireContext()
+        val where = ctx.waypoint.prefs.compassShortcut
+        val root = binding.root as? FrameLayout ?: return
+        if (where == "off") { compassButton?.let { root.removeView(it) }; compassButton = null; return }
+        val button = compassButton ?: android.widget.ImageView(ctx).also { v ->
+            v.setImageResource(R.drawable.ic_compass)
+            v.imageTintList = android.content.res.ColorStateList.valueOf(ctx.getColorFromAttr(R.attr.primaryColor))
+            v.alpha = 0.85f
+            val pad = (12 * resources.displayMetrics.density).toInt()
+            v.setPadding(pad, pad, pad, pad)
+            v.contentDescription = getString(R.string.wp_chat_app_label)
+            v.setOnClickListener { app.olauncher.features.assistant.ui.ChatActivity.open(ctx) }
+            v.setOnLongClickListener {
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                app.olauncher.features.assistant.ui.ChatActivity.open(ctx, record = true)
+                true
+            }
+            root.addView(v)
+            compassButton = v
+            ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
+                val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
+                (view.layoutParams as FrameLayout.LayoutParams).bottomMargin = nav + (20 * resources.displayMetrics.density).toInt()
+                view.requestLayout()
+                insets
+            }
+        }
+        val size = (52 * resources.displayMetrics.density).toInt()
+        val side = (16 * resources.displayMetrics.density).toInt()
+        button.layoutParams = FrameLayout.LayoutParams(size, size).apply {
+            gravity = android.view.Gravity.BOTTOM or if (where == "right") android.view.Gravity.END else android.view.Gravity.START
+            marginStart = side; marginEnd = side
+            bottomMargin = (40 * resources.displayMetrics.density).toInt()
+        }
+        ViewCompat.requestApplyInsets(button)
+    }
+
     /** Mirrors upstream's clock/date state onto the dot-matrix views (after populateDateTime). */
     private fun syncGlassClock() {
         val clock = dotClock ?: return
@@ -904,6 +949,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         worldClocks = null
         dotClock = null
         dotDate = null
+        compassButton = null
         topSpace = null
         bottomSpace = null
         _binding = null

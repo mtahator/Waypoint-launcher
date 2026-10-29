@@ -18,15 +18,17 @@ data class ApiPreset(
     val name: String, val format: ApiFormat, val baseUrl: String, val model: String, val keyHint: String,
     /** Default image model ("" = this provider has none in Waypoint). */
     val imageModel: String = "",
+    /** Default speech-to-text model for Space ("" = none). */
+    val transcribeModel: String = "",
 )
 
 object Presets {
     val ALL = listOf(
-        ApiPreset("OpenAI", ApiFormat.OPENAI, "https://api.openai.com/v1", "gpt-4o-mini", "platform.openai.com → API keys", imageModel = "gpt-image-1"),
-        ApiPreset("Gemini API", ApiFormat.OPENAI, "https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash", "aistudio.google.com → Get API key", imageModel = "imagen-3.0-generate-002"),
+        ApiPreset("OpenAI", ApiFormat.OPENAI, "https://api.openai.com/v1", "gpt-4o-mini", "platform.openai.com → API keys", imageModel = "gpt-image-1", transcribeModel = "gpt-4o-mini-transcribe"),
+        ApiPreset("Gemini API", ApiFormat.OPENAI, "https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash", "aistudio.google.com → Get API key", imageModel = "imagen-3.0-generate-002", transcribeModel = "gemini-2.5-flash"),
         ApiPreset("Anthropic (Claude)", ApiFormat.ANTHROPIC, "https://api.anthropic.com/v1", "claude-sonnet-5-5", "console.anthropic.com → API keys"),
-        ApiPreset("OpenRouter", ApiFormat.OPENAI, "https://openrouter.ai/api/v1", "openai/gpt-4o-mini", "openrouter.ai → Keys", imageModel = "google/gemini-2.5-flash-image-preview"),
-        ApiPreset("Groq", ApiFormat.OPENAI, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "console.groq.com → API keys"),
+        ApiPreset("OpenRouter", ApiFormat.OPENAI, "https://openrouter.ai/api/v1", "openai/gpt-4o-mini", "openrouter.ai → Keys", imageModel = "google/gemini-2.5-flash-image-preview", transcribeModel = "google/gemini-2.5-flash"),
+        ApiPreset("Groq", ApiFormat.OPENAI, "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", "console.groq.com → API keys", transcribeModel = "whisper-large-v3-turbo"),
         ApiPreset("Ollama (local)", ApiFormat.OPENAI, "http://127.0.0.1:11434/v1", "llama3.2", "No key needed"),
     )
 }

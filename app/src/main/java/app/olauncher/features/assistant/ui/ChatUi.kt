@@ -39,6 +39,19 @@ internal class ChatStyle(val context: Context) {
         if (glass) { GlassStyler.styleClock(this); isAllCaps = true; textSize = 26f }
     }
 
+    /** "CHATS  SPACE" header: the current tab is bright, the other faint; tap to switch. */
+    fun tabs(space: Boolean, onSelect: (Boolean) -> Unit) = android.widget.LinearLayout(context).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        listOf(false to R.string.wp_chats, true to R.string.wp_space).forEach { (isSpace, label) ->
+            addView(title(context.getString(label)).apply {
+                alpha = if (isSpace == space) 1f else 0.38f
+                if (!glass) textSize = 24f
+                setPadding(0, 0, dp(18), 0)
+                setOnClickListener { if (isSpace != space) onSelect(isSpace) }
+            })
+        }
+    }
+
     fun action(text: CharSequence, onClick: () -> Unit) = TextView(context, null, 0, R.style.TextSmall).apply {
         this.text = text
         isAllCaps = true

@@ -83,10 +83,16 @@ adb shell input swipe $((W/2)) $((H/4)) $((W/3)) $((H/3)) 300; sleep 1; shot 15b
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # Assistant settings and the Chat app
-open_settings; tap "Assistant & chats"; sleep 1; shot 16a-assistant-settings
+open_settings; tap "Compass (assistant"; sleep 1; shot 16a-assistant-settings
 tap "Your API (chat app)"; sleep 1; shot 16b-assistant-api
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 16c-chat-list
 tap "+ New"; sleep 2; adb shell "input text 'Hello'"; sleep 1; shot 16d-chat-new
+# Space: record a few seconds (mic permission pre-granted), stop, see the note
+adb shell pm grant $PKG android.permission.RECORD_AUDIO || true
+adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez space true; sleep 2; shot 16e-space
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez record true; sleep 4; shot 16f-space-recording
+tap "■" || adb shell input keyevent 4; sleep 3; shot 16g-space-note
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # "?" opens the Gemini composer (multi-line)

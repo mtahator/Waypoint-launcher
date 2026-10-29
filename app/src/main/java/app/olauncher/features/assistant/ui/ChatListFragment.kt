@@ -42,7 +42,7 @@ class ChatListFragment : Fragment() {
         root.addView(column, FrameLayout.LayoutParams(-1, -1))
 
         val header = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(style.dp(20), 0, style.dp(8), style.dp(8)) }
-        header.addView(style.title(getString(R.string.wp_chats)), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(style.tabs(space = false) { (activity as ChatActivity).showTab(it) }, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(style.action(getString(R.string.wp_settings_short)) { (activity as ChatActivity).show(AssistantSettingsFragment()) })
         header.addView(style.action(getString(R.string.wp_new_chat)) { (activity as ChatActivity).show(ChatFragment.newInstance(0)) }.apply {
             setTextColor(0xFFFFFFFF.toInt()); background = style.rounded(0xFFD71921.toInt(), 100)
