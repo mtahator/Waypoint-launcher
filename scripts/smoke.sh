@@ -92,7 +92,13 @@ adb shell pm grant $PKG android.permission.RECORD_AUDIO || true
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez space true; sleep 2; shot 16e-space
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez record true; sleep 4; shot 16f-space-recording
-tap "■" || adb shell input keyevent 4; sleep 3; shot 16g-space-note
+adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez space true; sleep 2
+tap "Stop" || adb shell input keyevent 4; sleep 3; shot 16g-space-note
+# Write a note with a reminder, add a to-do and a goal
+tap "Write"; sleep 2; adb shell "input text 'Remind%sme%sto%scall%smom%stomorrow%sat%s5pm'"; sleep 1; shot 16h-space-write
+adb shell input keyevent 4; sleep 1; adb shell input keyevent 4; sleep 3; shot 16i-space-organised
+tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Exercise'"; tap "Okay" exact; sleep 2
+tap "To-do"; sleep 2; shot 16j-space-todo
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # "?" opens the Gemini composer (multi-line)

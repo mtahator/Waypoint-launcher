@@ -1,4 +1,5 @@
 [versions]
+mlkitText = "19.0.1"
 json = "20240303"
 appcompat = "1.7.0"
 coreKtx = "1.16.0"
@@ -14,6 +15,7 @@ junit = "4.13.2"
 desugarJdkLibs = "2.1.5"
 profileinstaller = "1.4.1"
 [libraries]
+mlkit-text = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "mlkitText" }
 json = { module = "org.json:json", version.ref = "json" }
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }

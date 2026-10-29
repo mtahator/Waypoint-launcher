@@ -2,6 +2,10 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Space organiser**: written notes with images, screenshots (manual or automatic, on-device text
+  reading), to-dos, goals with streaks and reminders, all auto-categorised; "remind me to … tomorrow at
+  5" in a voice or written note becomes a reminder (on-phone parser, English + Persian). The Home pin opens
+  Space ready to record.
 - **Web search with sources** in Wayfinder (Perplexity-style): the model plans whether to search, the queries
   and whether *About you* matters; Waypoint searches (DuckDuckGo, Brave, or OpenRouter web), reads the top
   pages and answers with tappable `[n]` citations and source cards. Globe button forces a search.

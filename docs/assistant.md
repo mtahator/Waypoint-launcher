@@ -49,6 +49,24 @@ forces a search for one message.
 
 Only the search queries go to the search engine; pages are fetched directly from their sites.
 
+## Space: notes, voice, screenshots, to-dos, goals, reminders
+Space (in Wayfinder) keeps everything in one list with filters (All · Voice · Notes · Screens · To-do ·
+Goals) and automatic **categories** (Work, Personal, Ideas, Shopping, Health, Finance, Travel, Learning,
+Home, Other):
+- **Categorising** happens on the phone (keyword classifier, English + Persian). With *AI title &
+  summary* on, the chat model's JSON analysis refines category, title and summary.
+- **Reminders from what you say or write**: "remind me to call mom tomorrow at 5pm", "remember to pay rent
+  on Friday", "don't forget… tonight", "in 2 hours", Persian "یادم بنداز فردا ساعت ۵ …" become to-dos with
+  a reminder, parsed on the phone (the AI adds more when enabled). Reminders are notifications with
+  *Done* and *Snooze 10 min*, exact when allowed, re-armed after reboot.
+- **Written notes** with title, text and images (photo picker, no permission).
+- **Screenshots**: add any image, or turn on *Add screenshots automatically* (photo access); text is read on
+  the phone (ML Kit, Latin script); with AI on, the image is also described by your model.
+- **To-dos**: tap the circle to finish, tap to edit date/time/reminder; typing "call mom tomorrow at 5" as a
+  title sets the time too.
+- **Goals**: "3 times a week", "every day", "12 in total" with dot progress, streaks and +1 check-ins.
+- The Home pin opens Space ready to record (long-press starts recording at once).
+
 ## Space (voice notes)
 Like Nothing's Essential Space: tap the red button in **Wayfinder → Space** (or long-press the Wayfinder pin on
 Home) to record. Recording runs in a foreground service with a notification and a Stop button, so it

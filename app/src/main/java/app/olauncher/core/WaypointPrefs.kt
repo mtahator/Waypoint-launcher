@@ -144,6 +144,16 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(SPACE_SUMMARIZE, true)
         set(value) = prefs.edit { putBoolean(SPACE_SUMMARIZE, value) }
 
+    /** Add new screenshots to Space automatically (needs photo access). */
+    var autoScreenshots: Boolean
+        get() = prefs.getBoolean(AUTO_SCREENSHOTS, false)
+        set(value) = prefs.edit { putBoolean(AUTO_SCREENSHOTS, value) }
+
+    /** MediaStore DATE_ADDED (seconds) of the newest screenshot already imported. */
+    var lastScreenshotSeen: Long
+        get() = prefs.getLong(LAST_SCREENSHOT, 0L)
+        set(value) = prefs.edit { putLong(LAST_SCREENSHOT, value) }
+
     /** Wayfinder button on Home: "left", "right" (bottom corners) or "off". */
     var wayfinderShortcut: String
         get() = prefs.getString(COMPASS_SHORTCUT, null) ?: "left"
@@ -240,6 +250,8 @@ class WaypointPrefs(context: Context) {
         const val TRANSCRIBE_LANGUAGE = "WP_TRANSCRIBE_LANGUAGE"
         const val SPACE_SUMMARIZE = "WP_SPACE_SUMMARIZE"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
+        const val AUTO_SCREENSHOTS = "WP_AUTO_SCREENSHOTS"
+        const val LAST_SCREENSHOT = "WP_LAST_SCREENSHOT"
         const val IMAGE_MODEL = "WP_IMAGE_MODEL"
         const val IMAGE_API = "WP_IMAGE_API"
         const val IMAGE_SIZE = "WP_IMAGE_SIZE"

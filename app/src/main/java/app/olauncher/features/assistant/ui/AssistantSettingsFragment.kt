@@ -17,6 +17,8 @@ import app.olauncher.features.space.domain.TranscriptionApi
 import app.olauncher.features.websearch.domain.SearchEngine
 import app.olauncher.features.websearch.domain.WebSearchMode
 import app.olauncher.features.space.platform.LocalTranscriber
+import app.olauncher.features.space.platform.ReminderScheduler
+import app.olauncher.features.space.platform.ScreenshotWatcher
 import app.olauncher.features.assistant.platform.ChatClient
 import app.olauncher.helper.showToast
 import kotlinx.coroutines.withContext
@@ -27,6 +29,12 @@ class AssistantSettingsFragment : WpPageFragment() {
     override val pageSubtitle = R.string.wp_assistant_subtitle
 
     private var testing = false
+
+    private val photoPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) container.prefs.autoScreenshots = false
+        ScreenshotWatcher.update(requireContext())
+        rebuild()
+    }
 
     override fun build(page: PageBuilder) {
         val prefs = container.prefs
@@ -188,6 +196,19 @@ class AssistantSettingsFragment : WpPageFragment() {
                 note(getString(R.string.wp_transcribe_note))
             }
             toggle(getString(R.string.wp_space_summarize), prefs.spaceSummarize, getString(R.string.wp_space_summarize_hint)) { prefs.spaceSummarize = it }
+            toggle(getString(R.string.wp_auto_screenshots), prefs.autoScreenshots, getString(R.string.wp_auto_screenshots_hint)) { on ->
+                prefs.autoScreenshots = on
+                if (on && !ScreenshotWatcher.hasPermission(requireContext())) photoPermission.launch(ScreenshotWatcher.permission())
+                ScreenshotWatcher.update(requireContext())
+            }
+            if (!ReminderScheduler.canExact(requireContext())) {
+                row(getString(R.string.wp_exact_reminders), getString(R.string.wp_exact_reminders_off), getString(R.string.wp_exact_reminders_hint)) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) runCatching {
+                        startActivity(android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            android.net.Uri.parse("package:" + requireContext().packageName)))
+                    }
+                }
+            }
         }
         page.card {
             header(getString(R.string.wp_wayfinder_shortcut))

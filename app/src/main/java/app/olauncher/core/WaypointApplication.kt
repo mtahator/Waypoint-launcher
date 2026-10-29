@@ -22,5 +22,9 @@ class WaypointApplication : Application() {
                 StrictMode.VmPolicy.Builder().detectLeakedClosableObjects().detectActivityLeaks().penaltyLog().build()
             )
         }
+        // Space: watch for new screenshots only if the user turned it on (off by default: costs nothing)
+        android.os.Handler(mainLooper).post {
+            if (container.prefs.autoScreenshots) app.olauncher.features.space.platform.ScreenshotWatcher.update(this)
+        }
     }
 }

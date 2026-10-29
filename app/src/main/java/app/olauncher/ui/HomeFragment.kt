@@ -888,7 +888,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     }
 
     /**
-     * Wayfinder button in a bottom corner of Home: tap opens Wayfinder (chats), long-press starts a Space voice
+     * Wayfinder pin in a bottom corner of Home: tap opens Space ready to record, long-press starts a voice
      * note immediately. Position (left / right / off) is set in Wayfinder settings.
      */
     private fun applyWayfinderShortcut() {
@@ -903,7 +903,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             val pad = (12 * resources.displayMetrics.density).toInt()
             v.setPadding(pad, pad, pad, pad)
             v.contentDescription = getString(R.string.wp_chat_app_label)
-            v.setOnClickListener { app.olauncher.features.assistant.ui.ChatActivity.open(ctx) }
+            v.setOnClickListener { app.olauncher.features.assistant.ui.ChatActivity.open(ctx, space = true) }
             v.setOnLongClickListener {
                 v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
                 app.olauncher.features.assistant.ui.ChatActivity.open(ctx, record = true)

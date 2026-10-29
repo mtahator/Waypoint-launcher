@@ -11,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.SeekBar
@@ -48,6 +49,11 @@ class NoteFragment : Fragment() {
     private lateinit var summary: TextView
     private lateinit var transcript: TextView
     private lateinit var status: TextView
+    private lateinit var picture: ImageView
+    private lateinit var playerRow: LinearLayout
+    private lateinit var tasksHeader: TextView
+    private lateinit var tasksBox: LinearLayout
+    private lateinit var transcriptHeader: TextView
     private var note: Note? = null
     private var player: MediaPlayer? = null
     private val noteId get() = requireArguments().getLong(ARG_ID)
@@ -76,7 +82,12 @@ class NoteFragment : Fragment() {
         meta = style.caption().apply { setPadding(0, style.dp(4), 0, style.dp(14)) }
         body.addView(meta)
 
-        val playerRow = LinearLayout(ctx).apply {
+        picture = ImageView(ctx).apply {
+            adjustViewBounds = true; scaleType = ImageView.ScaleType.FIT_CENTER; clipToOutline = true
+            background = style.rounded(style.codeBg, 18); isVisible = false
+        }
+        body.addView(picture, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = style.dp(12) })
+        playerRow = LinearLayout(ctx).apply {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(style.dp(8), style.dp(8), style.dp(14), style.dp(8))
             background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 100, style.hairline)
@@ -96,7 +107,9 @@ class NoteFragment : Fragment() {
 
         body.addView(section(getString(R.string.wp_space_summary)))
         summary = text().also { body.addView(it) }
-        body.addView(section(getString(R.string.wp_space_transcript)))
+        tasksHeader = section(getString(R.string.wp_space_reminders)).also { body.addView(it) }
+        tasksBox = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }.also { body.addView(it) }
+        transcriptHeader = section(getString(R.string.wp_space_transcript)).also { body.addView(it) }
         transcript = text().apply { setTextIsSelectable(true) }.also { body.addView(it) }
 
         val actions = LinearLayout(ctx).apply { setPadding(0, style.dp(18), 0, 0) }
@@ -143,10 +156,33 @@ class NoteFragment : Fragment() {
         if (view == null) return
         title.text = n.displayTitle
         val sec = n.durationMs / 1000
-        meta.text = "${DateFormat.getMediumDateFormat(requireContext()).format(Date(n.created))} " +
-            "${DateFormat.getTimeFormat(requireContext()).format(Date(n.created))} · %d:%02d".format(sec / 60, sec % 60)
+        val date = "${DateFormat.getMediumDateFormat(requireContext()).format(Date(n.created))} ${DateFormat.getTimeFormat(requireContext()).format(Date(n.created))}"
+        meta.text = listOfNotNull(n.category.ifBlank { null }, date, if (n.kind == Note.Kind.VOICE) "%d:%02d".format(sec / 60, sec % 60) else null).joinToString(" · ")
+        meta.setOnClickListener { chooseCategory(n) }
+        playerRow.isVisible = n.kind == Note.Kind.VOICE
+        picture.isVisible = n.images.isNotEmpty()
+        n.images.firstOrNull()?.let { name ->
+            val f = space.imageFile(name)
+            val b = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            android.graphics.BitmapFactory.decodeFile(f.path, b)
+            var smp = 1; while (b.outWidth / (smp * 2) >= resources.displayMetrics.widthPixels) smp *= 2
+            picture.setImageBitmap(android.graphics.BitmapFactory.decodeFile(f.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = smp }))
+        }
+        transcriptHeader.text = getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_text_in_image else R.string.wp_space_transcript).uppercase()
+        val linked = space.notes.tasks().filter { it.noteId == n.id }
+        tasksHeader.isVisible = linked.isNotEmpty(); tasksBox.isVisible = linked.isNotEmpty()
+        tasksBox.removeAllViews()
+        linked.forEach { t ->
+            val due = if (t.due > 0) " · " + android.text.format.DateUtils.formatDateTime(requireContext(), t.due,
+                android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME or android.text.format.DateUtils.FORMAT_ABBREV_ALL) else ""
+            tasksBox.addView(text().apply {
+                text = (if (t.done) "✓ " else if (t.remind) "🔔 " else "○ ") + t.title + due
+                setPadding(0, style.dp(4), 0, style.dp(4))
+                setOnClickListener { SpaceEditors.task(this@NoteFragment, t) }
+            })
+        }
         status.text = when (n.status) {
-            Note.Status.TRANSCRIBING -> getString(R.string.wp_space_transcribing)
+            Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing)
             Note.Status.SUMMARIZING -> getString(R.string.wp_space_summarizing)
             Note.Status.ERROR -> n.error + "  ·  " + getString(R.string.wp_chat_retry)
             Note.Status.RECORDED -> getString(R.string.wp_space_set_model)
@@ -154,7 +190,11 @@ class NoteFragment : Fragment() {
         }
         status.isVisible = status.text.isNotEmpty()
         status.setTextColor(if (n.status == Note.Status.ERROR) 0xFFFF6B5E.toInt() else style.faint)
-        status.setOnClickListener { if (n.status == Note.Status.ERROR || n.status == Note.Status.RECORDED) space.process(n.id) }
+        status.setOnClickListener {
+            if (n.status == Note.Status.ERROR || n.status == Note.Status.RECORDED) {
+                if (n.kind == Note.Kind.VOICE) space.process(n.id) else viewLifecycleOwner.lifecycleScope.launch { space.analyze(n.id) }
+            }
+        }
         summary.text = Markdown.render(n.summary, style.codeBg, style.density)
         summary.isVisible = n.summary.isNotBlank()
         (summary.parent as ViewGroup).getChildAt((summary.parent as ViewGroup).indexOfChild(summary) - 1).isVisible = n.summary.isNotBlank()
@@ -212,6 +252,13 @@ class NoteFragment : Fragment() {
         }
     }
 
+    private fun chooseCategory(n: Note) {
+        val options = app.olauncher.features.space.domain.Categories.ALL
+        requireContext().chooseOne(R.string.wp_category, options) { i ->
+            viewLifecycleOwner.lifecycleScope.launch { space.setCategory(n.id, options[i]) }
+        }
+    }
+
     private fun rename() {
         val n = note ?: return
         requireContext().promptText(R.string.rename, n.title) { t -> viewLifecycleOwner.lifecycleScope.launch { space.rename(n.id, t) } }
@@ -222,7 +269,7 @@ class NoteFragment : Fragment() {
         requireContext().chooseOne(R.string.wp_space, listOf(getString(R.string.rename), getString(R.string.wp_space_retranscribe), getString(R.string.wp_delete))) { i ->
             when (i) {
                 0 -> rename()
-                1 -> space.process(n.id)
+                1 -> if (n.kind == Note.Kind.VOICE) space.process(n.id) else viewLifecycleOwner.lifecycleScope.launch { space.analyze(n.id) }
                 else -> requireContext().createDialog(R.string.wp_delete, R.string.wp_delete, message = R.string.wp_space_delete_message, onAction = {
                     releasePlayer()
                     val c = requireContext().waypoint
