@@ -168,12 +168,12 @@ class AssistantSettingsFragment : WpPageFragment() {
             toggle(getString(R.string.wp_space_summarize), prefs.spaceSummarize, getString(R.string.wp_space_summarize_hint)) { prefs.spaceSummarize = it }
         }
         page.card {
-            header(getString(R.string.wp_compass_shortcut))
+            header(getString(R.string.wp_wayfinder_shortcut))
             val choices = listOf("left" to R.string.wp_shortcut_left, "right" to R.string.wp_shortcut_right, "off" to R.string.wp_shortcut_off)
-            row(getString(R.string.wp_compass_shortcut_row), getString(choices.firstOrNull { it.first == prefs.compassShortcut }?.second ?: R.string.wp_shortcut_left),
-                getString(R.string.wp_compass_shortcut_hint)) {
-                requireContext().chooseOne(R.string.wp_compass_shortcut, choices.map { getString(it.second) }) { i ->
-                    prefs.compassShortcut = choices[i].first; rebuild()
+            row(getString(R.string.wp_wayfinder_shortcut_row), getString(choices.firstOrNull { it.first == prefs.wayfinderShortcut }?.second ?: R.string.wp_shortcut_left),
+                getString(R.string.wp_wayfinder_shortcut_hint)) {
+                requireContext().chooseOne(R.string.wp_wayfinder_shortcut, choices.map { getString(it.second) }) { i ->
+                    prefs.wayfinderShortcut = choices[i].first; rebuild()
                 }
             }
         }

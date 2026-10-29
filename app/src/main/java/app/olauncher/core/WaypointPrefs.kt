@@ -142,8 +142,8 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(SPACE_SUMMARIZE, true)
         set(value) = prefs.edit { putBoolean(SPACE_SUMMARIZE, value) }
 
-    /** Compass button on Home: "left", "right" (bottom corners) or "off". */
-    var compassShortcut: String
+    /** Wayfinder button on Home: "left", "right" (bottom corners) or "off". */
+    var wayfinderShortcut: String
         get() = prefs.getString(COMPASS_SHORTCUT, null) ?: "left"
         set(value) = prefs.edit { putString(COMPASS_SHORTCUT, value) }
 

@@ -1,4 +1,4 @@
-# Compass: assistant, chats and Space
+# Wayfinder: assistant, chats and Space
 
 Type `?` in the app search to open the question composer (multi-line). Where the question goes is chosen
 in **Settings → Assistant & chats**:
@@ -6,7 +6,7 @@ in **Settings → Assistant & chats**:
 | Mode | What happens |
 |---|---|
 | **Gemini app** (default) | The question is handed to the Gemini app (or Gemini in the browser). Waypoint sends nothing itself. |
-| **Your API** | The question starts a conversation in **Compass**, Waypoint's own assistant app (it appears in your app list as *Compass*). Replies stream in and keep streaming if you leave the screen. |
+| **Your API** | The question starts a conversation in **Wayfinder**, Waypoint's own assistant app (it appears in your app list as *Wayfinder*). Replies stream in and keep streaming if you leave the screen. |
 
 ## API setup
 - **Provider presets**: OpenAI, Gemini API (Google's OpenAI-compatible endpoint), Anthropic (Claude),
@@ -35,14 +35,14 @@ in **Settings → Assistant & chats**:
 - `?/image a red fox` in the app search works too (API mode).
 
 ## Space (voice notes)
-Like Nothing's Essential Space: tap the red button in **Compass → Space** (or long-press the compass on
+Like Nothing's Essential Space: tap the red button in **Wayfinder → Space** (or long-press the Wayfinder pin on
 Home) to record. Recording runs in a foreground service with a notification and a Stop button, so it
 continues with the screen off.
 - Audio is saved as 16 kHz mono WAV in app storage (`files/space`).
 - **Speech to text — On this phone (default)**: Android's on-device speech recognizer reads the saved
   recording through a pipe (Android 13+, `EXTRA_AUDIO_SOURCE`, segmented session for long notes). The
   audio never leaves the phone and it works offline. Pick the language and download its model once in
-  Compass Setup → Space.
+  Wayfinder Setup → Space.
 - **Speech to text — Cloud (optional)**: your provider instead. *Auto* uses an audio chat model on
   OpenRouter and the Gemini API (`input_audio`, e.g. `google/gemini-2.5-flash`) and the Whisper endpoint
   (`/audio/transcriptions`) elsewhere; long recordings go in 5-minute parts.
@@ -54,8 +54,8 @@ continues with the screen off.
 - Stored in `space.db` + `files/space`, excluded from backup. *Privacy & data → Delete all voice notes*.
 
 ## Home shortcut
-A compass button in a bottom corner of Home (left by default; right or off in settings). Tap: open
-Compass. Long-press: start recording a voice note.
+A Wayfinder button in a bottom corner of Home (left by default; right or off in settings). Tap: open
+Wayfinder. Long-press: start recording a voice note.
 
 ## Chats
 - Inside a conversation, **⋯** offers Rename, Delete and New chat.

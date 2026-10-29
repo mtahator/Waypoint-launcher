@@ -41,7 +41,7 @@ class RecordingService : Service() {
         val stop = PendingIntent.getService(this, 2, Intent(this, RecordingService::class.java).setAction(ACTION_STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val notification = NotificationCompat.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_compass)
+            .setSmallIcon(R.drawable.ic_wayfinder)
             .setContentTitle(getString(R.string.wp_space_recording))
             .setContentText(getString(R.string.wp_space_recording_text))
             .setOngoing(true)

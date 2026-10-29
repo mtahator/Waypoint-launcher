@@ -37,7 +37,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.util.Date
 
-/** One voice note: play it, read the summary and transcript, copy/share, ask Compass about it. */
+/** One voice note: play it, read the summary and transcript, copy/share, ask Wayfinder about it. */
 class NoteFragment : Fragment() {
 
     private lateinit var style: ChatStyle

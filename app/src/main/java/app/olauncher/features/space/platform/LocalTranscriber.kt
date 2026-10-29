@@ -104,7 +104,7 @@ object LocalTranscriber {
                     // no (more) speech: whatever we have is the transcript
                     SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> finish(null)
                     SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
-                        finish(ApiException("The on-device model for $language isn't installed. Download it in Compass Setup → Space."))
+                        finish(ApiException("The on-device model for $language isn't installed. Download it in Wayfinder Setup → Space."))
                     else -> finish(ApiException("On-device recognition failed (error $error)"))
                 }
             }

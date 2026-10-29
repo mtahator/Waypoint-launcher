@@ -83,7 +83,7 @@ adb shell input swipe $((W/2)) $((H/4)) $((W/3)) $((H/3)) 300; sleep 1; shot 15b
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # Assistant settings and the Chat app
-open_settings; tap "Compass (assistant"; sleep 1; shot 16a-assistant-settings
+open_settings; tap "Wayfinder (assistant"; sleep 1; shot 16a-assistant-settings
 tap "Your API (chat app)"; sleep 1; shot 16b-assistant-api
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 16c-chat-list
 tap "+ New"; sleep 2; adb shell "input text 'Hello'"; sleep 1; shot 16d-chat-new

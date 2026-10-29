@@ -13,7 +13,7 @@ import app.olauncher.features.space.ui.SpaceFragment
 import app.olauncher.helper.showToast
 
 /**
- * Compass: a small app of its own (shown in the app list) for conversations with the configured API.
+ * Wayfinder: a small app of its own (shown in the app list) for conversations with the configured API.
  * Chats are stored on the phone; replies keep streaming if you leave the screen.
  */
 class ChatActivity : AppCompatActivity() {

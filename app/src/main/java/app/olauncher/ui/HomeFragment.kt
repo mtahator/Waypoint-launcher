@@ -82,7 +82,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private var dotDate: DotMatrixView? = null
     private var topSpace: Space? = null
     private var bottomSpace: Space? = null
-    private var compassButton: android.widget.ImageView? = null
+    private var wayfinderButton: android.widget.ImageView? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -121,7 +121,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     override fun onResume() {
         super.onResume()
         populateHomeScreen(false)
-        applyCompassShortcut()
+        applyWayfinderShortcut()
         viewModel.isOlauncherDefault()
         if (prefs.showStatusBar) showStatusBar()
         else hideStatusBar()
@@ -888,16 +888,16 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     }
 
     /**
-     * Compass button in a bottom corner of Home: tap opens Compass (chats), long-press starts a Space voice
-     * note immediately. Position (left / right / off) is set in Compass settings.
+     * Wayfinder button in a bottom corner of Home: tap opens Wayfinder (chats), long-press starts a Space voice
+     * note immediately. Position (left / right / off) is set in Wayfinder settings.
      */
-    private fun applyCompassShortcut() {
+    private fun applyWayfinderShortcut() {
         val ctx = requireContext()
-        val where = ctx.waypoint.prefs.compassShortcut
+        val where = ctx.waypoint.prefs.wayfinderShortcut
         val root = binding.root as? FrameLayout ?: return
-        if (where == "off") { compassButton?.let { root.removeView(it) }; compassButton = null; return }
-        val button = compassButton ?: android.widget.ImageView(ctx).also { v ->
-            v.setImageResource(R.drawable.ic_compass)
+        if (where == "off") { wayfinderButton?.let { root.removeView(it) }; wayfinderButton = null; return }
+        val button = wayfinderButton ?: android.widget.ImageView(ctx).also { v ->
+            v.setImageResource(R.drawable.ic_wayfinder)
             v.imageTintList = android.content.res.ColorStateList.valueOf(ctx.getColorFromAttr(R.attr.primaryColor))
             v.alpha = 0.85f
             val pad = (12 * resources.displayMetrics.density).toInt()
@@ -910,7 +910,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
                 true
             }
             root.addView(v)
-            compassButton = v
+            wayfinderButton = v
             ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
                 val nav = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom
                 (view.layoutParams as FrameLayout.LayoutParams).bottomMargin = nav + (20 * resources.displayMetrics.density).toInt()
@@ -949,7 +949,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         worldClocks = null
         dotClock = null
         dotDate = null
-        compassButton = null
+        wayfinderButton = null
         topSpace = null
         bottomSpace = null
         _binding = null
