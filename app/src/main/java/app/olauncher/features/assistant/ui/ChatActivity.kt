@@ -9,6 +9,7 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import app.olauncher.R
 import app.olauncher.core.waypoint
+import app.olauncher.features.space.ui.SpaceFragment
 import app.olauncher.helper.showToast
 
 /**
