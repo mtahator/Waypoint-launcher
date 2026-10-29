@@ -54,6 +54,14 @@ class ChatFragment : Fragment() {
     private lateinit var webToggle: android.widget.ImageView
     private var webMode = false
     private val thumbs = android.util.LruCache<String, android.graphics.Bitmap>(12)
+    private val maps = android.util.LruCache<Long, android.graphics.Bitmap>(8)
+    private val rendering = HashSet<Long>()
+
+    /** "nearest…" before location was allowed: ask once, then send whatever the answer. */
+    private var pendingSend: (() -> Unit)? = null
+    private val locationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) {
+        pendingSend?.invoke(); pendingSend = null
+    }
 
     private val container get() = requireContext().waypoint
 
@@ -257,12 +265,82 @@ class ChatFragment : Fragment() {
         val image = imageMode
         val web = webMode
         imageMode = false; webMode = false; styleImageToggle()
-        if (conversationId == 0L) {
-            viewLifecycleOwner.lifecycleScope.launch {
-                conversationId = engine.startConversation(text, image, web) // the change collector reads the new id
-                reload()
+        val go = {
+            if (conversationId == 0L) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    conversationId = engine.startConversation(text, image, web) // the change collector reads the new id
+                    reload()
+                }
+            } else engine.send(conversationId, text, image, web)
+        }
+        val ctx = requireContext()
+        val located = listOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION).any {
+            androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (!image && !located && container.prefs.toolsEnabled && !askedLocation && app.olauncher.features.assistant.domain.Tools.needsLocation(text)) {
+            askedLocation = true
+            pendingSend = go
+            locationPermission.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION))
+        } else go()
+    }
+
+    private var askedLocation = false
+
+    /** Places and routes from the tools: a map with numbered pins and a row per place; tap opens the maps app. */
+    private fun bindMap(box: LinearLayout, m: Message) {
+        box.removeAllViews()
+        val data = if (m.isUser) null else app.olauncher.features.assistant.domain.Tools.decodeMap(m.map)
+        box.isVisible = data != null
+        if (data == null) return
+        val ctx = requireContext()
+        val width = ((list.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels) - style.dp(24)).coerceAtLeast(style.dp(200))
+        val height = (width * 0.56f).toInt()
+        val card = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 18, style.hairline)
+            clipToOutline = true
+        }
+        val image = android.widget.ImageView(ctx).apply {
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+            setBackgroundColor(style.codeBg)
+            contentDescription = getString(R.string.wp_map_open)
+            setOnClickListener { openPlace(data.pins.first()) }
+        }
+        card.addView(image, LinearLayout.LayoutParams(-1, height))
+        val cached = maps.get(m.id)
+        if (cached != null) image.setImageBitmap(cached)
+        else if (rendering.add(m.id)) viewLifecycleOwner.lifecycleScope.launch {
+            val bmp = MapCard.render(data, width, height, resources.displayMetrics.density, style.dark)
+            rendering.remove(m.id)
+            if (bmp != null) { maps.put(m.id, bmp); list.adapter?.notifyItemChanged(messages.indexOfFirst { it.id == m.id }) }
+        }
+        data.pins.forEachIndexed { i, p ->
+            val row = LinearLayout(ctx).apply {
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(style.dp(14), style.dp(10), style.dp(14), style.dp(10))
+                setOnClickListener { openPlace(p) }
             }
-        } else engine.send(conversationId, text, image, web)
+            row.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                text = if (data.pins.size > 1) "${i + 1}" else "●"
+                setTextColor(0xFFFFFFFF.toInt()); textSize = 12f; gravity = Gravity.CENTER
+                background = style.rounded(0xFFD71921.toInt(), 100)
+            }, LinearLayout.LayoutParams(style.dp(24), style.dp(24)).apply { marginEnd = style.dp(12) })
+            val texts = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+            texts.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                text = p.name.ifBlank { getString(R.string.wp_map_place) }; setTextColor(style.ink); textSize = 15f; maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            if (p.detail.isNotBlank()) texts.addView(style.caption(p.detail).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+            row.addView(texts, LinearLayout.LayoutParams(0, -2, 1f))
+            row.addView(style.caption("↗"))
+            card.addView(row)
+        }
+        box.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = style.dp(6) })
+    }
+
+    private fun openPlace(p: app.olauncher.features.assistant.domain.Tools.Pin) {
+        val geo = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(app.olauncher.features.assistant.domain.Tools.geoUri(p)))
+        runCatching { startActivity(geo) }.onFailure { openUrl(app.olauncher.features.assistant.domain.Tools.mapsLink(p.lat, p.lon, p.name)) }
     }
 
     /** Numbered source cards under a web answer (like Perplexity): tap to open in the browser. */
@@ -396,7 +474,9 @@ class ChatFragment : Fragment() {
 
     // ---- messages
 
-    private inner class Holder(val root: LinearLayout, val bubble: TextView, val pictures: LinearLayout, val sources: LinearLayout, val meta: TextView) : RecyclerView.ViewHolder(root)
+    private inner class Holder(
+        val root: LinearLayout, val bubble: TextView, val pictures: LinearLayout, val sources: LinearLayout, val meta: TextView, val map: LinearLayout,
+    ) : RecyclerView.ViewHolder(root)
 
     private inner class Adapter : RecyclerView.Adapter<Holder>() {
         override fun getItemCount() = messages.size
@@ -420,10 +500,12 @@ class ChatFragment : Fragment() {
             val pictures = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             root.addView(bubble, LinearLayout.LayoutParams(-2, -2))
             root.addView(pictures, LinearLayout.LayoutParams(-1, -2))
+            val map = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+            root.addView(map, LinearLayout.LayoutParams(-1, -2))
             val sources = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             root.addView(sources, LinearLayout.LayoutParams(-1, -2))
             root.addView(meta, LinearLayout.LayoutParams(-2, -2))
-            return Holder(root, bubble, pictures, sources, meta)
+            return Holder(root, bubble, pictures, sources, meta, map)
         }
 
         override fun onBindViewHolder(h: Holder, position: Int) {
@@ -453,12 +535,14 @@ class ChatFragment : Fragment() {
                     m.error -> m.content
                     else -> Citations.link(Markdown.render(m.content, style.codeBg, style.density), m.sources, 0xFFD71921.toInt()) { openUrl(it) }
                 }
-                h.bubble.movementMethod = if (m.sources.isNotEmpty()) android.text.method.LinkMovementMethod.getInstance() else null
+                // citations and [links](…) are tappable
+                h.bubble.movementMethod = if (m.sources.isNotEmpty() || m.content.contains("](")) android.text.method.LinkMovementMethod.getInstance() else null
                 h.bubble.setTextColor(if (m.error) 0xFFFF6B5E.toInt() else style.ink)
                 if (m.content.isEmpty() && m.images.isNotEmpty()) h.bubble.isVisible = false
             }
             bindPictures(h.pictures, m)
             bindSources(h.sources, m)
+            bindMap(h.map, m)
             h.bubble.layoutParams = lp
             (h.meta.layoutParams as LinearLayout.LayoutParams).gravity = lp.gravity
             val showRetry = !m.isUser && last && !busy

@@ -19,12 +19,14 @@ data class Message(
     val images: List<String> = emptyList(),
     /** Web sources this answer cites ([1] = first). */
     val sources: List<Source> = emptyList(),
+    /** Places and routes the tools found, shown as a map card ([Tools.encodeMap] JSON, "" = none). */
+    val map: String = "",
 ) {
     val isUser get() = role == "user"
 }
 
 /** Conversations stay on the phone (chats.db, excluded from backup). */
-private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 4) {
+private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 5) {
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -36,6 +38,7 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         )
         db.execSQL("CREATE INDEX messages_conv ON messages(conversation_id, id)")
         createV4(db)
+        db.execSQL("ALTER TABLE messages ADD COLUMN map TEXT NOT NULL DEFAULT ''")
     }
 
     /** Memory about the user (tagged facts) and the user's own /commands. */
@@ -51,6 +54,7 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         if (oldVersion < 2) db.execSQL("ALTER TABLE messages ADD COLUMN images TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 3) db.execSQL("ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 4) createV4(db)
+        if (oldVersion < 5) db.execSQL("ALTER TABLE messages ADD COLUMN map TEXT NOT NULL DEFAULT ''")
     }
 }
 
@@ -80,13 +84,13 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
 
     suspend fun messages(conversationId: Long): List<Message> = withContext(io) {
         db.rawQuery(
-            "SELECT id, conversation_id, role, content, created, error, images, sources FROM messages WHERE conversation_id = ? ORDER BY id",
+            "SELECT id, conversation_id, role, content, created, error, images, sources, map FROM messages WHERE conversation_id = ? ORDER BY id",
             arrayOf(conversationId.toString()),
         ).use { c ->
             buildList {
                 while (c.moveToNext()) add(Message(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getLong(4), c.getInt(5) != 0,
                     c.getString(6).split('\n').filter { it.isNotBlank() },
-                    c.getString(7).takeIf { it.isNotBlank() }?.let { WebSearch.decodeSources(it) } ?: emptyList()))
+                    c.getString(7).takeIf { it.isNotBlank() }?.let { WebSearch.decodeSources(it) } ?: emptyList(), c.getString(8)))
             }
         }
     }
@@ -115,6 +119,10 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
     suspend fun setSources(messageId: Long, sources: List<Source>) = withContext(io) {
         db.update("messages", ContentValues().apply { put("sources", if (sources.isEmpty()) "" else WebSearch.encodeSources(sources)) },
             "id = ?", arrayOf(messageId.toString()))
+    }
+
+    suspend fun setMap(messageId: Long, map: String) = withContext(io) {
+        db.update("messages", ContentValues().apply { put("map", map) }, "id = ?", arrayOf(messageId.toString()))
     }
 
     suspend fun setImages(messageId: Long, images: List<String>) = withContext(io) {

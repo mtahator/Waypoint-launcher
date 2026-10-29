@@ -175,6 +175,7 @@ class ChatEngine(
         fun turns(research: Research) = buildList {
             prefs.systemPrompt.takeIf { it.isNotBlank() }?.let { add(Turn(Turn.Role.SYSTEM, it)) }
             add(Turn(Turn.Role.SYSTEM, nowLine()))
+            if (toolsOn) add(Turn(Turn.Role.SYSTEM, Tools.GUIDE))
             if (memory != null && research.useAboutMe) add(Turn(Turn.Role.SYSTEM, memory))
             command?.let { (cmd, input) -> add(Turn(Turn.Role.SYSTEM, Commands.instruction(cmd, input))) }
             research.prompt?.let { add(Turn(Turn.Role.SYSTEM, it)) }
@@ -189,6 +190,7 @@ class ChatEngine(
         setStatus(conversationId, null)
         val text = StringBuilder()
         var lastSave = 0L
+        var map: Tools.MapData? = null
         try {
             suspend fun answer(research: Research) {
                 val base = turns(research)
@@ -225,7 +227,9 @@ class ChatEngine(
                     for (call in calls) {
                         setStatus(conversationId, Tools.status(call.name, runCatching { org.json.JSONObject(call.arguments) }.getOrDefault(org.json.JSONObject())))
                         _changes.tryEmit(conversationId)
-                        extra += Turn(Turn.Role.TOOL, tools.run(call).take(6_000), toolCallId = call.id, toolName = call.name)
+                        val result = tools.run(call)
+                        Tools.mapFrom(call.name, result)?.let { map = it }
+                        extra += Turn(Turn.Role.TOOL, result.take(6_000), toolCallId = call.id, toolName = call.name)
                     }
                     setStatus(conversationId, "Writing the answer…")
                     if (text.isNotEmpty() && !text.endsWith("\n")) text.append("\n\n")
@@ -243,6 +247,7 @@ class ChatEngine(
             }
             repo.update(msgId, text.toString().trim())
             if (pluginSources.isNotEmpty()) repo.setSources(msgId, pluginSources)
+            map?.let { repo.setMap(msgId, Tools.encodeMap(it)) }
             if (prefs.useAboutMe && prefs.learnFromChats && lastUser != null && Memories.mentionsSelf(question)) learnLater(conversationId)
         } catch (e: Throwable) {
             val stopped = e is kotlinx.coroutines.CancellationException || jobs[conversationId] == null

@@ -149,4 +149,31 @@ class MemoryToolsTest {
         assertFalse(Tools.wantsTools("explain PINNs"))
         assertEquals("cycle", Tools.normalizeMode("bike"))
     }
+
+    @Test fun mapCards() {
+        val places = """{"from":"your location","from_lat":52.955,"from_lon":-1.149,"results":[
+            {"name":"Aldi","address":"Aldi, Daleside Road, Nottingham, NG2 3GN","lat":52.947,"lon":-1.125,"distance":"1.8 km"},
+            {"name":"Aldi","address":"Aldi, Radford Road, Nottingham","lat":52.962,"lon":-1.171,"distance":"1.7 km"}]}"""
+        val m = Tools.mapFrom(Tools.PLACES, places)!!
+        assertEquals(2, m.pins.size)
+        assertEquals("1.8 km · Daleside Road, Nottingham", m.pins[0].detail)
+        assertEquals(52.955, m.origin!!.lat, 1e-9)
+        assertEquals(m, Tools.decodeMap(Tools.encodeMap(m)))
+        assertEquals(null, Tools.mapFrom(Tools.PLACES, """{"error":"No location permission"}"""))
+
+        val route = Tools.mapFrom(Tools.ROUTE, """{"from":"your location","to":"Nottingham Station, Carrington Street","distance":"1.2 km","time":"15 min",
+            "from_lat":52.955,"from_lon":-1.149,"to_lat":52.947,"to_lon":-1.146}""")!!
+        assertEquals("Nottingham Station", route.pins.single().name)
+        assertEquals("1.2 km · 15 min", route.pins.single().detail)
+
+        // a 2 km spread fits a phone-sized frame at street-level zoom
+        val z = Tools.fitZoom(m.all, 380.0, 210.0)
+        assertTrue(z in 12..15)
+        assertEquals(16, Tools.fitZoom(listOf(m.pins[0]), 380.0, 210.0))
+        assertEquals("geo:52.947,-1.125?q=52.947,-1.125(Aldi%20Store)", Tools.geoUri(Tools.Pin("Aldi Store", 52.947, -1.125)))
+
+        assertTrue(Tools.needsLocation("Find nearest aldi"))
+        assertTrue(Tools.needsLocation("نزدیک‌ترین داروخانه کجاست"))
+        assertFalse(Tools.needsLocation("Explain conformal mapping"))
+    }
 }

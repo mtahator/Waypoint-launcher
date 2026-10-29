@@ -27,6 +27,8 @@ interface ToolHost {
     suspend fun addReminder(title: String, due: Long): String
     /** The best matching Space items as short text. */
     suspend fun searchNotes(query: String): String
+    /** Saves a fact to the memory about the user; returns a confirmation line. */
+    suspend fun remember(tag: String, text: String): String
 }
 
 /**
@@ -44,6 +46,7 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
             Tools.WEATHER -> weather(args.optString("place").takeIf { it.isNotBlank() })
             Tools.REMINDER -> JSONObject().put("result", host.addReminder(args.optString("title"), parseDue(args.optString("due")))).toString()
             Tools.SPACE -> JSONObject().put("results", host.searchNotes(args.optString("query"))).toString()
+            Tools.REMEMBER -> JSONObject().put("result", host.remember(args.optString("tag"), args.optString("text"))).toString()
             else -> error("Unknown tool ${call.name}")
         }
     }.getOrElse { e -> JSONObject().put("error", e.message ?: e.javaClass.simpleName).toString() }
@@ -60,27 +63,45 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
 
     private data class Point(val lat: Double, val lon: Double, val label: String)
 
+    /**
+     * Where the user is: a fix from the last 15 minutes if the phone has one, else a fresh one (network first,
+     * it's fast indoors; then GPS), else the newest fix of any age.
+     */
     @SuppressLint("MissingPermission")
     private suspend fun here(): Point {
-        if (!hasLocationPermission()) error("No location permission. Ask the user to allow location in Wayfinder Setup → Tools, or to name a place.")
+        if (!hasLocationPermission()) error("No location permission. Ask the user to allow location for Wayfinder, or to name a place.")
         val lm = context.getSystemService(LocationManager::class.java)
-        val providers = listOf("fused", LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+        val providers = listOf("fused", LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
             .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
-        if (providers.isEmpty()) error("Location is turned off on the phone")
-        // a recent fix is enough for "near me"; otherwise ask for a fresh one (Android 11+)
+        if (providers.none { it != LocationManager.PASSIVE_PROVIDER }) error("Location is turned off on the phone. Ask the user to turn it on, or to name a place.")
         val last = providers.mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time }
-        val fix = last?.takeIf { System.currentTimeMillis() - it.time < 10 * 60_000 }
-            ?: (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) withTimeoutOrNull(12_000) { current(lm, providers.first()) } else null)
-            ?: last ?: error("Couldn't get a location fix")
-        return Point(fix.latitude, fix.longitude, "your location")
+        if (last != null && System.currentTimeMillis() - last.time < 15 * 60_000) return Point(last.latitude, last.longitude, "your location")
+        for (p in providers.filter { it != LocationManager.PASSIVE_PROVIDER }) {
+            val fix = withTimeoutOrNull(if (p == LocationManager.GPS_PROVIDER) 15_000L else 8_000L) { fresh(lm, p) }
+            if (fix != null) return Point(fix.latitude, fix.longitude, "your location")
+        }
+        last?.let { return Point(it.latitude, it.longitude, "your last known location") }
+        error("Couldn't get a location fix. Ask the user to name a place.")
     }
 
     @SuppressLint("MissingPermission")
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.R)
-    private suspend fun current(lm: LocationManager, provider: String): Location? = suspendCancellableCoroutine { cont ->
-        val cancel = android.os.CancellationSignal()
-        lm.getCurrentLocation(provider, cancel, context.mainExecutor) { cont.resume(it) }
-        cont.invokeOnCancellation { cancel.cancel() }
+    private suspend fun fresh(lm: LocationManager, provider: String): Location? = suspendCancellableCoroutine { cont ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val cancel = android.os.CancellationSignal()
+            runCatching { lm.getCurrentLocation(provider, cancel, context.mainExecutor) { if (cont.isActive) cont.resume(it) } }
+                .onFailure { if (cont.isActive) cont.resume(null) }
+            cont.invokeOnCancellation { cancel.cancel() }
+        } else {
+            val listener = object : android.location.LocationListener {
+                override fun onLocationChanged(location: Location) { if (cont.isActive) cont.resume(location) }
+                @Deprecated("old API") override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
+                override fun onProviderEnabled(provider: String) = Unit
+                override fun onProviderDisabled(provider: String) { if (cont.isActive) cont.resume(null) }
+            }
+            @Suppress("DEPRECATION")
+            runCatching { lm.requestSingleUpdate(provider, listener, android.os.Looper.getMainLooper()) }.onFailure { if (cont.isActive) cont.resume(null) }
+            cont.invokeOnCancellation { lm.removeUpdates(listener) }
+        }
     }
 
     private suspend fun location(): String {
@@ -116,11 +137,11 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
         if (found.isEmpty()) return JSONObject().put("results", JSONArray()).put("note", "Nothing found for \"$query\" within 12 km").toString()
         val results = JSONArray()
         found.map { it to Tools.haversine(center.lat, center.lon, it.lat, it.lon) }.sortedBy { it.second }.take(limit).forEach { (p, m) ->
-            results.put(JSONObject().put("name", p.name).put("address", p.address).put("type", p.kind)
+            results.put(JSONObject().put("name", p.name).put("address", p.address).put("type", p.kind).put("lat", p.lat).put("lon", p.lon)
                 .put("distance", Tools.formatDistance(m)).put("walk", "${Tools.walkMinutes(m)} min (straight-line estimate)")
                 .put("map", Tools.mapsLink(p.lat, p.lon, p.name)))
         }
-        return JSONObject().put("from", center.label).put("results", results).toString()
+        return JSONObject().put("from", center.label).put("from_lat", center.lat).put("from_lon", center.lon).put("results", results).toString()
     }
 
     private suspend fun route(from: String?, to: String, mode: String): String {
@@ -132,6 +153,7 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
         val r = runCatching { Tools.parseOsrm(get(url)) }.getOrNull()
         val straight = Tools.haversine(a.lat, a.lon, b.lat, b.lon)
         return JSONObject().put("from", a.label).put("to", b.label).put("mode", mode)
+            .put("from_lat", a.lat).put("from_lon", a.lon).put("to_lat", b.lat).put("to_lon", b.lon)
             .put("distance", r?.let { Tools.formatDistance(it.metres) } ?: Tools.formatDistance(straight))
             .put("time", r?.let { Tools.formatDuration(it.seconds) } ?: "unknown (routing unavailable)")
             .put("straight_line", Tools.formatDistance(straight))

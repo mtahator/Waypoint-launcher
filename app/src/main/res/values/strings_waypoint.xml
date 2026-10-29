@@ -474,4 +474,6 @@
     <string name="wp_tools_unsupported">This model rejected tools</string>
     <string name="wp_tools_retry">Try again</string>
     <string name="wp_tools_note">Maps: OpenStreetMap (search and routing). Weather: Open-Meteo. No keys; only the place names or coordinates are sent to them. Needs a model with tool calling.</string>
+    <string name="wp_map_open">Open in maps</string>
+    <string name="wp_map_place">Place</string>
 </resources>

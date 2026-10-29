@@ -11,7 +11,7 @@ import android.text.style.TypefaceSpan
 
 /**
  * Just enough Markdown for chat replies: ``` code blocks, `inline code`, **bold**, *italic*, # headings
- * and - / 1. lists. Unknown syntax stays as plain text; nothing is ever interpreted as a link or HTML.
+ * - / 1. lists and [text](https://…) links. Unknown syntax stays as plain text; nothing is interpreted as HTML.
  */
 object Markdown {
 
@@ -72,6 +72,18 @@ object Markdown {
         while (i < line.length) {
             val c = line[i]
             when {
+                c == '[' -> {
+                    // [label](http…): the label becomes a tappable link
+                    val close = line.indexOf("](", i + 1)
+                    val end = if (close > i) line.indexOf(')', close + 2) else -1
+                    val url = if (end > close && close > i) line.substring(close + 2, end) else ""
+                    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("geo:")) {
+                        val s = out.length
+                        inline(out, line.substring(i + 1, close), codeBg)
+                        out.setSpan(android.text.style.URLSpan(url), s, out.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        i = end + 1; continue
+                    }
+                }
                 c == '`' -> {
                     val end = line.indexOf('`', i + 1)
                     if (end > i) {

@@ -38,6 +38,14 @@ class AppContainer(context: Context) {
         tools = ToolRunner(app, object : ToolHost {
             override suspend fun addReminder(title: String, due: Long) = space.toolReminder(title, due)
             override suspend fun searchNotes(query: String) = space.searchText(query)
+            override suspend fun remember(tag: String, text: String): String {
+                val t = text.trim()
+                if (t.length < 3) return "Nothing to remember"
+                val tagged = app.olauncher.features.assistant.domain.Memories.run { normalizeTag(tag.ifBlank { guessTag(t) ?: "other" }) }
+                chats.addMemory(tagged, t, source = app.olauncher.features.assistant.domain.MemoryItem.SOURCE_CHAT)
+                chatEngine.memoryEdited()
+                return "Saved to memory under $tagged"
+            }
         })) }
     val space: SpaceEngine by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
