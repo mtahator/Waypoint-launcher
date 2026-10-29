@@ -1,6 +1,7 @@
 package app.olauncher.features.appearance.ui
 
 import android.app.Activity
+import android.graphics.PixelFormat
 import android.graphics.drawable.ColorDrawable
 import android.view.WindowManager
 import androidx.lifecycle.LifecycleOwner
@@ -42,11 +43,15 @@ class AppearanceController(private val prefs: WaypointPrefs, private val backdro
             }
             prefs.glassTheme -> {
                 window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                window.setFormat(PixelFormat.TRANSLUCENT)
                 GlassStyler.applyWindow(window)
             }
             else -> {
                 GlassStyler.clearWindow(window)
                 window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                // An opaque backdrop marks the surface opaque, and recreate() keeps that window: without this the
+                // wallpaper stays hidden and old frames show through the transparent screens.
+                window.setFormat(PixelFormat.TRANSLUCENT)
                 window.setBackgroundDrawable(ColorDrawable(AppearanceState.TRANSPARENT))
             }
         }
