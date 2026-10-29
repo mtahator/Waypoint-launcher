@@ -32,8 +32,8 @@ class AppContainer(context: Context) {
     val apiKeys by lazy { ApiKeyStore(prefs) }
     val chats by lazy { ChatRepository(app, dispatchers.io) }
     val braveKeys by lazy { ApiKeyStore(prefs, ApiKeyStore.Slot.BRAVE) }
-    val chatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) }) }
-    val space by lazy {
+    val chatEngine: ChatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) }) }
+    val space: SpaceEngine by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
     }
     val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
