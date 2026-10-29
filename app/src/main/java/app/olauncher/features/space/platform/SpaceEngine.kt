@@ -11,9 +11,14 @@ import app.olauncher.features.space.data.NotesRepository
 import app.olauncher.features.space.domain.Categories
 import app.olauncher.features.space.domain.GoalPeriod
 import app.olauncher.features.space.domain.ReminderParser
+import app.olauncher.features.space.domain.ReminderRequest
 import app.olauncher.features.space.domain.SpaceAi
 import app.olauncher.features.space.domain.Transcription
+import app.olauncher.features.space.domain.TranscriptCleanup
 import app.olauncher.features.space.domain.TranscriptionApi
+import app.olauncher.features.assistant.platform.ApiException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -38,6 +43,14 @@ class SpaceEngine(
 ) {
     private val _changes = MutableSharedFlow<Long>(extraBufferCapacity = 64)
     val changes: SharedFlow<Long> = _changes
+
+    /** Per note: how far a long transcription or clean-up has got ("40%", "2/5"). */
+    private val _progress = MutableStateFlow<Map<Long, String>>(emptyMap())
+    val progress: StateFlow<Map<Long, String>> = _progress
+    private fun setProgress(id: Long, text: String?) {
+        _progress.value = if (text == null) _progress.value - id else _progress.value + (id to text)
+        _changes.tryEmit(id)
+    }
 
     val dir: File get() = File(context.filesDir, "space").apply { mkdirs() }
     fun audioFile(note: Note) = File(dir, note.audio)
@@ -65,20 +78,49 @@ class SpaceEngine(
         try {
             notes.update(id) { put("status", Note.Status.TRANSCRIBING.name); put("error", "") }
             _changes.tryEmit(id)
-            val text = if (isLocal) LocalTranscriber.transcribe(context, audioFile(note), prefs.transcribeLanguage)
+            val raw = if (isLocal) LocalTranscriber.transcribe(context, audioFile(note), prefs.transcribeLanguage) { done, total, sofar ->
+                // the text so far is saved as it comes, so a long meeting shows up while it's still being transcribed
+                notes.update(id) { put("transcript", sofar); put("raw", "") }
+                setProgress(id, if (total > 1) "${done * 100 / total}%" else null)
+            }
             else withContext(io) {
                 TranscriptionClient.transcribe(
                     TranscribeConfig(prefs.transcribeApi, prefs.apiBaseUrl, prefs.transcribeModel, keys.get()),
                     audioFile(note),
                 )
             }
-            notes.update(id) { put("transcript", text); put("title", Transcription.fallbackTitle(text)) }
+            setProgress(id, null)
+            notes.update(id) { put("transcript", raw); put("raw", ""); put("title", Transcription.fallbackTitle(raw)) }
+            if (raw.isBlank()) throw ApiException("No speech was recognised")
+            val clean = cleanUp(id, raw)
+            if (clean != raw) notes.update(id) { put("transcript", clean); put("raw", raw); put("title", Transcription.fallbackTitle(clean)) }
             analyze(id)
             notes.update(id) { put("status", Note.Status.DONE.name) }
         } catch (e: Throwable) {
+            setProgress(id, null)
             notes.update(id) { put("status", Note.Status.ERROR.name); put("error", e.message ?: "Transcription failed") }
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
         _changes.tryEmit(id)
+    }
+
+    /**
+     * The chat model polishes the raw words (punctuation, paragraphs, misheard words), part by part for
+     * long recordings. Any part it fails or rewrites unfaithfully stays as recognised.
+     */
+    private suspend fun cleanUp(id: Long, raw: String): String {
+        if (!prefs.spaceCleanup || !chat.isConfigured()) return raw
+        val parts = TranscriptCleanup.parts(raw)
+        notes.update(id) { put("status", Note.Status.CLEANING.name) }
+        val out = ArrayList<String>()
+        for ((i, part) in parts.withIndex()) {
+            if (parts.size > 1) setProgress(id, "${i + 1}/${parts.size}")
+            val reply = runCatching { withContext(io) { ask(TranscriptCleanup.prompt(part, out.lastOrNull().orEmpty(), i, parts.size)) } }
+                .getOrNull().orEmpty()
+            out += TranscriptCleanup.accept(part, reply) ?: part.replace('\n', ' ')
+        }
+        setProgress(id, null)
+        return out.joinToString("\n\n").trim()
     }
 
     // ---- organising: category, title/summary, tasks and reminders
@@ -99,7 +141,7 @@ class SpaceEngine(
             notes.update(id) { put("status", Note.Status.SUMMARIZING.name) }
             _changes.tryEmit(id)
             val kind = when (note.kind) { Note.Kind.VOICE -> "voice note transcript"; Note.Kind.TEXT -> "written note"; Note.Kind.SCREENSHOT -> "screenshot" }
-            val prompt = SpaceAi.prompt(kind, text.ifBlank { "(see image)" }, java.time.LocalDateTime.now())
+            val prompt = SpaceAi.prompt(kind, text.ifBlank { "(see image)" }, java.time.LocalDateTime.now(), long = note.durationMs > 3 * 60_000)
             val reply = runCatching {
                 withContext(io) { if (image != null) Vision.ask(chat.config(), prompt, image) else ask(prompt) }
             }.getOrNull().orEmpty()
@@ -170,6 +212,23 @@ class SpaceEngine(
     fun imageFile(name: String) = File(dir, name)
 
     // ---- tasks and reminders
+
+    /** A chat message like "remind me tonight to do the dishes" becomes a to-do/reminder; returns the confirmation. */
+    suspend fun chatRequest(text: String): String? {
+        val r = ReminderRequest.parse(text, System.currentTimeMillis()) ?: return null
+        addTask(r.title, r.due ?: 0, r.remind)
+        val fa = text.any { it in '\u0600'..'\u06FF' }
+        val time = r.due?.let {
+            android.text.format.DateUtils.formatDateTime(context, it, android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or
+                android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME or android.text.format.DateUtils.FORMAT_ABBREV_ALL)
+        }
+        return when {
+            fa && r.remind -> "یادآوری تنظیم شد: **${r.title}** — $time\nدر Space → کارها می‌توانید آن را تغییر دهید."
+            fa -> "به کارها اضافه شد: **${r.title}**${time?.let { " — $it" }.orEmpty()}"
+            r.remind -> "Reminder set: **${r.title}** — $time.\nYou'll get a notification then; change it in Space → To-do."
+            else -> "Added to your to-dos: **${r.title}**${time?.let { " — $it" }.orEmpty()}.\nAdd a time (e.g. \"at 8pm\") if you want a reminder."
+        }
+    }
 
     suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = ""): Long {
         val id = notes.addTask(title.trim(), due, remind, noteId, category.ifBlank { Categories.categorize(title) })

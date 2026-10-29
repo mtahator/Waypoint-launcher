@@ -25,8 +25,10 @@ data class Note(
     val body: String = "",
     val images: List<String> = emptyList(),
     val category: String = "",
+    /** The recognizer's own words, kept when the AI clean-up rewrote [transcript]. */
+    val raw: String = "",
 ) {
-    enum class Status { RECORDED, TRANSCRIBING, SUMMARIZING, DONE, ERROR }
+    enum class Status { RECORDED, TRANSCRIBING, CLEANING, SUMMARIZING, DONE, ERROR }
     enum class Kind { VOICE, TEXT, SCREENSHOT }
     val displayTitle get() = title.ifBlank {
         when (kind) { Kind.VOICE -> "Voice note"; Kind.TEXT -> body.lineSequence().firstOrNull()?.take(48)?.ifBlank { null } ?: "Note"; Kind.SCREENSHOT -> "Screenshot" }
@@ -40,14 +42,14 @@ data class Task(val id: Long, val title: String, val done: Boolean, val due: Lon
 
 data class Goal(val id: Long, val title: String, val target: Int, val period: app.olauncher.features.space.domain.GoalPeriod, val created: Long, val checkins: List<Long>)
 
-private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 2) {
+private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 3) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER NOT NULL, duration INTEGER NOT NULL, " +
                 "audio TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', transcript TEXT NOT NULL DEFAULT '', " +
                 "summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '')",
         )
-        onUpgrade(db, 1, 2)
+        onUpgrade(db, 1, 3)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -64,6 +66,9 @@ private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space
             db.execSQL("CREATE TABLE goals (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, target INTEGER NOT NULL, period TEXT NOT NULL, created INTEGER NOT NULL)")
             db.execSQL("CREATE TABLE checkins (goal_id INTEGER NOT NULL, at INTEGER NOT NULL)")
         }
+        if (oldVersion < 3) {
+            db.execSQL("ALTER TABLE notes ADD COLUMN raw TEXT NOT NULL DEFAULT ''")
+        }
     }
 }
 
@@ -76,10 +81,10 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
         c.getLong(0), c.getLong(1), c.getLong(2), c.getString(3), c.getString(4), c.getString(5), c.getString(6),
         runCatching { Note.Status.valueOf(c.getString(7)) }.getOrDefault(Note.Status.ERROR), c.getString(8),
         runCatching { Note.Kind.valueOf(c.getString(9)) }.getOrDefault(Note.Kind.VOICE), c.getString(10),
-        c.getString(11).split('\n').filter { it.isNotBlank() }, c.getString(12),
+        c.getString(11).split('\n').filter { it.isNotBlank() }, c.getString(12), c.getString(13),
     )
 
-    private val cols = "id, created, duration, audio, title, transcript, summary, status, error, kind, body, images, category"
+    private val cols = "id, created, duration, audio, title, transcript, summary, status, error, kind, body, images, category, raw"
 
     suspend fun all(): List<Note> = withContext(io) {
         db.rawQuery("SELECT $cols FROM notes ORDER BY created DESC", null).use { c -> buildList { while (c.moveToNext()) add(read(c)) } }

@@ -195,6 +195,7 @@ class AssistantSettingsFragment : WpPageFragment() {
                 }
                 note(getString(R.string.wp_transcribe_note))
             }
+            toggle(getString(R.string.wp_space_cleanup), prefs.spaceCleanup, getString(R.string.wp_space_cleanup_hint)) { prefs.spaceCleanup = it }
             toggle(getString(R.string.wp_space_summarize), prefs.spaceSummarize, getString(R.string.wp_space_summarize_hint)) { prefs.spaceSummarize = it }
             toggle(getString(R.string.wp_auto_screenshots), prefs.autoScreenshots, getString(R.string.wp_auto_screenshots_hint)) { on ->
                 prefs.autoScreenshots = on

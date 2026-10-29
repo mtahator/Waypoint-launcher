@@ -35,6 +35,8 @@ class ChatEngine(
     private val images: ImageClient,
     private val scope: CoroutineScope,
     private val io: CoroutineDispatcher,
+    /** Requests done on the phone instead of by the model (reminders, to-dos); returns the reply, or null. */
+    private val localAction: suspend (String) -> String? = { null },
 ) {
     private val jobs = ConcurrentHashMap<Long, Job>()
     private val sockets = ConcurrentHashMap<Long, HttpURLConnection>()
@@ -84,7 +86,11 @@ class ChatEngine(
         jobs[conversationId] = scope.launch {
             repo.add(conversationId, "user", stored)
             val prompt = ImageProtocol.command(stored)
-            if (prompt != null) imageReply(conversationId, prompt) else reply(conversationId, forceSearch = web)
+            when {
+                prompt != null -> imageReply(conversationId, prompt)
+                !web && localReply(conversationId, stored) -> Unit
+                else -> reply(conversationId, forceSearch = web)
+            }
         }
     }
 
@@ -103,6 +109,15 @@ class ChatEngine(
     fun stop(conversationId: Long) {
         sockets.remove(conversationId)?.let { s -> scope.launch(io) { runCatching { s.disconnect() } } }
         jobs.remove(conversationId)?.cancel()
+    }
+
+    /** "Set a reminder…", "add a to-do…": done on the phone, confirmed in the chat, no model or search. */
+    private suspend fun localReply(conversationId: Long, text: String): Boolean {
+        val answer = runCatching { localAction(text) }.getOrNull() ?: return false
+        repo.add(conversationId, "assistant", answer)
+        jobs.remove(conversationId)
+        _changes.tryEmit(conversationId)
+        return true
     }
 
     private suspend fun imageReply(conversationId: Long, prompt: String) {
@@ -142,11 +157,11 @@ class ChatEngine(
         val web = try { research(conversationId, history, aboutMe, forceSearch) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Throwable) {
             Research(null, emptyList(), false, aboutMe != null, note = e.message)
         }
-        val turns = buildList {
+        fun turns(research: Research) = buildList {
             prefs.systemPrompt.takeIf { it.isNotBlank() }?.let { add(Turn(Turn.Role.SYSTEM, it)) }
-            if (aboutMe != null && web.useAboutMe) add(Turn(Turn.Role.SYSTEM, ABOUT_PREFIX + aboutMe))
-            web.prompt?.let { add(Turn(Turn.Role.SYSTEM, it)) }
-            web.note?.let { add(Turn(Turn.Role.SYSTEM, "Web search was attempted but failed ($it). Answer from general knowledge and say that live results were unavailable.")) }
+            if (aboutMe != null && research.useAboutMe) add(Turn(Turn.Role.SYSTEM, ABOUT_PREFIX + aboutMe))
+            research.prompt?.let { add(Turn(Turn.Role.SYSTEM, it)) }
+            research.note?.let { add(Turn(Turn.Role.SYSTEM, "Web search was attempted but failed ($it). Answer from general knowledge and say that live results were unavailable.")) }
             history.forEach { add(Turn(if (it.isUser) Turn.Role.USER else Turn.Role.ASSISTANT, it.content)) }
         }
         if (web.sources.isNotEmpty()) repo.setSources(msgId, web.sources)
@@ -155,8 +170,8 @@ class ChatEngine(
         val text = StringBuilder()
         var lastSave = 0L
         try {
-            withContext(io) {
-                ChatClient.stream(config(), turns, onConnection = { sockets[conversationId] = it }, webPlugin = web.plugin,
+            suspend fun answer(research: Research) = withContext(io) {
+                ChatClient.stream(config(), turns(research), onConnection = { sockets[conversationId] = it }, webPlugin = research.plugin,
                     onCitations = { list -> list.forEach { (t, u) -> if (pluginSources.none { it.url == u }) pluginSources += Source(t.ifBlank { u }, u) } },
                 ) { piece ->
                     text.append(piece)
@@ -167,6 +182,14 @@ class ChatEngine(
                         scope.launch { repo.update(msgId, snapshot); _changes.tryEmit(conversationId) }
                     }
                 }
+            }
+            try {
+                answer(web)
+            } catch (e: java.io.IOException) {
+                // Some providers/firewalls drop large requests: if the web results were part of it, answer without them.
+                if (text.isNotEmpty() || (web.prompt == null && !web.plugin) || jobs[conversationId] == null) throw e
+                repo.setSources(msgId, emptyList())
+                answer(Research(null, emptyList(), false, web.useAboutMe, note = "the provider dropped the request with the results"))
             }
             repo.update(msgId, text.toString())
             if (pluginSources.isNotEmpty()) repo.setSources(msgId, pluginSources)

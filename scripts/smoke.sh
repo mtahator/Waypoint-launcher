@@ -87,6 +87,11 @@ open_settings; tap "Wayfinder (assistant"; sleep 1; shot 16a-assistant-settings
 tap "Your API (chat app)"; sleep 1; shot 16b-assistant-api
 adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 16c-chat-list
 tap "+ New"; sleep 2; adb shell "input text 'Hello'"; sleep 1; shot 16d-chat-new
+# a reminder request is done on the phone (no model, no search) and confirmed in the chat
+for i in 1 2 3 4 5; do adb shell input keyevent 67; done
+adb shell "input text 'Set%sreminder%sfor%stonight%sthat%sI%smust%sdo%sthe%sdishes'"; sleep 1
+tap "Send"; sleep 3; shot 16d2-chat-reminder
+adb shell input keyevent 4; sleep 1
 # Space: record a few seconds (mic permission pre-granted), stop, see the note
 adb shell pm grant $PKG android.permission.RECORD_AUDIO || true
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS || true

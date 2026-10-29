@@ -32,7 +32,7 @@ class AppContainer(context: Context) {
     val apiKeys by lazy { ApiKeyStore(prefs) }
     val chats by lazy { ChatRepository(app, dispatchers.io) }
     val braveKeys by lazy { ApiKeyStore(prefs, ApiKeyStore.Slot.BRAVE) }
-    val chatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io) }
+    val chatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) }) }
     val space by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
     }

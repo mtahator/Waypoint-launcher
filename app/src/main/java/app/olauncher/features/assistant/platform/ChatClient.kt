@@ -20,13 +20,53 @@ open class ApiException(message: String) : IOException(message)
  */
 object ChatClient {
 
-    /** [onConnection] receives the socket so a Stop button can close it even while a read blocks. */
+    /**
+     * [onConnection] receives the socket so a Stop button can close it even while a read blocks.
+     * A connection dropped before any text arrived (reset, EOF, TLS hiccup) is retried once on a fresh socket.
+     */
     suspend fun stream(
         config: ApiConfig,
         turns: List<Turn>,
         onConnection: (HttpURLConnection) -> Unit = {},
         webPlugin: Boolean = false,
         onCitations: (List<Pair<String, String>>) -> Unit = {},
+        onDelta: (String) -> Unit,
+    ) {
+        var got = false
+        val track: (String) -> Unit = { got = true; onDelta(it) }
+        try {
+            once(config, turns, onConnection, webPlugin, onCitations, track)
+        } catch (e: IOException) {
+            if (e is ApiException || got) throw friendly(e, config)
+            currentCoroutineContext().ensureActive()
+            kotlinx.coroutines.delay(400)
+            try {
+                once(config, turns, onConnection, webPlugin, onCitations, track)
+            } catch (e2: IOException) {
+                throw friendly(e2, config)
+            }
+        }
+    }
+
+    /** Network errors in words a person can act on; API errors pass through. */
+    fun friendly(e: IOException, config: ApiConfig): IOException {
+        if (e is ApiException) return e
+        val host = runCatching { URL(config.baseUrl.trim()).host }.getOrNull().orEmpty().ifBlank { config.baseUrl }
+        val why = when (e) {
+            is java.net.UnknownHostException -> "can't find $host. Check the API URL and that you're online"
+            is java.net.SocketTimeoutException -> "$host didn't answer in time"
+            is javax.net.ssl.SSLException -> "the secure connection to $host failed (${e.message ?: "TLS"})"
+            else -> "the connection to $host was cut (${e.message ?: e.javaClass.simpleName}). A VPN, firewall or the provider may be blocking it"
+        }
+        return ApiException(why.replaceFirstChar { it.uppercase() })
+    }
+
+    private suspend fun once(
+        config: ApiConfig,
+        turns: List<Turn>,
+        onConnection: (HttpURLConnection) -> Unit,
+        webPlugin: Boolean,
+        onCitations: (List<Pair<String, String>>) -> Unit,
         onDelta: (String) -> Unit,
     ) {
         val req = ChatProtocol.request(config.format, config.baseUrl, config.apiKey, config.model, turns, webPlugin = webPlugin)
@@ -36,6 +76,8 @@ object ChatClient {
             connectTimeout = 15_000
             readTimeout = 120_000
             useCaches = false
+            // a pooled keep-alive socket the server already closed shows up as "Connection reset"
+            setRequestProperty("Connection", "close")
             req.headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
         onConnection(conn)

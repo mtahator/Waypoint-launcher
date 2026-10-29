@@ -144,6 +144,11 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(SPACE_SUMMARIZE, true)
         set(value) = prefs.edit { putBoolean(SPACE_SUMMARIZE, value) }
 
+    /** After transcribing, let the chat model fix words, punctuation and paragraphs (keeps the original too). */
+    var spaceCleanup: Boolean
+        get() = prefs.getBoolean(SPACE_CLEANUP, true)
+        set(value) = prefs.edit { putBoolean(SPACE_CLEANUP, value) }
+
     /** Add new screenshots to Space automatically (needs photo access). */
     var autoScreenshots: Boolean
         get() = prefs.getBoolean(AUTO_SCREENSHOTS, false)
@@ -249,6 +254,7 @@ class WaypointPrefs(context: Context) {
         const val TRANSCRIBE_API = "WP_TRANSCRIBE_API"
         const val TRANSCRIBE_LANGUAGE = "WP_TRANSCRIBE_LANGUAGE"
         const val SPACE_SUMMARIZE = "WP_SPACE_SUMMARIZE"
+        const val SPACE_CLEANUP = "WP_SPACE_CLEANUP"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val AUTO_SCREENSHOTS = "WP_AUTO_SCREENSHOTS"
         const val LAST_SCREENSHOT = "WP_LAST_SCREENSHOT"

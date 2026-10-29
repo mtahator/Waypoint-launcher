@@ -292,6 +292,12 @@
     <string name="wp_transcribe_download">Download this language</string>
     <string name="wp_transcribe_local_note">Transcription runs on the phone with Android\'s on-device speech recognizer: the audio never leaves your phone and it works offline. Download the language once.</string>
     <string name="wp_transcribe_local_unsupported">On-device transcription needs Android 13 or newer with an on-device speech recognizer (Speech Services by Google). Choose Cloud, or keep notes as audio.</string>
+    <string name="wp_space_cleanup">AI transcript clean-up</string>
+    <string name="wp_space_cleanup_hint">Fixes misheard words and adds punctuation and paragraphs, in parts for long meetings. Sends the transcript (not the audio) to your chat API; the original stays in the note.</string>
+    <string name="wp_space_polishing">Polishing transcript…</string>
+    <string name="wp_space_show_original">Show original transcript</string>
+    <string name="wp_space_show_clean">Show cleaned transcript</string>
+    <string name="wp_space_original">Original transcript</string>
     <string name="wp_space_summarize">AI title &amp; summary</string>
     <string name="wp_space_summarize_hint">Sends the transcript (not the audio) to your chat API. Turn off to keep Space fully on the phone.</string>
     <string name="wp_web_mode">Search the web</string>

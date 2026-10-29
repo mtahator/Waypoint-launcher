@@ -135,17 +135,19 @@ class SpaceFragment : Fragment() {
         dock.addView(meter, LinearLayout.LayoutParams(style.dp(220), style.dp(30)))
         timer = style.caption("").apply { textSize = 14f; isVisible = false; setPadding(0, style.dp(2), 0, style.dp(6)) }
         dock.addView(timer)
-        val buttons = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL }
-        buttons.addView(side(R.drawable.ic_note, R.string.wp_space_write) { (activity as ChatActivity).show(TextNoteFragment.newInstance(0)) })
+        // equal-width sides keep Record exactly in the middle of the screen
+        val buttons = LinearLayout(ctx).apply { gravity = Gravity.CENTER }
+        val sideParams = { LinearLayout.LayoutParams(style.dp(84), -2) }
+        buttons.addView(side(R.drawable.ic_note, R.string.wp_space_write) { (activity as ChatActivity).show(TextNoteFragment.newInstance(0)) }, sideParams())
         record = ImageView(ctx).apply {
             scaleType = ImageView.ScaleType.CENTER
             background = style.rounded(red, 100)
             imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
             setOnClickListener { toggle() }
         }
-        buttons.addView(record, LinearLayout.LayoutParams(style.dp(76), style.dp(76)).apply { marginStart = style.dp(30); marginEnd = style.dp(30) })
-        buttons.addView(side(R.drawable.ic_plus, R.string.wp_space_add) { addMenu() })
-        dock.addView(buttons)
+        buttons.addView(record, LinearLayout.LayoutParams(style.dp(76), style.dp(76)).apply { marginStart = style.dp(24); marginEnd = style.dp(24) })
+        buttons.addView(side(R.drawable.ic_plus, R.string.wp_space_add) { addMenu() }, sideParams())
+        dock.addView(buttons, LinearLayout.LayoutParams(-1, -2))
         column.addView(dock)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
@@ -165,7 +167,7 @@ class SpaceFragment : Fragment() {
             background = style.rounded(0, 100, style.hairline)
             setOnClickListener { onClick() }
         }, LinearLayout.LayoutParams(style.dp(52), style.dp(52)))
-        addView(style.caption(getString(label)).apply { setPadding(0, style.dp(4), 0, 0) })
+        addView(style.caption(getString(label)).apply { setPadding(0, style.dp(4), 0, 0); gravity = Gravity.CENTER; maxLines = 1 })
         contentDescription = getString(label)
         setOnClickListener { onClick() }
     }
@@ -429,7 +431,9 @@ class SpaceFragment : Fragment() {
         })
         val time = android.text.format.DateFormat.getTimeFormat(ctx).format(java.util.Date(n.created))
         val status = when (n.status) {
-            Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing)
+            Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing) +
+                space.progress.value[n.id]?.let { " $it" }.orEmpty()
+            Note.Status.CLEANING -> getString(R.string.wp_space_polishing) + space.progress.value[n.id]?.let { " $it" }.orEmpty()
             Note.Status.SUMMARIZING -> getString(R.string.wp_space_summarizing)
             Note.Status.ERROR -> getString(R.string.wp_space_failed)
             Note.Status.RECORDED -> getString(R.string.wp_space_not_transcribed)

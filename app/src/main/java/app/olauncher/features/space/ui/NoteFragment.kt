@@ -57,6 +57,8 @@ class NoteFragment : Fragment() {
     private var note: Note? = null
     private var player: MediaPlayer? = null
     private val noteId get() = requireArguments().getLong(ARG_ID)
+    /** Show the recognizer's own words instead of the AI-cleaned transcript. */
+    private var showRaw = false
     private val space get() = requireContext().waypoint.space
 
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -182,7 +184,9 @@ class NoteFragment : Fragment() {
             })
         }
         status.text = when (n.status) {
-            Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing)
+            Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing) +
+                space.progress.value[n.id]?.let { " $it" }.orEmpty()
+            Note.Status.CLEANING -> getString(R.string.wp_space_polishing) + space.progress.value[n.id]?.let { " $it" }.orEmpty()
             Note.Status.SUMMARIZING -> getString(R.string.wp_space_summarizing)
             Note.Status.ERROR -> n.error + "  ·  " + getString(R.string.wp_chat_retry)
             Note.Status.RECORDED -> getString(R.string.wp_space_set_model)
@@ -198,7 +202,9 @@ class NoteFragment : Fragment() {
         summary.text = Markdown.render(n.summary, style.codeBg, style.density)
         summary.isVisible = n.summary.isNotBlank()
         (summary.parent as ViewGroup).getChildAt((summary.parent as ViewGroup).indexOfChild(summary) - 1).isVisible = n.summary.isNotBlank()
-        transcript.text = n.transcript.ifBlank { "—" }
+        val raw = showRaw && n.raw.isNotBlank()
+        transcript.text = (if (raw) n.raw else n.transcript).ifBlank { "—" }
+        if (raw) transcriptHeader.text = getString(R.string.wp_space_original).uppercase()
     }
 
     private fun togglePlay() {
@@ -266,11 +272,14 @@ class NoteFragment : Fragment() {
 
     private fun menu() {
         val n = note ?: return
-        requireContext().chooseOne(R.string.wp_space, listOf(getString(R.string.rename), getString(R.string.wp_space_retranscribe), getString(R.string.wp_delete))) { i ->
+        val options = mutableListOf(getString(R.string.rename), getString(R.string.wp_space_retranscribe), getString(R.string.wp_delete))
+        if (n.raw.isNotBlank()) options += getString(if (showRaw) R.string.wp_space_show_clean else R.string.wp_space_show_original)
+        requireContext().chooseOne(R.string.wp_space, options) { i ->
             when (i) {
                 0 -> rename()
+                3 -> { showRaw = !showRaw; viewLifecycleOwner.lifecycleScope.launch { reload() } }
                 1 -> if (n.kind == Note.Kind.VOICE) space.process(n.id) else viewLifecycleOwner.lifecycleScope.launch { space.analyze(n.id) }
-                else -> requireContext().createDialog(R.string.wp_delete, R.string.wp_delete, message = R.string.wp_space_delete_message, onAction = {
+                2 -> requireContext().createDialog(R.string.wp_delete, R.string.wp_delete, message = R.string.wp_space_delete_message, onAction = {
                     releasePlayer()
                     val c = requireContext().waypoint
                     c.scope.launch { c.space.delete(n.id) }
