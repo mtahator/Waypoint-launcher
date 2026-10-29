@@ -102,7 +102,7 @@ object QuickAnswers {
         val sym = CurrencyQuery.symbol(to)
         val value = if (sym != null) "$sym${format(shown)}" else "${format(shown)} ${label(to)}"
         val unit = rates.convert(1.0, from, to) ?: 0.0
-        return Answer(value, "1 ${label(from)} = ${format(unit, 6)} ${label(to)}", plain(shown), currency = c)
+        return Answer(value, "1 ${label(from)} = ${format(unit, 4)} ${label(to)}", plain(shown), currency = c)
     }
 
     /** Up to [significant] digits, grouped: 1,234,567.89; very large/small in scientific notation. */

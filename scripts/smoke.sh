@@ -71,7 +71,7 @@ clear_search; adb shell "input text '=sin(pi/6)+5!'"; sleep 1; shot 14f-drawer-f
 clear_search; adb shell "input text '2%sm3%sto%sl'"; sleep 1; shot 14g-drawer-units-power
 clear_search; adb shell "input text '100%susd%sto%seur'"; sleep 6; shot 14h-drawer-currency
 clear_search; adb shell "input text 'x^2+y^2=9'"; sleep 1; shot 14i-drawer-mini-graph
-clear_search; adb shell "input text 'sin(x)'"; sleep 1; adb shell input keyevent 66; sleep 3; shot 15a-graph-page
+clear_search; adb shell "input text '=sin(x)'"; sleep 1; adb shell input keyevent 66; sleep 3; shot 15a-graph-page
 adb shell input keyevent 4; sleep 1; adb shell input keyevent 4; sleep 1
 open_settings; tap "Graphing calculator"; sleep 2
 adb shell input swipe $((W/2)) $((H/4)) $((W/3)) $((H/3)) 300; sleep 1; shot 15b-graph-panned

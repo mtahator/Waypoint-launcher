@@ -144,7 +144,8 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
                 val label = label(x)
                 val w = labelPaint.measureText(label)
                 val ty = (ay + pad - fm.ascent).coerceAtMost(height - pad)
-                canvas.drawText(label, sx(x) - w / 2, ty, labelPaint)
+                val lx = sx(x) - w / 2
+                if (lx >= pad && lx + w <= width - pad) canvas.drawText(label, lx, ty, labelPaint)
             }
             x += step
         }
@@ -154,7 +155,8 @@ class GraphView(context: Context, private val interactive: Boolean = true) : Vie
                 val label = label(y)
                 val w = labelPaint.measureText(label)
                 val tx = if (ax - pad - w < pad) ax + pad else ax - pad - w
-                canvas.drawText(label, tx, sy(y) - (fm.ascent + fm.descent) / 2, labelPaint)
+                val ly = sy(y) - (fm.ascent + fm.descent) / 2
+                if (ly + fm.ascent >= pad && ly + fm.descent <= height - pad) canvas.drawText(label, tx, ly, labelPaint)
             }
             y += step
         }

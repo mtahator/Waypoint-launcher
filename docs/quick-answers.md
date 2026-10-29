@@ -11,7 +11,7 @@ Everything below runs on the device. The only network use is the optional exchan
 | Units | `2 m3 to l`, `1 m² to sq ft`, `100 km/h to mph`, `1 kWh to MJ`, `9.81 m/s^2 to ft/s2`, `100 f to c`, `2 GB to MB` | Dimensional analysis: any combination of compatible units |
 | Time | `time in tokyo` | Offline city list |
 | Currency | `1$ to £`, `€20 in $`, `100 usd in toman` | Needs rates (below) |
-| Graph | `sin(x)`, `x^2+y^2=9`, `graph` | Shows a mini graph; tap/Enter opens the grapher |
+| Graph | `=sin(x)`, `x^2+y^2=9`, `graph` | Shows a mini graph; tap/Enter opens the grapher. Start with `=` so a partly typed word (`si…`) can't auto-launch an app |
 | Gemini | `?…` | Opens the composer |
 
 Tap the answer (or press Enter) to copy it.
