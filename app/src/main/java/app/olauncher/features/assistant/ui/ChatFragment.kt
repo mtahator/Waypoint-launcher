@@ -265,7 +265,7 @@ class ChatFragment : Fragment() {
         val image = imageMode
         val web = webMode
         imageMode = false; webMode = false; styleImageToggle()
-        val go = {
+        val go: () -> Unit = {
             if (conversationId == 0L) {
                 viewLifecycleOwner.lifecycleScope.launch {
                     conversationId = engine.startConversation(text, image, web) // the change collector reads the new id

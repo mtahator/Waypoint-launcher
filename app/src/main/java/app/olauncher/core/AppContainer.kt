@@ -6,6 +6,8 @@ import app.olauncher.features.appearance.platform.SystemGrayscaleController
 import app.olauncher.features.appearance.ui.AppearanceController
 import app.olauncher.features.assistant.data.ChatRepository
 import app.olauncher.features.assistant.platform.ApiKeyStore
+import app.olauncher.features.assistant.domain.Memories
+import app.olauncher.features.assistant.domain.MemoryItem
 import app.olauncher.features.assistant.platform.ChatEngine
 import app.olauncher.features.assistant.platform.ToolHost
 import app.olauncher.features.assistant.platform.ToolRunner
@@ -41,8 +43,8 @@ class AppContainer(context: Context) {
             override suspend fun remember(tag: String, text: String): String {
                 val t = text.trim()
                 if (t.length < 3) return "Nothing to remember"
-                val tagged = app.olauncher.features.assistant.domain.Memories.run { normalizeTag(tag.ifBlank { guessTag(t) ?: "other" }) }
-                chats.addMemory(tagged, t, source = app.olauncher.features.assistant.domain.MemoryItem.SOURCE_CHAT)
+                val tagged = Memories.normalizeTag(tag.ifBlank { Memories.guessTag(t) ?: "other" })
+                chats.addMemory(tagged, t, source = MemoryItem.SOURCE_CHAT)
                 chatEngine.memoryEdited()
                 return "Saved to memory under $tagged"
             }
