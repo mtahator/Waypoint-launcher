@@ -121,14 +121,18 @@ adb shell input swipe $((W-90)) 330 $((W-280)) 700 250; sleep 1
 # A pull from the very top edge must NOT toggle monochrome
 adb shell input swipe $((W-60)) 5 $((W-60)) 700 250; sleep 2; adb shell cmd statusbar collapse; home; shot 18-after-top-pull
 
-# Glass off again: Home, the drawer, Wayfinder and Space must show the plain wallpaper look
-open_settings; tap "Appearance"; tap "Reeded glass over"; sleep 3
-home; sleep 2; shot 19-home-glass-off
-adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 2; shot 19b-drawer-glass-off
-adb shell input keyevent 4; sleep 1; home; sleep 1
-adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 19c-chat-glass-off
-adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez space true; sleep 2; shot 19d-space-glass-off
-home; sleep 1; adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 2; shot 19e-drawer-after-wayfinder
+# Glass toggled twice (the toggle flips whatever state the run is in): both looks of Home, the drawer,
+# Wayfinder and Space, so the plain wallpaper look is always captured
+for pass in a b; do
+  open_settings; tap "Appearance"; tap "Reeded glass over"; sleep 3
+  home; sleep 2; shot 19$pass-home
+  adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 2; shot 19$pass-drawer
+  adb shell input keyevent 4; sleep 1; home; sleep 1
+  adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity; sleep 3; shot 19$pass-chat
+  adb shell am start -n $PKG/app.olauncher.features.assistant.ui.ChatActivity --ez space true; sleep 2; shot 19$pass-space
+  home; sleep 1; adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 2; shot 19$pass-drawer-after-wayfinder
+  adb shell input keyevent 4; sleep 1; home
+done
 
 adb logcat -d > "$OUT/logcat.txt"
 if grep -E "FATAL EXCEPTION|ANR in $PKG" "$OUT/logcat.txt"; then
