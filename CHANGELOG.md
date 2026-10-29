@@ -2,6 +2,10 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Web search with sources** in Wayfinder (Perplexity-style): the model plans whether to search, the queries
+  and whether *About you* matters; Waypoint searches (DuckDuckGo, Brave, or OpenRouter web), reads the top
+  pages and answers with tappable `[n]` citations and source cards. Globe button forces a search.
+- Clear composer icons: image, web, and a centred send/stop button.
 - **Wayfinder** (Waypoint's assistant app, renamed from Chat) with a **Home corner button**: tap to open, long-press to record.
 - **Space** voice notes: record (foreground service, screen off OK) → transcribe **on the phone** with
   Android's on-device recognizer (Android 13+, offline; language download in Setup), or optionally with

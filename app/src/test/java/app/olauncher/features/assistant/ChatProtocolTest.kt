@@ -79,3 +79,12 @@ class ChatProtocolTest {
         assertEquals("ab", ChatProtocol.fullText(ApiFormat.ANTHROPIC, """{"content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]}"""))
     }
 }
+
+class ChatCitationsTest {
+    @Test fun openRouterCitations() {
+        val c = ChatProtocol.citations("""{"choices":[{"delta":{"annotations":[{"type":"url_citation","url_citation":{"url":"https://a.com","title":"A"}}]}}]}""")
+        assertEquals(listOf("A" to "https://a.com"), c)
+        val r = ChatProtocol.request(ApiFormat.OPENAI, "https://openrouter.ai/api/v1", "k", "m", listOf(Turn(Turn.Role.USER, "x")), webPlugin = true)
+        assertEquals("web", JSONObject(r.body).getJSONArray("plugins").getJSONObject(0).getString("id"))
+    }
+}

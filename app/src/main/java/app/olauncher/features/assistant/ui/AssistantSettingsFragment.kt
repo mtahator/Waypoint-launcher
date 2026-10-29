@@ -14,6 +14,8 @@ import app.olauncher.features.assistant.domain.ImageProtocol
 import app.olauncher.features.assistant.domain.Presets
 import app.olauncher.features.assistant.domain.Turn
 import app.olauncher.features.space.domain.TranscriptionApi
+import app.olauncher.features.websearch.domain.SearchEngine
+import app.olauncher.features.websearch.domain.WebSearchMode
 import app.olauncher.features.space.platform.LocalTranscriber
 import app.olauncher.features.assistant.platform.ChatClient
 import app.olauncher.helper.showToast
@@ -96,6 +98,26 @@ class AssistantSettingsFragment : WpPageFragment() {
                     }
                 }
                 note(getString(R.string.wp_image_note))
+            }
+            page.card {
+                header(getString(R.string.wp_web_search))
+                val modes = listOf(WebSearchMode.AUTO to R.string.wp_web_auto, WebSearchMode.ALWAYS to R.string.wp_web_always, WebSearchMode.OFF to R.string.wp_web_off)
+                row(getString(R.string.wp_web_mode_row), getString(modes.first { it.first == prefs.webSearchMode }.second)) {
+                    requireContext().chooseOne(R.string.wp_web_mode_row, modes.map { getString(it.second) }) { i -> prefs.webSearchMode = modes[i].first; rebuild() }
+                }
+                val engines = listOf(SearchEngine.DUCKDUCKGO to R.string.wp_engine_ddg, SearchEngine.BRAVE to R.string.wp_engine_brave, SearchEngine.OPENROUTER to R.string.wp_engine_openrouter)
+                row(getString(R.string.wp_search_engine), getString(engines.first { it.first == prefs.searchEngine }.second)) {
+                    requireContext().chooseOne(R.string.wp_search_engine, engines.map { getString(it.second) }) { i -> prefs.searchEngine = engines[i].first; rebuild() }
+                }
+                if (prefs.searchEngine == SearchEngine.BRAVE) {
+                    row(getString(R.string.wp_brave_key), container.braveKeys.masked() ?: getString(R.string.wp_api_key_none)) {
+                        requireContext().promptText(R.string.wp_brave_key, "", hint = R.string.wp_api_key_paste,
+                            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD) {
+                            runCatching { container.braveKeys.set(it) }; rebuild()
+                        }
+                    }
+                }
+                note(getString(R.string.wp_web_note))
             }
             page.card {
                 header(getString(R.string.wp_api_behaviour))

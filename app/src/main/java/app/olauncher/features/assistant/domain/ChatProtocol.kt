@@ -40,7 +40,8 @@ object ChatProtocol {
 
     const val MAX_TURNS = 40
 
-    fun request(format: ApiFormat, baseUrl: String, apiKey: String?, model: String, turns: List<Turn>, stream: Boolean = true): ChatRequest {
+    /** [webPlugin]: OpenRouter's server-side web search (`plugins: [{id: web}]`), OpenAI format only. */
+    fun request(format: ApiFormat, baseUrl: String, apiKey: String?, model: String, turns: List<Turn>, stream: Boolean = true, webPlugin: Boolean = false): ChatRequest {
         val base = baseUrl.trim().trimEnd('/')
         val history = turns.filter { it.role != Turn.Role.SYSTEM && it.content.isNotBlank() }.takeLast(MAX_TURNS)
         val system = turns.filter { it.role == Turn.Role.SYSTEM }.joinToString("\n\n") { it.content }.trim()
@@ -50,6 +51,7 @@ object ChatProtocol {
                 if (system.isNotEmpty()) messages.put(JSONObject().put("role", "system").put("content", system))
                 history.forEach { messages.put(JSONObject().put("role", it.role.wire).put("content", it.content)) }
                 val body = JSONObject().put("model", model).put("messages", messages).put("stream", stream)
+                if (webPlugin) body.put("plugins", JSONArray().put(JSONObject().put("id", "web").put("max_results", 5)))
                 val headers = buildMap {
                     put("Content-Type", "application/json")
                     put("Accept", if (stream) "text/event-stream" else "application/json")
@@ -87,6 +89,17 @@ object ChatProtocol {
             ApiFormat.ANTHROPIC -> if (o.optString("type") == "content_block_delta")
                 o.optJSONObject("delta")?.optString("text")?.takeIf { it.isNotEmpty() } else null
         }
+    }
+
+    /** URL citations a provider attached (OpenRouter web plugin): `annotations[].url_citation`. */
+    fun citations(data: String): List<Pair<String, String>> {
+        val o = runCatching { JSONObject(data) }.getOrNull() ?: return emptyList()
+        val c = o.optJSONArray("choices")?.optJSONObject(0) ?: return emptyList()
+        val arr = c.optJSONObject("delta")?.optJSONArray("annotations") ?: c.optJSONObject("message")?.optJSONArray("annotations")
+            ?: return emptyList()
+        return (0 until arr.length()).mapNotNull { i ->
+            arr.optJSONObject(i)?.optJSONObject("url_citation")?.let { u -> u.optString("title") to u.optString("url") }
+        }.filter { it.second.startsWith("http") }
     }
 
     /** Full text of a non-streaming response (fallback when a server ignores `stream`). */

@@ -25,9 +25,11 @@ object ChatClient {
         config: ApiConfig,
         turns: List<Turn>,
         onConnection: (HttpURLConnection) -> Unit = {},
+        webPlugin: Boolean = false,
+        onCitations: (List<Pair<String, String>>) -> Unit = {},
         onDelta: (String) -> Unit,
     ) {
-        val req = ChatProtocol.request(config.format, config.baseUrl, config.apiKey, config.model, turns)
+        val req = ChatProtocol.request(config.format, config.baseUrl, config.apiKey, config.model, turns, webPlugin = webPlugin)
         val conn = (URL(req.url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             doOutput = true
@@ -49,6 +51,7 @@ object ChatClient {
                 // Some servers ignore "stream": read the whole JSON answer instead
                 val body = conn.inputStream.bufferedReader().use { it.readText() }
                 onDelta(ChatProtocol.fullText(config.format, body) ?: throw ApiException("Empty reply"))
+                if (webPlugin) ChatProtocol.citations(body).takeIf { it.isNotEmpty() }?.let(onCitations)
                 return
             }
             val sse = SseReader()
@@ -63,6 +66,7 @@ object ChatClient {
                         throw ApiException(ChatProtocol.errorMessage(code, event.second))
                     }
                     ChatProtocol.delta(config.format, event.second)?.let { got = true; onDelta(it) }
+                    if (webPlugin) ChatProtocol.citations(event.second).takeIf { it.isNotEmpty() }?.let(onCitations)
                 }
             }
             if (!got) throw ApiException("The model returned no text")

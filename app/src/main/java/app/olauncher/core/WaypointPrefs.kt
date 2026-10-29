@@ -8,6 +8,8 @@ import app.olauncher.features.assistant.domain.AssistantMode
 import app.olauncher.features.assistant.domain.ImageApi
 import app.olauncher.features.gestures.domain.Corner
 import app.olauncher.features.space.domain.TranscriptionApi
+import app.olauncher.features.websearch.domain.SearchEngine
+import app.olauncher.features.websearch.domain.WebSearchMode
 import app.olauncher.features.gestures.domain.GestureAction
 import app.olauncher.features.worldclock.domain.WorldClockCodec
 import app.olauncher.features.worldclock.domain.WorldClockEntry
@@ -151,6 +153,19 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getString(SYSTEM_PROMPT, null) ?: ""
         set(value) = prefs.edit { putString(SYSTEM_PROMPT, value) }
 
+    /** Web search for Wayfinder: off, auto (the model decides) or always. */
+    var webSearchMode: WebSearchMode
+        get() = runCatching { WebSearchMode.valueOf(prefs.getString(WEB_SEARCH, null) ?: "") }.getOrDefault(WebSearchMode.AUTO)
+        set(value) = prefs.edit { putString(WEB_SEARCH, value.name) }
+
+    var searchEngine: SearchEngine
+        get() = runCatching { SearchEngine.valueOf(prefs.getString(SEARCH_ENGINE, null) ?: "") }.getOrDefault(SearchEngine.DUCKDUCKGO)
+        set(value) = prefs.edit { putString(SEARCH_ENGINE, value.name) }
+
+    internal var braveKeySealed: String?
+        get() = prefs.getString(BRAVE_KEY_SEALED, null)
+        set(value) = prefs.edit { if (value == null) remove(BRAVE_KEY_SEALED) else putString(BRAVE_KEY_SEALED, value) }
+
     /** Encrypted with a non-exportable Android Keystore key (see ApiKeyStore). */
     internal var apiKeySealed: String?
         get() = prefs.getString(API_KEY_SEALED, null)
@@ -229,6 +244,9 @@ class WaypointPrefs(context: Context) {
         const val IMAGE_API = "WP_IMAGE_API"
         const val IMAGE_SIZE = "WP_IMAGE_SIZE"
         const val API_KEY_SEALED = "WP_API_KEY_SEALED"
+        const val WEB_SEARCH = "WP_WEB_SEARCH"
+        const val SEARCH_ENGINE = "WP_SEARCH_ENGINE"
+        const val BRAVE_KEY_SEALED = "WP_BRAVE_KEY_SEALED"
         const val GRAPH_LINES = "WP_GRAPH_LINES"
         private const val GRAPH_SEP = "\u001F"
         const val BG_AURORA = "aurora"

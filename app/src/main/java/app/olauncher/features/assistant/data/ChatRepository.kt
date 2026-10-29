@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import app.olauncher.features.websearch.domain.Source
+import app.olauncher.features.websearch.domain.WebSearch
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
@@ -13,12 +15,14 @@ data class Message(
     val id: Long, val conversationId: Long, val role: String, val content: String, val created: Long, val error: Boolean,
     /** Generated images: file names in files/chat_images. */
     val images: List<String> = emptyList(),
+    /** Web sources this answer cites ([1] = first). */
+    val sources: List<Source> = emptyList(),
 ) {
     val isUser get() = role == "user"
 }
 
 /** Conversations stay on the phone (chats.db, excluded from backup). */
-private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 2) {
+private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 3) {
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -26,13 +30,14 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         db.execSQL(
             "CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER NOT NULL " +
                 "REFERENCES conversations(id) ON DELETE CASCADE, role TEXT NOT NULL, content TEXT NOT NULL, " +
-                "created INTEGER NOT NULL, error INTEGER NOT NULL DEFAULT 0, images TEXT NOT NULL DEFAULT '')",
+                "created INTEGER NOT NULL, error INTEGER NOT NULL DEFAULT 0, images TEXT NOT NULL DEFAULT '', sources TEXT NOT NULL DEFAULT '')",
         )
         db.execSQL("CREATE INDEX messages_conv ON messages(conversation_id, id)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) db.execSQL("ALTER TABLE messages ADD COLUMN images TEXT NOT NULL DEFAULT ''")
+        if (oldVersion < 3) db.execSQL("ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT ''")
     }
 }
 
@@ -62,12 +67,13 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
 
     suspend fun messages(conversationId: Long): List<Message> = withContext(io) {
         db.rawQuery(
-            "SELECT id, conversation_id, role, content, created, error, images FROM messages WHERE conversation_id = ? ORDER BY id",
+            "SELECT id, conversation_id, role, content, created, error, images, sources FROM messages WHERE conversation_id = ? ORDER BY id",
             arrayOf(conversationId.toString()),
         ).use { c ->
             buildList {
                 while (c.moveToNext()) add(Message(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getLong(4), c.getInt(5) != 0,
-                    c.getString(6).split('\n').filter { it.isNotBlank() }))
+                    c.getString(6).split('\n').filter { it.isNotBlank() },
+                    c.getString(7).takeIf { it.isNotBlank() }?.let { WebSearch.decodeSources(it) } ?: emptyList()))
             }
         }
     }
@@ -90,6 +96,11 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
 
     suspend fun update(messageId: Long, content: String, error: Boolean = false) = withContext(io) {
         db.update("messages", ContentValues().apply { put("content", content); put("error", if (error) 1 else 0) },
+            "id = ?", arrayOf(messageId.toString()))
+    }
+
+    suspend fun setSources(messageId: Long, sources: List<Source>) = withContext(io) {
+        db.update("messages", ContentValues().apply { put("sources", if (sources.isEmpty()) "" else WebSearch.encodeSources(sources)) },
             "id = ?", arrayOf(messageId.toString()))
     }
 

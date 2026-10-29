@@ -34,6 +34,21 @@ in **Settings → Assistant & chats**:
   Photos** (Pictures/Waypoint, Android 10+). Image turns aren't sent as context to the text model.
 - `?/image a red fox` in the app search works too (API mode).
 
+## Web search (Perplexity-style)
+*Setup → Web search*: **Auto** (default: Wayfinder decides), **Always**, or **Off**. The globe in the composer
+forces a search for one message.
+1. **Plan**: the chat model gets the latest message, recent turns and (if set) *About you*, and replies with
+   JSON: whether to search, 1–3 specific queries (resolving "there" from earlier in the conversation), and
+   whether *About you* is relevant. *About you* is then sent to the answer only if it matters.
+2. **Search** on the phone: **DuckDuckGo**'s HTML endpoint (no key, like small open-source clients such as
+   `duckduckgo-search`), or **Brave Search** with your key, or **OpenRouter web** (the provider searches;
+   citations come back as annotations).
+3. **Read**: the top 4 pages are fetched in parallel (6 s each, 1.5 MB cap) and reduced to readable text.
+4. **Answer** with numbered sources; `[n]` citations become small red links, and source cards appear under
+   the answer. Sources are saved with the message.
+
+Only the search queries go to the search engine; pages are fetched directly from their sites.
+
 ## Space (voice notes)
 Like Nothing's Essential Space: tap the red button in **Wayfinder → Space** (or long-press the Wayfinder pin on
 Home) to record. Recording runs in a foreground service with a notification and a Stop button, so it

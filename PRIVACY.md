@@ -10,6 +10,9 @@
   conversation is sent **only to the base URL you configured**, only when you send a message. Chats are
   stored on the phone (`chats.db`, excluded from backup); the API key is encrypted with an Android
   Keystore key. Delete chats or forget the key in *Privacy & data*.
+- **Web search** (Wayfinder, on by default in *Auto*): when the model decides a question needs the web (or
+  you tap the globe), the **search queries** are sent to DuckDuckGo (or Brave / OpenRouter if you choose
+  them) and the result pages are fetched from their sites. Turn it off in *Wayfinder Setup → Web search*.
 - **Space voice notes** are recorded only while you record (with a visible notification) and saved on
   the phone (`space.db`, `files/space`, excluded from backup). **Transcription runs on the phone by
   default** (Android's on-device recognizer; the audio never leaves the device). Only if you choose

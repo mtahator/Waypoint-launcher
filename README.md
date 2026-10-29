@@ -28,6 +28,7 @@ choose Waypoint.
 ۱۰. **نرخ ارز آنلاین:** فقط وقتی تبدیل ارز تایپ کنید، نرخ‌های عمومی دلار از open.er-api.com دانلود می‌شود (حداکثر هر ۶ ساعت). چیزی از متن شما ارسال نمی‌شود. خاموش‌کردن در Privacy & data. نرخ ریال/تومان نرخ رسمی است، نه بازار آزاد.
 ۱۱. **Space (یادداشت صوتی، مثل Essential Space):** در Wayfinder ← Space دکمهٔ قرمز را بزنید (یا دکمهٔ Wayfinder را در صفحهٔ اصلی نگه دارید) تا ضبط شروع شود. صدا روی گوشی ذخیره می‌شود و **روی خود گوشی** (بدون اینترنت، با تشخیص گفتار داخلی اندروید، اندروید ۱۳ به بالا) به متن تبدیل می‌شود؛ زبان را یک بار در تنظیمات Wayfinder ← Space دانلود کنید. عنوان و خلاصهٔ هوشمند اختیاری است (فقط متن به API شما می‌رود).
 ۱۲. **About you:** در تنظیمات Wayfinder اطلاعاتی دربارهٔ خودتان بنویسید؛ دستیار فقط وقتی مرتبط باشد از آن استفاده می‌کند.
+۱۳. **جستجوی وب با منبع (مثل Perplexity):** Wayfinder خودش تصمیم می‌گیرد سؤال به اینترنت نیاز دارد یا نه، چه چیزی جستجو کند و آیا اطلاعات About you لازم است؛ صفحه‌ها را روی گوشی می‌خواند و جواب را با شماره‌های منبع [1] می‌دهد که با لمس باز می‌شوند. دکمهٔ کره در کادر پیام، جستجو را اجباری می‌کند. موتور: DuckDuckGo (بدون کلید)، Brave یا OpenRouter.
 
 </div>
 
@@ -42,7 +43,7 @@ no database, registers no receivers and schedules no work.
 | **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
 | **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
 | **Ask** with `?` in the drawer search: a large multi-line composer. Questions go to the **Gemini app**, or to **your own API** (OpenAI-compatible or Anthropic: OpenAI, Gemini API, Claude, OpenRouter, Groq, Ollama…) | App drawer search; Settings → Assistant & chats |
-| **Wayfinder** app (in your app list, and a Wayfinder button on Home): chats with your API (streamed, saved, continue/rename/delete, Markdown, images, *About you*) and **Space** voice notes (record → on-device transcription → optional AI title + summary; like Essential Space) | App list → Wayfinder; Home corner |
+| **Wayfinder** app (in your app list, and a Wayfinder button on Home): chats with your API (streamed, saved, continue/rename/delete, Markdown, images, *About you*, **web search with cited sources** like Perplexity) and **Space** voice notes (record → on-device transcription → optional AI title + summary; like Essential Space) | App list → Wayfinder; Home corner |
 | **Quick answers** (Spotlight-style): `12×3+4`, `sin(30°)`, `ln 2`, `5!`, `15% of 80`, units with powers and compounds (`2 m3 to l`, `1 m² to sq ft`, `100 km/h to mph`, `1 kWh to MJ`), `time in tokyo`, currencies (`1$ to £`, `100 usd in toman`). Start with `=` for calculator mode. Tap or Enter copies | App drawer search |
 | **Graphing calculator** (Desmos-style): many expressions, `y = …`, `f(x) = …`, `x = …`, implicit equations like `x^2 + y^2 = 9`, points `(2, 3)`, sliders (`a = 1`) with one-tap *add slider* for unknown letters; pan, pinch-zoom, double-tap, hold to trace. Typing `sin(x)` in search shows a mini graph | Drawer search, or Settings → Graphing calculator |
 | **Home layout**: right-aligned by default; *Apps position* slider moves the app list from top to bottom | Appearance |

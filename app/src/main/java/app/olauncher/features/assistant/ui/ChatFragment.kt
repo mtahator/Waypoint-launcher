@@ -42,14 +42,17 @@ class ChatFragment : Fragment() {
     private lateinit var style: ChatStyle
     private lateinit var list: RecyclerView
     private lateinit var input: EditText
-    private lateinit var send: TextView
+    private lateinit var send: android.widget.ImageView
     private lateinit var titleView: TextView
     private lateinit var modelView: TextView
     private var conversationId = 0L
     private var messages: List<Message> = emptyList()
     private var busy = false
     private var imageMode = false
-    private lateinit var imageToggle: TextView
+    private var status: String? = null
+    private lateinit var imageToggle: android.widget.ImageView
+    private lateinit var webToggle: android.widget.ImageView
+    private var webMode = false
     private val thumbs = android.util.LruCache<String, android.graphics.Bitmap>(12)
 
     private val container get() = requireContext().waypoint
@@ -90,14 +93,16 @@ class ChatFragment : Fragment() {
             gravity = Gravity.BOTTOM
             setPadding(style.dp(12), style.dp(8), style.dp(12), style.dp(10))
         }
-        imageToggle = TextView(ctx, null, 0, R.style.TextLarge).apply {
-            text = "▣"
-            gravity = Gravity.CENTER
-            textSize = 20f
-            contentDescription = getString(R.string.wp_image_mode)
-            setOnClickListener { toggleImageMode() }
+        fun toolButton(icon: Int, label: Int, onClick: () -> Unit) = android.widget.ImageView(ctx).apply {
+            setImageResource(icon)
+            scaleType = android.widget.ImageView.ScaleType.CENTER
+            contentDescription = getString(label)
+            setOnClickListener { onClick() }
         }
-        composer.addView(imageToggle, LinearLayout.LayoutParams(style.dp(44), style.dp(48)).apply { marginEnd = style.dp(6) })
+        imageToggle = toolButton(R.drawable.ic_image, R.string.wp_image_mode) { toggleImageMode() }
+        composer.addView(imageToggle, LinearLayout.LayoutParams(style.dp(46), style.dp(46)).apply { marginEnd = style.dp(6); bottomMargin = style.dp(1) })
+        webToggle = toolButton(R.drawable.ic_globe, R.string.wp_web_mode) { toggleWebMode() }
+        composer.addView(webToggle, LinearLayout.LayoutParams(style.dp(46), style.dp(46)).apply { marginEnd = style.dp(6); bottomMargin = style.dp(1) })
         input = EditText(ctx).apply {
             setHint(R.string.wp_chat_hint)
             setTextColor(style.ink)
@@ -112,10 +117,9 @@ class ChatFragment : Fragment() {
             setPadding(style.dp(16), style.dp(12), style.dp(16), style.dp(12))
         }
         composer.addView(input, LinearLayout.LayoutParams(0, -2, 1f))
-        send = TextView(ctx, null, 0, R.style.TextLarge).apply {
-            gravity = Gravity.CENTER
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 20f
+        send = android.widget.ImageView(ctx).apply {
+            scaleType = android.widget.ImageView.ScaleType.CENTER
+            imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
             background = style.rounded(0xFFD71921.toInt(), 100)
             contentDescription = getString(R.string.wp_send_to_gemini)
             setOnClickListener { onSend() }
@@ -148,6 +152,7 @@ class ChatFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { engine.busy.collect { busy = conversationId in it; updateSend(); list.adapter?.notifyDataSetChanged() } }
+                launch { engine.status.collect { status = it[conversationId]; list.adapter?.notifyDataSetChanged() } }
                 reload()
                 engine.changes.filter { it == conversationId }.collect { reload() }
             }
@@ -177,7 +182,7 @@ class ChatFragment : Fragment() {
 
     private fun updateSend() {
         if (!::send.isInitialized) return
-        send.text = if (busy) "■" else "↑"
+        send.setImageResource(if (busy) R.drawable.ic_stop else R.drawable.ic_arrow_up)
         val canSend = busy || input.text.isNotBlank()
         send.alpha = if (canSend) 1f else 0.4f
         send.contentDescription = getString(if (busy) R.string.wp_chat_stop else R.string.wp_send_to_gemini)
@@ -188,13 +193,25 @@ class ChatFragment : Fragment() {
             requireContext().showToast(getString(R.string.wp_image_needs_model)); return
         }
         imageMode = !imageMode
+        if (imageMode) webMode = false
         styleImageToggle()
     }
 
+    private fun toggleWebMode() {
+        webMode = !webMode
+        if (webMode) imageMode = false
+        styleImageToggle()
+    }
+
+    /** Tool buttons: outlined when off, filled red when on. Web is hidden when search is off in Setup. */
     private fun styleImageToggle() {
-        imageToggle.setTextColor(if (imageMode) 0xFFFFFFFF.toInt() else style.ink)
-        imageToggle.background = if (imageMode) style.rounded(0xFFD71921.toInt(), 100) else style.rounded(0, 100, style.hairline)
-        input.setHint(if (imageMode) R.string.wp_image_hint else R.string.wp_chat_hint)
+        fun paintTool(v: android.widget.ImageView, on: Boolean) {
+            v.imageTintList = android.content.res.ColorStateList.valueOf(if (on) 0xFFFFFFFF.toInt() else style.ink)
+            v.background = if (on) style.rounded(0xFFD71921.toInt(), 100) else style.rounded(0, 100, style.hairline)
+        }
+        paintTool(imageToggle, imageMode)
+        paintTool(webToggle, webMode)
+        input.setHint(when { imageMode -> R.string.wp_image_hint; webMode -> R.string.wp_web_hint; else -> R.string.wp_chat_hint })
         imageToggle.isVisible = container.chatEngine.isImageConfigured()
     }
 
@@ -208,13 +225,46 @@ class ChatFragment : Fragment() {
         }
         input.setText("")
         val image = imageMode
-        imageMode = false; styleImageToggle()
+        val web = webMode
+        imageMode = false; webMode = false; styleImageToggle()
         if (conversationId == 0L) {
             viewLifecycleOwner.lifecycleScope.launch {
-                conversationId = engine.startConversation(text, image) // the change collector reads the new id
+                conversationId = engine.startConversation(text, image, web) // the change collector reads the new id
                 reload()
             }
-        } else engine.send(conversationId, text, image)
+        } else engine.send(conversationId, text, image, web)
+    }
+
+    /** Numbered source cards under a web answer (like Perplexity): tap to open in the browser. */
+    private fun bindSources(box: LinearLayout, m: app.olauncher.features.assistant.data.Message) {
+        box.removeAllViews()
+        box.isVisible = !m.isUser && m.sources.isNotEmpty()
+        if (!box.isVisible) return
+        val ctx = requireContext()
+        box.addView(style.caption(getString(R.string.wp_sources).uppercase()).apply { letterSpacing = 0.14f; setPadding(style.dp(4), style.dp(10), 0, style.dp(6)) })
+        val scroll = android.widget.HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false }
+        val row = LinearLayout(ctx)
+        m.sources.forEachIndexed { i, src ->
+            val card = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(style.dp(12), style.dp(10), style.dp(12), style.dp(10))
+                background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 14, style.hairline)
+                setOnClickListener { openUrl(src.url) }
+                contentDescription = "${i + 1}: ${src.title}"
+            }
+            card.addView(style.caption("${i + 1} · ${src.host}").apply { setTextColor(0xFFD71921.toInt()); maxLines = 1 })
+            card.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                text = src.title; setTextColor(style.ink); textSize = 13f; maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, style.dp(3), 0, 0)
+            })
+            row.addView(card, LinearLayout.LayoutParams(style.dp(170), -2).apply { marginEnd = style.dp(8) })
+        }
+        scroll.addView(row)
+        box.addView(scroll)
+    }
+
+    private fun openUrl(url: String) {
+        runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))) }
     }
 
     /** Generated images under the reply; tap to share or save. */
@@ -316,7 +366,7 @@ class ChatFragment : Fragment() {
 
     // ---- messages
 
-    private inner class Holder(val root: LinearLayout, val bubble: TextView, val pictures: LinearLayout, val meta: TextView) : RecyclerView.ViewHolder(root)
+    private inner class Holder(val root: LinearLayout, val bubble: TextView, val pictures: LinearLayout, val sources: LinearLayout, val meta: TextView) : RecyclerView.ViewHolder(root)
 
     private inner class Adapter : RecyclerView.Adapter<Holder>() {
         override fun getItemCount() = messages.size
@@ -340,8 +390,10 @@ class ChatFragment : Fragment() {
             val pictures = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             root.addView(bubble, LinearLayout.LayoutParams(-2, -2))
             root.addView(pictures, LinearLayout.LayoutParams(-1, -2))
+            val sources = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+            root.addView(sources, LinearLayout.LayoutParams(-1, -2))
             root.addView(meta, LinearLayout.LayoutParams(-2, -2))
-            return Holder(root, bubble, pictures, meta)
+            return Holder(root, bubble, pictures, sources, meta)
         }
 
         override fun onBindViewHolder(h: Holder, position: Int) {
@@ -366,14 +418,17 @@ class ChatFragment : Fragment() {
                 } == true
                 h.bubble.text = when {
                     m.content.isEmpty() && busy && last && askedImage -> getString(R.string.wp_generating_image)
+                    m.content.isEmpty() && busy && last && status != null -> "◌  $status"
                     m.content.isEmpty() && busy && last -> "●  ●  ●"
                     m.error -> m.content
-                    else -> Markdown.render(m.content, style.codeBg, style.density)
+                    else -> Citations.link(Markdown.render(m.content, style.codeBg, style.density), m.sources, 0xFFD71921.toInt()) { openUrl(it) }
                 }
+                h.bubble.movementMethod = if (m.sources.isNotEmpty()) android.text.method.LinkMovementMethod.getInstance() else null
                 h.bubble.setTextColor(if (m.error) 0xFFFF6B5E.toInt() else style.ink)
                 if (m.content.isEmpty() && m.images.isNotEmpty()) h.bubble.isVisible = false
             }
             bindPictures(h.pictures, m)
+            bindSources(h.sources, m)
             h.bubble.layoutParams = lp
             (h.meta.layoutParams as LinearLayout.LayoutParams).gravity = lp.gravity
             val showRetry = !m.isUser && last && !busy
