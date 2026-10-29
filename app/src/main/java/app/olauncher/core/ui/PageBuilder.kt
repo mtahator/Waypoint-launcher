@@ -216,7 +216,9 @@ fun EditText.focusAndShowKeyboard() {
 fun Context.chooseOne(@StringRes title: Int, options: List<CharSequence>, onChoose: (Int) -> Unit) {
     lateinit var dialog: app.olauncher.helper.OlDialog
     dialog = createDialog(title, R.string.close, content = { parent ->
-        LinearLayout(parent.context).apply {
+        // Long lists (languages, cities…) scroll inside the dialog, capped at 60% of the screen height
+        val maxHeight = (parent.resources.displayMetrics.heightPixels * 0.6f).toInt()
+        val column = LinearLayout(parent.context).apply {
             orientation = LinearLayout.VERTICAL
             val builder = PageBuilder(this)
             options.forEachIndexed { i, label ->
@@ -225,6 +227,15 @@ fun Context.chooseOne(@StringRes title: Int, options: List<CharSequence>, onChoo
                     dialog.dismiss()
                 }
             }
+        }
+        object : android.widget.ScrollView(parent.context) {
+            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                super.onMeasure(widthMeasureSpec, android.view.View.MeasureSpec.makeMeasureSpec(maxHeight, android.view.View.MeasureSpec.AT_MOST))
+            }
+        }.apply {
+            isVerticalScrollBarEnabled = true
+            isFillViewport = false
+            addView(column)
             layoutParams = ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                 .apply { topMargin = (12 * resources.displayMetrics.density).toInt() }
         }

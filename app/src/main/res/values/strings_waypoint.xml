@@ -359,6 +359,25 @@
     <string name="wp_exact_reminders">Exact reminders</string>
     <string name="wp_exact_reminders_off">Allow</string>
     <string name="wp_exact_reminders_hint">Without this, Android may deliver reminders a few minutes late</string>
+    <string name="wp_space_search">Search notes, voice, screenshots, to-dos</string>
+    <string name="wp_next_up">Next up</string>
+    <string name="wp_todo_overdue">Overdue</string>
+    <string name="wp_todo_today">Today</string>
+    <string name="wp_todo_upcoming">Upcoming</string>
+    <string name="wp_todo_someday">Someday</string>
+    <string name="wp_todo_done_show">Done · show</string>
+    <string name="wp_todo_done_hide">Done · hide</string>
+    <string name="wp_space_no_results">Nothing matches your search.</string>
+    <string name="wp_space_empty_todo">No to-dos. Tap Add, or say “remind me to …” in a voice note.</string>
+    <string name="wp_space_empty_goals">No goals yet. Tap Add → Goal, e.g. “Exercise, 3 times a week”.</string>
+    <string name="wp_day_today">Today</string>
+    <string name="wp_day_yesterday">Yesterday</string>
+    <string name="wp_overdue_count">%1$d overdue</string>
+    <string name="wp_goals_on_track">goals %1$d/%2$d done</string>
+    <plurals name="wp_todos_today">
+        <item quantity="one">%d to-do today</item>
+        <item quantity="other">%d to-dos today</item>
+    </plurals>
     <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
     <string name="wp_home_layout">Home layout</string>

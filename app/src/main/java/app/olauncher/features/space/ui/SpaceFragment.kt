@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -21,7 +22,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import app.olauncher.R
 import app.olauncher.core.ui.chooseOne
@@ -38,37 +39,48 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Space: one place for voice notes, written notes, screenshots, to-dos, goals and reminders, sorted into
- * categories automatically. Record is one tap; the Home pin opens here ready to record.
+ * Space, laid out like a calm dashboard: a Today card (date, what's due), Next up to-dos, a strip of goal
+ * rings, then captures grouped by day. Search covers everything; filters are icon tabs with counts;
+ * screenshots show as a grid. The dock (Write · Record · Add) never moves, so recording is one tap away.
  */
 class SpaceFragment : Fragment() {
 
-    private enum class Filter(val label: Int) { ALL(R.string.wp_filter_all), VOICE(R.string.wp_filter_voice), NOTES(R.string.wp_filter_notes),
-        SCREENS(R.string.wp_filter_screens), TODO(R.string.wp_filter_todo), GOALS(R.string.wp_filter_goals) }
+    private enum class Filter(val label: Int, val icon: Int) {
+        ALL(R.string.wp_filter_all, R.drawable.ic_wayfinder), VOICE(R.string.wp_filter_voice, R.drawable.ic_mic),
+        NOTES(R.string.wp_filter_notes, R.drawable.ic_note), SCREENS(R.string.wp_filter_screens, R.drawable.ic_image),
+        TODO(R.string.wp_filter_todo, R.drawable.ic_check_circle), GOALS(R.string.wp_filter_goals, R.drawable.ic_target),
+    }
 
     private sealed class Row {
-        data class Header(val text: String) : Row()
-        data class NoteRow(val note: Note) : Row()
+        data class Header(val text: String, val count: Int = -1) : Row()
+        object Today : Row()
         data class TaskRow(val task: Task) : Row()
-        data class GoalRow(val goal: Goal, val progress: Goals.Progress) : Row()
+        data class GoalStrip(val goals: List<Pair<Goal, Goals.Progress>>) : Row()
+        data class GoalCard(val goal: Goal, val progress: Goals.Progress) : Row()
+        data class NoteRow(val note: Note) : Row()
+        data class ShotTile(val note: Note) : Row()
+        data class Empty(val text: String) : Row()
     }
 
     private lateinit var style: ChatStyle
     private lateinit var list: RecyclerView
-    private lateinit var empty: TextView
     private lateinit var record: ImageView
     private lateinit var timer: TextView
     private lateinit var meter: LevelMeter
     private lateinit var filters: LinearLayout
     private lateinit var categories: LinearLayout
+    private lateinit var search: EditText
     private var rows: List<Row> = emptyList()
     private var filter = Filter.ALL
     private var category: String? = null
+    private var query = ""
+    private var showDone = false
     private var notes: List<Note> = emptyList()
     private var tasks: List<Task> = emptyList()
     private var goals: List<Goal> = emptyList()
 
     private val space get() = requireContext().waypoint.space
+    private val red = 0xFFD71921.toInt()
 
     private val pickImage = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewLifecycleOwner.lifecycleScope.launch { space.importImage(uri, screenshot = false) }
@@ -81,44 +93,65 @@ class SpaceFragment : Fragment() {
         val column = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         root.addView(column, FrameLayout.LayoutParams(-1, -1))
 
-        val header = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(style.dp(20), 0, style.dp(8), style.dp(6)) }
+        val header = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(style.dp(20), 0, style.dp(8), style.dp(8)) }
         header.addView(style.tabs(space = true) { (activity as ChatActivity).showTab(it) }, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(style.action(getString(R.string.wp_settings_short)) { (activity as ChatActivity).show(AssistantSettingsFragment()) })
         column.addView(header)
 
-        filters = LinearLayout(ctx).apply { setPadding(style.dp(14), 0, style.dp(14), 0) }
+        // search
+        search = EditText(ctx).apply {
+            setHint(R.string.wp_space_search); setTextColor(style.ink); setHintTextColor(style.faint)
+            textSize = 15f; isSingleLine = true; textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH
+            background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 100, style.hairline)
+            setPadding(style.dp(18), style.dp(10), style.dp(18), style.dp(10))
+            setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, null, null)
+            addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+                override fun afterTextChanged(e: android.text.Editable?) { query = e?.toString().orEmpty().trim(); render() }
+            })
+        }
+        column.addView(search, LinearLayout.LayoutParams(-1, -2).apply { setMargins(style.dp(16), 0, style.dp(16), style.dp(10)) })
+
+        filters = LinearLayout(ctx).apply { setPadding(style.dp(12), 0, style.dp(12), 0) }
         column.addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(filters) })
-        categories = LinearLayout(ctx).apply { setPadding(style.dp(14), style.dp(6), style.dp(14), style.dp(4)) }
+        categories = LinearLayout(ctx).apply { setPadding(style.dp(14), style.dp(8), style.dp(14), 0) }
         column.addView(HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false; addView(categories) })
 
-        empty = style.caption(getString(R.string.wp_space_empty)).apply { gravity = Gravity.CENTER; setPadding(style.dp(32), style.dp(40), style.dp(32), 0) }
-        column.addView(empty)
-        list = RecyclerView(ctx).apply { layoutManager = LinearLayoutManager(ctx); adapter = Adapter(); clipToPadding = false; itemAnimator = null }
+        list = RecyclerView(ctx).apply {
+            layoutManager = GridLayoutManager(ctx, 2).apply {
+                spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int) = if (rows.getOrNull(position) is Row.ShotTile) 1 else 2
+                }
+            }
+            adapter = Adapter(); clipToPadding = false; itemAnimator = null
+        }
         column.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        // bottom bar: write · RECORD · add
-        val bar = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, style.dp(6), 0, style.dp(10)) }
+        // dock: Write · RECORD · Add
+        val dock = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(0, style.dp(6), 0, style.dp(10)) }
         meter = LevelMeter(ctx).apply { isVisible = false }
-        bar.addView(meter, LinearLayout.LayoutParams(style.dp(220), style.dp(32)))
+        dock.addView(meter, LinearLayout.LayoutParams(style.dp(220), style.dp(30)))
         timer = style.caption("").apply { textSize = 14f; isVisible = false; setPadding(0, style.dp(2), 0, style.dp(6)) }
-        bar.addView(timer)
+        dock.addView(timer)
         val buttons = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL }
         buttons.addView(side(R.drawable.ic_note, R.string.wp_space_write) { (activity as ChatActivity).show(TextNoteFragment.newInstance(0)) })
         record = ImageView(ctx).apply {
             scaleType = ImageView.ScaleType.CENTER
-            background = style.rounded(0xFFD71921.toInt(), 100)
+            background = style.rounded(red, 100)
             imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
             setOnClickListener { toggle() }
         }
-        buttons.addView(record, LinearLayout.LayoutParams(style.dp(76), style.dp(76)).apply { marginStart = style.dp(28); marginEnd = style.dp(28) })
+        buttons.addView(record, LinearLayout.LayoutParams(style.dp(76), style.dp(76)).apply { marginStart = style.dp(30); marginEnd = style.dp(30) })
         buttons.addView(side(R.drawable.ic_plus, R.string.wp_space_add) { addMenu() })
-        bar.addView(buttons)
-        column.addView(bar)
+        dock.addView(buttons)
+        column.addView(dock)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             column.setPadding(0, bars.top + style.dp(16), 0, bars.bottom)
-            list.setPadding(style.dp(8), 0, style.dp(8), style.dp(8))
+            list.setPadding(style.dp(10), style.dp(4), style.dp(10), style.dp(8))
             insets
         }
         return root
@@ -130,11 +163,11 @@ class SpaceFragment : Fragment() {
             setImageResource(icon); scaleType = ImageView.ScaleType.CENTER
             imageTintList = android.content.res.ColorStateList.valueOf(style.ink)
             background = style.rounded(0, 100, style.hairline)
+            setOnClickListener { onClick() }
         }, LinearLayout.LayoutParams(style.dp(52), style.dp(52)))
         addView(style.caption(getString(label)).apply { setPadding(0, style.dp(4), 0, 0) })
         contentDescription = getString(label)
         setOnClickListener { onClick() }
-        getChildAt(0).setOnClickListener { onClick() }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -187,49 +220,108 @@ class SpaceFragment : Fragment() {
         render()
     }
 
+    // ---- layout model
+
+    private fun matches(text: String) = query.isEmpty() || text.contains(query, ignoreCase = true)
+    private fun inCat(c: String) = category == null || c == category
+
     private fun render() {
-        // filter chips
+        if (view == null) return
+        val now = System.currentTimeMillis()
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
+        fun day(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(zone).toLocalDate()
+
+        val ns = notes.filter { inCat(it.category) && matches(it.text) }
+        val ts = tasks.filter { inCat(it.category) && matches(it.title) }
+        val gs = goals.filter { query.isEmpty() || it.title.contains(query, true) }.map { it to Goals.progress(it.period, it.target, it.checkins, now) }
+
+        // filter tabs with counts
         filters.removeAllViews()
-        Filter.values().forEach { f -> filters.addView(chip(getString(f.label), f == filter) { filter = f; render() }) }
-        // category chips: only categories that have something
+        val counts = mapOf(
+            Filter.ALL to -1, Filter.VOICE to ns.count { it.kind == Note.Kind.VOICE }, Filter.NOTES to ns.count { it.kind == Note.Kind.TEXT },
+            Filter.SCREENS to ns.count { it.kind == Note.Kind.SCREENSHOT }, Filter.TODO to ts.count { !it.done }, Filter.GOALS to gs.size,
+        )
+        Filter.values().forEach { f -> filters.addView(tab(f, counts[f] ?: -1)) }
         val cats = (notes.map { it.category } + tasks.map { it.category }).filter { it.isNotBlank() }.distinct().sorted()
         categories.removeAllViews()
-        categories.isVisible = cats.isNotEmpty()
+        categories.isVisible = cats.size > 1 || category != null
         if (category != null && category !in cats) category = null
-        cats.forEach { c -> categories.addView(chip(c, c == category, small = true) { category = if (category == c) null else c; render() }) }
+        cats.forEach { c -> categories.addView(chip(c, c == category) { category = if (category == c) null else c; render() }) }
 
-        val now = System.currentTimeMillis()
-        fun inCat(c: String) = category == null || c == category
         val out = ArrayList<Row>()
-        val open = tasks.filter { inCat(it.category) && (!it.done || filter == Filter.TODO) }
-        if ((filter == Filter.ALL || filter == Filter.TODO) && open.isNotEmpty()) {
-            out += Row.Header(getString(R.string.wp_filter_todo)); open.forEach { out += Row.TaskRow(it) }
-        }
-        if ((filter == Filter.ALL && category == null || filter == Filter.GOALS) && goals.isNotEmpty()) {
-            out += Row.Header(getString(R.string.wp_filter_goals))
-            goals.forEach { g -> out += Row.GoalRow(g, Goals.progress(g.period, g.target, g.checkins, now)) }
-        }
-        val shown = notes.filter { n ->
-            inCat(n.category) && when (filter) {
-                Filter.ALL -> true; Filter.VOICE -> n.kind == Note.Kind.VOICE; Filter.NOTES -> n.kind == Note.Kind.TEXT
-                Filter.SCREENS -> n.kind == Note.Kind.SCREENSHOT; else -> false
+        val open = ts.filter { !it.done }
+        fun byDay(items: List<Note>, tiles: Boolean) {
+            items.groupBy { day(it.created) }.toSortedMap(compareByDescending { it }).forEach { (d, list) ->
+                out += Row.Header(dayLabel(d, today), list.size)
+                list.forEach { out += if (tiles) Row.ShotTile(it) else Row.NoteRow(it) }
             }
         }
-        if (shown.isNotEmpty()) {
-            if (filter == Filter.ALL && out.isNotEmpty()) out += Row.Header(getString(R.string.wp_filter_notes_all))
-            shown.forEach { out += Row.NoteRow(it) }
+        when (filter) {
+            Filter.ALL -> {
+                if (query.isEmpty() && category == null) out += Row.Today
+                val next = open.sortedWith(compareBy({ it.due == 0L }, { it.due })).take(3)
+                if (next.isNotEmpty()) { out += Row.Header(getString(R.string.wp_next_up), open.size); next.forEach { out += Row.TaskRow(it) } }
+                if (gs.isNotEmpty() && category == null) { out += Row.Header(getString(R.string.wp_filter_goals), gs.size); out += Row.GoalStrip(gs) }
+                byDay(ns, tiles = false)
+            }
+            Filter.VOICE -> byDay(ns.filter { it.kind == Note.Kind.VOICE }, false)
+            Filter.NOTES -> byDay(ns.filter { it.kind == Note.Kind.TEXT }, false)
+            Filter.SCREENS -> byDay(ns.filter { it.kind == Note.Kind.SCREENSHOT }, true)
+            Filter.TODO -> {
+                val endOfToday = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+                val groups = listOf(
+                    R.string.wp_todo_overdue to open.filter { it.due in 1 until now },
+                    R.string.wp_todo_today to open.filter { it.due in now until endOfToday },
+                    R.string.wp_todo_upcoming to open.filter { it.due >= endOfToday }.sortedBy { it.due },
+                    R.string.wp_todo_someday to open.filter { it.due == 0L },
+                )
+                groups.forEach { (label, list) -> if (list.isNotEmpty()) { out += Row.Header(getString(label), list.size); list.forEach { out += Row.TaskRow(it) } } }
+                val done = ts.filter { it.done }
+                if (done.isNotEmpty()) {
+                    out += Row.Header(getString(if (showDone) R.string.wp_todo_done_hide else R.string.wp_todo_done_show), done.size)
+                    if (showDone) done.forEach { out += Row.TaskRow(it) }
+                }
+            }
+            Filter.GOALS -> gs.forEach { (g, p) -> out += Row.GoalCard(g, p) }
+        }
+        if (out.isEmpty() || (out.size == 1 && out[0] is Row.Today)) {
+            out += Row.Empty(getString(if (query.isNotEmpty()) R.string.wp_space_no_results else when (filter) {
+                Filter.TODO -> R.string.wp_space_empty_todo; Filter.GOALS -> R.string.wp_space_empty_goals; else -> R.string.wp_space_empty
+            }))
         }
         rows = out
         list.adapter?.notifyDataSetChanged()
-        empty.isVisible = rows.isEmpty()
     }
 
-    private fun chip(text: String, on: Boolean, small: Boolean = false, onClick: () -> Unit) = TextView(requireContext(), null, 0, R.style.TextSmall).apply {
+    private fun dayLabel(d: java.time.LocalDate, today: java.time.LocalDate): String = when (d) {
+        today -> getString(R.string.wp_day_today)
+        today.minusDays(1) -> getString(R.string.wp_day_yesterday)
+        else -> d.format(java.time.format.DateTimeFormatter.ofPattern(if (d.year == today.year) "EEE d MMM" else "d MMM yyyy", java.util.Locale.getDefault()))
+    }
+
+    private fun tab(f: Filter, count: Int) = LinearLayout(requireContext()).apply {
+        val on = f == filter
+        gravity = Gravity.CENTER_VERTICAL
+        background = if (on) style.rounded(red, 100) else style.rounded(0, 100, style.hairline)
+        setPadding(style.dp(12), style.dp(7), style.dp(14), style.dp(7))
+        layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = style.dp(6) }
+        val ink = if (on) 0xFFFFFFFF.toInt() else style.ink
+        addView(ImageView(context).apply { setImageResource(f.icon); imageTintList = android.content.res.ColorStateList.valueOf(ink) },
+            LinearLayout.LayoutParams(style.dp(16), style.dp(16)).apply { marginEnd = style.dp(6) })
+        addView(TextView(context, null, 0, R.style.TextSmall).apply {
+            text = getString(f.label) + if (count > 0) "  $count" else ""
+            textSize = 13f; setTextColor(ink)
+        })
+        setOnClickListener { filter = f; render(); list.scrollToPosition(0) }
+    }
+
+    private fun chip(text: String, on: Boolean, onClick: () -> Unit) = TextView(requireContext(), null, 0, R.style.TextSmall).apply {
         this.text = text
-        textSize = if (small) 12f else 13f
-        setTextColor(if (on) 0xFFFFFFFF.toInt() else style.ink)
-        background = if (on) style.rounded(0xFFD71921.toInt(), 100) else style.rounded(0, 100, style.hairline)
-        setPadding(style.dp(14), style.dp(if (small) 5 else 8), style.dp(14), style.dp(if (small) 5 else 8))
+        textSize = 12f
+        setTextColor(if (on) 0xFFFFFFFF.toInt() else style.faint)
+        background = if (on) style.rounded(style.ink and 0x00FFFFFF or 0x55000000, 100) else style.rounded(0, 100, style.hairline)
+        setPadding(style.dp(12), style.dp(5), style.dp(12), style.dp(5))
         layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginEnd = style.dp(6) }
         setOnClickListener { onClick() }
     }
@@ -240,46 +332,102 @@ class SpaceFragment : Fragment() {
 
     private inner class Adapter : RecyclerView.Adapter<Holder>() {
         override fun getItemCount() = rows.size
-        override fun getItemViewType(position: Int) = when (rows[position]) { is Row.Header -> 0; is Row.NoteRow -> 1; is Row.TaskRow -> 2; is Row.GoalRow -> 3 }
+        override fun getItemViewType(position: Int) = when (rows[position]) {
+            is Row.Header -> 0; is Row.Today -> 1; is Row.TaskRow -> 2; is Row.GoalStrip -> 3; is Row.GoalCard -> 4
+            is Row.NoteRow -> 5; is Row.ShotTile -> 6; is Row.Empty -> 7
+        }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = Holder(LinearLayout(parent.context).apply {
             layoutParams = RecyclerView.LayoutParams(-1, -2)
         })
 
         override fun onBindViewHolder(h: Holder, position: Int) {
-            h.root.removeAllViews()
-            h.root.setOnClickListener(null); h.root.setOnLongClickListener(null)
-            h.root.background = null
-            h.root.setPadding(0, 0, 0, 0)
+            val root = h.root
+            root.removeAllViews(); root.setOnClickListener(null); root.setOnLongClickListener(null)
+            root.background = null; root.setPadding(0, 0, 0, 0); root.orientation = LinearLayout.HORIZONTAL
+            (root.layoutParams as RecyclerView.LayoutParams).setMargins(0, 0, 0, 0)
             when (val r = rows[position]) {
-                is Row.Header -> h.root.addView(style.caption(r.text.uppercase()).apply { letterSpacing = 0.14f; setPadding(style.dp(14), style.dp(16), 0, style.dp(6)) })
-                is Row.NoteRow -> bindNote(h.root, r.note)
-                is Row.TaskRow -> bindTask(h.root, r.task)
-                is Row.GoalRow -> bindGoal(h.root, r.goal, r.progress)
+                is Row.Header -> bindHeader(root, r)
+                is Row.Today -> bindToday(root)
+                is Row.TaskRow -> bindTask(root, r.task)
+                is Row.GoalStrip -> bindGoalStrip(root, r.goals)
+                is Row.GoalCard -> bindGoalCard(root, r.goal, r.progress)
+                is Row.NoteRow -> bindNote(root, r.note)
+                is Row.ShotTile -> bindShot(root, r.note)
+                is Row.Empty -> root.addView(style.caption(r.text).apply { gravity = Gravity.CENTER; setPadding(style.dp(28), style.dp(36), style.dp(28), style.dp(36)) },
+                    LinearLayout.LayoutParams(-1, -2))
             }
         }
     }
 
-    private fun card(root: LinearLayout) {
-        root.background = style.rounded(style.assistantBubble, 18, style.hairline)
+    private fun card(root: LinearLayout, radius: Int = 18) {
+        root.background = style.rounded(style.assistantBubble, radius, style.hairline)
         root.setPadding(style.dp(14), style.dp(12), style.dp(14), style.dp(12))
-        (root.layoutParams as RecyclerView.LayoutParams).setMargins(style.dp(8), style.dp(4), style.dp(8), style.dp(4))
+        (root.layoutParams as RecyclerView.LayoutParams).setMargins(style.dp(4), style.dp(4), style.dp(4), style.dp(4))
         root.gravity = Gravity.CENTER_VERTICAL
+    }
+
+    private fun bindHeader(root: LinearLayout, r: Row.Header) {
+        root.gravity = Gravity.CENTER_VERTICAL
+        root.setPadding(style.dp(8), style.dp(18), style.dp(8), style.dp(6))
+        root.addView(style.caption(r.text.uppercase()).apply { letterSpacing = 0.14f; setTextColor(style.ink) }, LinearLayout.LayoutParams(0, -2, 1f))
+        if (r.count > 0) root.addView(style.caption(r.count.toString()))
+        if (r.text == getString(R.string.wp_todo_done_show) || r.text == getString(R.string.wp_todo_done_hide)) root.setOnClickListener { showDone = !showDone; render() }
+        if (r.text == getString(R.string.wp_next_up)) root.setOnClickListener { filter = Filter.TODO; render() }
+        if (r.text == getString(R.string.wp_filter_goals) && filter == Filter.ALL) root.setOnClickListener { filter = Filter.GOALS; render() }
+    }
+
+    /** Today: the date in dot-matrix, and a one-line brief of what's due. */
+    private fun bindToday(root: LinearLayout) {
+        card(root, 22)
+        root.orientation = LinearLayout.VERTICAL
+        root.gravity = Gravity.START
+        root.setPadding(style.dp(18), style.dp(16), style.dp(18), style.dp(16))
+        val ctx = root.context
+        val now = System.currentTimeMillis()
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
+        root.addView(app.olauncher.features.appearance.ui.DotMatrixView(ctx).apply {
+            text = today.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.ENGLISH)).uppercase()
+            cellPx = 4.2f * style.density; fill = 0.82f; color = style.ink
+        })
+        val endOfToday = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val open = tasks.filter { !it.done }
+        val overdue = open.count { it.due in 1 until now }
+        val dueToday = open.count { it.due in now until endOfToday }
+        val next = open.filter { it.due >= now && it.remind }.minByOrNull { it.due }
+        val parts = buildList {
+            add(resources.getQuantityString(R.plurals.wp_todos_today, dueToday, dueToday))
+            if (overdue > 0) add(getString(R.string.wp_overdue_count, overdue))
+            val onTrack = goals.count { Goals.progress(it.period, it.target, it.checkins, now).complete }
+            if (goals.isNotEmpty()) add(getString(R.string.wp_goals_on_track, onTrack, goals.size))
+        }
+        root.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+            text = parts.joinToString("  ·  "); setTextColor(style.ink); textSize = 14f; setPadding(0, style.dp(12), 0, 0)
+        })
+        if (next != null) root.addView(style.caption("🔔 " + android.text.format.DateUtils.formatDateTime(ctx, next.due,
+            android.text.format.DateUtils.FORMAT_SHOW_TIME or android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_ABBREV_ALL) + "  " + next.title).apply {
+            setPadding(0, style.dp(6), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        if (overdue > 0) { root.setOnClickListener { filter = Filter.TODO; render() } }
     }
 
     private fun bindNote(root: LinearLayout, n: Note) {
         card(root)
         val ctx = root.context
-        root.addView(ImageView(ctx).apply {
-            setImageResource(when (n.kind) { Note.Kind.VOICE -> R.drawable.ic_mic; Note.Kind.TEXT -> R.drawable.ic_note; Note.Kind.SCREENSHOT -> R.drawable.ic_image })
-            imageTintList = android.content.res.ColorStateList.valueOf(style.faint)
-        }, LinearLayout.LayoutParams(style.dp(22), style.dp(22)).apply { marginEnd = style.dp(12) })
+        root.addView(FrameLayout(ctx).apply {
+            background = style.rounded(style.codeBg, 100)
+            addView(ImageView(ctx).apply {
+                setImageResource(when (n.kind) { Note.Kind.VOICE -> R.drawable.ic_mic; Note.Kind.TEXT -> R.drawable.ic_note; Note.Kind.SCREENSHOT -> R.drawable.ic_image })
+                imageTintList = android.content.res.ColorStateList.valueOf(if (n.kind == Note.Kind.VOICE) red else style.ink)
+            }, FrameLayout.LayoutParams(style.dp(18), style.dp(18), Gravity.CENTER))
+        }, LinearLayout.LayoutParams(style.dp(36), style.dp(36)).apply { marginEnd = style.dp(12) })
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
             text = n.displayTitle; setTextColor(style.ink); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG
         })
-        val when_ = DateUtils.getRelativeTimeSpanString(n.created, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
+        val time = android.text.format.DateFormat.getTimeFormat(ctx).format(java.util.Date(n.created))
         val status = when (n.status) {
             Note.Status.TRANSCRIBING -> getString(if (n.kind == Note.Kind.SCREENSHOT) R.string.wp_space_reading else R.string.wp_space_transcribing)
             Note.Status.SUMMARIZING -> getString(R.string.wp_space_summarizing)
@@ -288,7 +436,7 @@ class SpaceFragment : Fragment() {
             Note.Status.DONE -> null
         }
         val dur = if (n.kind == Note.Kind.VOICE) (n.durationMs / 1000).let { "%d:%02d".format(it / 60, it % 60) } else null
-        col.addView(style.caption(listOfNotNull(n.category.ifBlank { null }, when_.toString(), dur, status).joinToString(" · ")).apply {
+        col.addView(style.caption(listOfNotNull(time, dur, n.category.ifBlank { null }, status).joinToString(" · ")).apply {
             setPadding(0, style.dp(2), 0, 0)
             setTextColor(if (n.status == Note.Status.ERROR) 0xFFFF6B5E.toInt() else style.faint)
         })
@@ -299,75 +447,143 @@ class SpaceFragment : Fragment() {
         })
         root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
         n.images.firstOrNull()?.let { name ->
-            thumb(space.imageFile(name))?.let { bmp ->
+            thumb(space.imageFile(name), 160)?.let { bmp ->
                 root.addView(ImageView(ctx).apply {
                     setImageBitmap(bmp); scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
                     background = style.rounded(style.codeBg, 10)
                 }, LinearLayout.LayoutParams(style.dp(52), style.dp(52)).apply { marginStart = style.dp(10) })
             }
         }
-        root.setOnClickListener {
-            val a = activity as ChatActivity
-            if (n.kind == Note.Kind.TEXT) a.show(TextNoteFragment.newInstance(n.id)) else a.show(NoteFragment.newInstance(n.id))
-        }
+        root.setOnClickListener { open(n) }
     }
 
-    private val thumbs = android.util.LruCache<String, android.graphics.Bitmap>(30)
-    private fun thumb(file: java.io.File): android.graphics.Bitmap? = thumbs.get(file.name) ?: run {
+    /** Screenshot grid tile (two per row). */
+    private fun bindShot(root: LinearLayout, n: Note) {
+        card(root, 16)
+        root.orientation = LinearLayout.VERTICAL
+        root.setPadding(style.dp(6), style.dp(6), style.dp(6), style.dp(10))
+        val ctx = root.context
+        val bmp = n.images.firstOrNull()?.let { thumb(space.imageFile(it), 420) }
+        root.addView(ImageView(ctx).apply {
+            if (bmp != null) setImageBitmap(bmp)
+            scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true; background = style.rounded(style.codeBg, 12)
+        }, LinearLayout.LayoutParams(-1, style.dp(200)))
+        root.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+            text = n.displayTitle; setTextColor(style.ink); textSize = 13f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(style.dp(4), style.dp(8), style.dp(4), 0)
+        })
+        if (n.category.isNotBlank()) root.addView(style.caption(n.category).apply { setPadding(style.dp(4), style.dp(2), 0, 0) })
+        root.setOnClickListener { open(n) }
+    }
+
+    private fun open(n: Note) {
+        val a = activity as ChatActivity
+        if (n.kind == Note.Kind.TEXT) a.show(TextNoteFragment.newInstance(n.id)) else a.show(NoteFragment.newInstance(n.id))
+    }
+
+    private val thumbs = android.util.LruCache<String, android.graphics.Bitmap>(40)
+    private fun thumb(file: java.io.File, size: Int): android.graphics.Bitmap? = thumbs.get(file.name + size) ?: run {
         if (!file.exists()) return null
         val b = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeFile(file.path, b)
-        var s = 1; while (maxOf(b.outWidth, b.outHeight) / (s * 2) >= 160) s *= 2
-        android.graphics.BitmapFactory.decodeFile(file.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = s })?.also { thumbs.put(file.name, it) }
+        var s = 1; while (minOf(b.outWidth, b.outHeight) / (s * 2) >= size) s *= 2
+        android.graphics.BitmapFactory.decodeFile(file.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = s })?.also { thumbs.put(file.name + size, it) }
     }
 
     private fun bindTask(root: LinearLayout, t: Task) {
         card(root)
+        root.setPadding(style.dp(10), style.dp(10), style.dp(14), style.dp(10))
         val ctx = root.context
-        val check = ImageView(ctx).apply {
+        root.addView(ImageView(ctx).apply {
             setImageResource(if (t.done) R.drawable.ic_check_circle else R.drawable.ic_circle)
-            imageTintList = android.content.res.ColorStateList.valueOf(if (t.done) 0xFFD71921.toInt() else style.ink)
+            scaleType = ImageView.ScaleType.CENTER
+            imageTintList = android.content.res.ColorStateList.valueOf(if (t.done) red else style.ink)
             setOnClickListener { viewLifecycleOwner.lifecycleScope.launch { space.setTaskDone(t.id, !t.done) } }
             contentDescription = getString(if (t.done) R.string.wp_task_undo else R.string.wp_task_done)
-        }
-        root.addView(check, LinearLayout.LayoutParams(style.dp(30), style.dp(30)).apply { marginEnd = style.dp(10) })
+        }, LinearLayout.LayoutParams(style.dp(40), style.dp(40)).apply { marginEnd = style.dp(6) })
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
             text = t.title; setTextColor(if (t.done) style.faint else style.ink); textDirection = View.TEXT_DIRECTION_FIRST_STRONG
             paintFlags = if (t.done) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
         })
+        if (t.category.isNotBlank()) col.addView(style.caption(t.category).apply { setPadding(0, style.dp(2), 0, 0) })
+        root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
         if (t.due > 0) {
             val overdue = !t.done && t.due < System.currentTimeMillis()
-            val label = DateUtils.formatDateTime(ctx, t.due, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_ALL or DateUtils.FORMAT_SHOW_WEEKDAY)
-            col.addView(style.caption((if (t.remind) "🔔 " else "") + label + if (t.category.isNotBlank()) " · ${t.category}" else "").apply {
-                setTextColor(if (overdue) 0xFFFF6B5E.toInt() else style.faint); setPadding(0, style.dp(2), 0, 0)
-            })
-        } else if (t.category.isNotBlank()) col.addView(style.caption(t.category).apply { setPadding(0, style.dp(2), 0, 0) })
-        root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
+            val label = DateUtils.formatDateTime(ctx, t.due, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_ALL)
+            root.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                text = (if (t.remind) "🔔 " else "") + label; textSize = 12f
+                setTextColor(if (overdue) 0xFFFFFFFF.toInt() else style.ink)
+                background = if (overdue) style.rounded(red, 100) else style.rounded(0, 100, style.hairline)
+                setPadding(style.dp(10), style.dp(5), style.dp(10), style.dp(5))
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = style.dp(8) })
+        }
         root.setOnClickListener { SpaceEditors.task(this, t) }
     }
 
-    private fun bindGoal(root: LinearLayout, g: Goal, p: Goals.Progress) {
-        card(root)
+    /** Goals as a horizontal strip of ring tiles: tap the ring to check in. */
+    private fun bindGoalStrip(root: LinearLayout, gs: List<Pair<Goal, Goals.Progress>>) {
         val ctx = root.context
+        val scroll = HorizontalScrollView(ctx).apply { isHorizontalScrollBarEnabled = false }
+        val row = LinearLayout(ctx).apply { setPadding(style.dp(4), 0, style.dp(4), 0) }
+        gs.forEach { (g, p) ->
+            row.addView(LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                background = style.rounded(style.assistantBubble, 18, style.hairline)
+                setPadding(style.dp(12), style.dp(12), style.dp(12), style.dp(12))
+                addView(ring(ctx, g, p), LinearLayout.LayoutParams(style.dp(64), style.dp(64)))
+                addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                    text = g.title; setTextColor(style.ink); textSize = 13f; maxLines = 1; gravity = Gravity.CENTER
+                    ellipsize = android.text.TextUtils.TruncateAt.END; setPadding(0, style.dp(8), 0, 0)
+                })
+                addView(style.caption(progressLabel(g, p)).apply { gravity = Gravity.CENTER })
+                setOnClickListener { SpaceEditors.goalOptions(this@SpaceFragment, g) }
+            }, LinearLayout.LayoutParams(style.dp(124), -2).apply { marginEnd = style.dp(8) })
+        }
+        scroll.addView(row)
+        root.addView(scroll, LinearLayout.LayoutParams(-1, -2))
+    }
+
+    private fun bindGoalCard(root: LinearLayout, g: Goal, p: Goals.Progress) {
+        card(root, 20)
+        val ctx = root.context
+        root.addView(ring(ctx, g, p), LinearLayout.LayoutParams(style.dp(56), style.dp(56)).apply { marginEnd = style.dp(14) })
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(ctx, null, 0, R.style.TextMedium).apply { text = g.title; setTextColor(style.ink); textDirection = View.TEXT_DIRECTION_FIRST_STRONG })
-        col.addView(GoalDots(ctx, p.done, p.target).apply { }, LinearLayout.LayoutParams(-1, style.dp(16)).apply { topMargin = style.dp(8) })
+        col.addView(style.caption(progressLabel(g, p)).apply { setPadding(0, style.dp(4), 0, 0) })
+        root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
+        root.setOnClickListener { SpaceEditors.goalOptions(this, g) }
+    }
+
+    private fun ring(ctx: android.content.Context, g: Goal, p: Goals.Progress) = ProgressRing(ctx, p.fraction, if (p.complete) "✓" else "+1", style.ink, red).apply {
+        contentDescription = getString(R.string.wp_goal_checkin)
+        setOnClickListener { viewLifecycleOwner.lifecycleScope.launch { space.checkIn(g.id) } }
+    }
+
+    private fun progressLabel(g: Goal, p: Goals.Progress): String {
         val per = getString(when (g.period) {
             app.olauncher.features.space.domain.GoalPeriod.DAY -> R.string.wp_goal_today
             app.olauncher.features.space.domain.GoalPeriod.WEEK -> R.string.wp_goal_this_week
             app.olauncher.features.space.domain.GoalPeriod.MONTH -> R.string.wp_goal_this_month
             app.olauncher.features.space.domain.GoalPeriod.TOTAL -> R.string.wp_goal_total
         })
-        col.addView(style.caption("${p.done}/${p.target} $per" + if (p.streak > 0) " · ${getString(R.string.wp_goal_streak, p.streak)}" else "").apply { setPadding(0, style.dp(6), 0, 0) })
-        root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
-            text = "+1"; gravity = Gravity.CENTER; setTextColor(0xFFFFFFFF.toInt())
-            background = style.rounded(if (p.complete) 0xFF555555.toInt() else 0xFFD71921.toInt(), 100)
-            setOnClickListener { viewLifecycleOwner.lifecycleScope.launch { space.checkIn(g.id) } }
-            contentDescription = getString(R.string.wp_goal_checkin)
-        }, LinearLayout.LayoutParams(style.dp(52), style.dp(40)).apply { marginStart = style.dp(10) })
-        root.setOnClickListener { SpaceEditors.goalOptions(this, g) }
+        return "${p.done}/${p.target} $per" + if (p.streak > 1) " · ${getString(R.string.wp_goal_streak, p.streak)}" else ""
+    }
+}
+
+/** Goal ring: red arc for progress, label in the middle (+1 or ✓). */
+internal class ProgressRing(context: android.content.Context, private val fraction: Float, private val label: String, private val ink: Int, private val accent: Int) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val track = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = 5 * d; color = (ink and 0x00FFFFFF) or 0x26000000 }
+    private val arc = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { style = android.graphics.Paint.Style.STROKE; strokeWidth = 5 * d; strokeCap = android.graphics.Paint.Cap.ROUND; color = accent }
+    private val text = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = ink; textSize = 15 * d; textAlign = android.graphics.Paint.Align.CENTER; typeface = android.graphics.Typeface.MONOSPACE }
+    private val box = android.graphics.RectF()
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        val pad = arc.strokeWidth / 2 + d
+        box.set(pad, pad, width - pad, height - pad)
+        canvas.drawArc(box, 0f, 360f, false, track)
+        if (fraction > 0f) canvas.drawArc(box, -90f, 360f * fraction, false, arc)
+        canvas.drawText(label, width / 2f, height / 2f - (text.descent() + text.ascent()) / 2, text)
     }
 }
 
@@ -392,15 +608,3 @@ internal class LevelMeter(context: android.content.Context) : View(context) {
     }
 }
 
-/** Goal progress as a row of dots (filled = done), Nothing-style. */
-internal class GoalDots(context: android.content.Context, private val done: Int, private val target: Int) : View(context) {
-    private val on = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFD71921.toInt() }
-    private val off = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0x55888888 }
-    override fun onDraw(canvas: android.graphics.Canvas) {
-        val n = target.coerceIn(1, 30)
-        val filled = if (target > 30) (done * 30 / target) else done
-        val step = (width.toFloat() / n).coerceAtMost(height * 1.6f)
-        val r = (minOf(step, height.toFloat()) * 0.36f)
-        for (i in 0 until n) canvas.drawCircle(step * (i + 0.5f), height / 2f, r, if (i < filled) on else off)
-    }
-}

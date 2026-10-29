@@ -23,22 +23,30 @@ object Vision {
     fun ask(config: ApiConfig, prompt: String, image: File): String {
         val b64 = Base64.encodeToString(jpeg(image), Base64.NO_WRAP)
         val base = config.baseUrl.trim().trimEnd('/')
-        val (url, body, headers) = when (config.format) {
-            ApiFormat.OPENAI -> Triple("$base/chat/completions", JSONObject().put("model", config.model).put("stream", false).put("messages",
-                JSONArray().put(JSONObject().put("role", "user").put("content", JSONArray()
-                    .put(JSONObject().put("type", "text").put("text", prompt))
-                    .put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,$b64"))))))),
-                mapOf("Authorization" to "Bearer ${config.apiKey.orEmpty().trim()}"))
-            ApiFormat.ANTHROPIC -> Triple("$base/messages", JSONObject().put("model", config.model).put("max_tokens", 1024).put("messages",
-                JSONArray().put(JSONObject().put("role", "user").put("content", JSONArray()
-                    .put(JSONObject().put("type", "image").put("source", JSONObject().put("type", "base64").put("media_type", "image/jpeg").put("data", b64)))
-                    .put(JSONObject().put("type", "text").put("text", prompt))))),
-                mapOf("x-api-key" to config.apiKey.orEmpty().trim(), "anthropic-version" to "2023-06-01"))
+        val key = config.apiKey.orEmpty().trim()
+        val url: String
+        val body = JSONObject().put("model", config.model)
+        val headers = HashMap<String, String>()
+        if (config.format == ApiFormat.ANTHROPIC) {
+            url = "$base/messages"
+            val source = JSONObject().put("type", "base64").put("media_type", "image/jpeg").put("data", b64)
+            val content = JSONArray()
+                .put(JSONObject().put("type", "image").put("source", source))
+                .put(JSONObject().put("type", "text").put("text", prompt))
+            body.put("max_tokens", 1024).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", content)))
+            if (key.isNotEmpty()) headers["x-api-key"] = key
+            headers["anthropic-version"] = "2023-06-01"
+        } else {
+            url = "$base/chat/completions"
+            val imagePart = JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:image/jpeg;base64,$b64"))
+            val content = JSONArray().put(JSONObject().put("type", "text").put("text", prompt)).put(imagePart)
+            body.put("stream", false).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", content)))
+            if (key.isNotEmpty()) headers["Authorization"] = "Bearer $key"
         }
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"; doOutput = true; connectTimeout = 15_000; readTimeout = 120_000
             setRequestProperty("Content-Type", "application/json")
-            headers.forEach { (k, v) -> if (v.isNotBlank()) setRequestProperty(k, v) }
+            headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
         try {
             conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
