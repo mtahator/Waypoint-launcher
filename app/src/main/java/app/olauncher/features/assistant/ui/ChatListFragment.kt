@@ -144,7 +144,8 @@ class ChatListFragment : Fragment() {
             val c = items[position]
             h.title.text = c.title
             h.title.textDirection = View.TEXT_DIRECTION_FIRST_STRONG
-            h.preview.text = c.preview.replace(Regex("\\s+"), " ")
+            // plain text: markdown marks (**bold**, `code`, # headings, [n] citations) read as noise in a one-line preview
+            h.preview.text = c.preview.replace(Regex("""\*\*|__|`+|^#+\s*|\[\d{1,2}]"""), "").replace(Regex("\\s+"), " ").trim()
             h.time.text = DateUtils.getRelativeTimeSpanString(c.updated, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
             h.root.setOnClickListener { (activity as ChatActivity).show(ChatFragment.newInstance(c.id)) }
             h.root.setOnLongClickListener { options(c); true }
