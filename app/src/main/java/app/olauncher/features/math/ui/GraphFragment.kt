@@ -166,7 +166,7 @@ class GraphFragment : BaseFragment() {
         }
         line.addView(field, LinearLayout.LayoutParams(0, -2, 1f))
         val delete = TextView(ctx, null, 0, R.style.TextMedium).apply {
-            text = "×"; setTextColor(ink); alpha = 0.6f
+            this.text = "×"; setTextColor(ink); alpha = 0.6f
             setPadding(dp(14), dp(6), dp(10), dp(6))
             contentDescription = getString(R.string.delete)
         }
