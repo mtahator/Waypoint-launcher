@@ -19,12 +19,13 @@ internal class ChatStyle(val context: Context) {
     val ink = context.getColorFromAttr(R.attr.primaryColor)
     val background = context.getColorFromAttr(R.attr.primaryShadeDarkColor)
     /** Without Glass: the phone's wallpaper shows through this veil, which keeps text readable on any picture. */
-    val scrim = if (dark) 0xB3000000.toInt() else 0xB8FFFFFF.toInt()
+    val scrim = if (dark) 0x73000000 else 0x8CFFFFFF.toInt()
     val faint = (ink and 0x00FFFFFF) or 0x99000000.toInt()
     val hairline = (ink and 0x00FFFFFF) or 0x33000000
     val codeBg = (ink and 0x00FFFFFF) or 0x1F000000
     val userBubble = if (dark) 0xFF262626.toInt() else 0xFFE9E9E9.toInt()
-    val assistantBubble = if (glass) (if (dark) 0x8C000000.toInt() else 0xB3FFFFFF.toInt()) else 0
+    // cards and bubbles: frosted on Glass, a soft tint over the wallpaper otherwise
+    val assistantBubble = if (glass) (if (dark) 0x8C000000.toInt() else 0xB3FFFFFF.toInt()) else (if (dark) 0x59000000 else 0x80FFFFFF.toInt())
     val density = context.resources.displayMetrics.density
 
     fun dp(v: Int) = (v * density).roundToInt()

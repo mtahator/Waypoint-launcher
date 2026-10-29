@@ -60,7 +60,7 @@ class ChatActivity : AppCompatActivity() {
         val current = supportFragmentManager.findFragmentById(CONTAINER)
         if (space && current is SpaceFragment || !space && current is ChatListFragment) return
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+            .setCustomAnimations(android.R.anim.fade_in, 0)
             .replace(CONTAINER, if (space) SpaceFragment() else ChatListFragment())
             .commit()
     }
@@ -93,7 +93,8 @@ class ChatActivity : AppCompatActivity() {
     fun show(fragment: Fragment) {
         supportFragmentManager.popBackStack(null, androidx.fragment.app.FragmentManager.POP_BACK_STACK_INCLUSIVE)
         supportFragmentManager.beginTransaction()
-            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out, android.R.anim.fade_in, android.R.anim.fade_out)
+            // enter fades only: two see-through screens cross-fading would show through each other
+            .setCustomAnimations(android.R.anim.fade_in, 0, android.R.anim.fade_in, 0)
             .replace(CONTAINER, fragment)
             .addToBackStack(null)
             .commit()
