@@ -75,7 +75,8 @@ object Memories {
             val body = line.removePrefix("-").removePrefix("*").removePrefix("•").trim()
                 .replace(Regex("""^\d+[.)]\s*"""), "").replace("**", "").trim()
             if (body.length < 3) continue
-            val sentences = if (body.length > 220) body.split(Regex("""(?<=[.!?؟])\s+""")) else listOf(body)
+            // one fact per sentence (but keep "Name: X." style labels with their value)
+            val sentences = body.split(Regex("""(?<=[.!?؟])\s+(?=\p{Lu}|\p{IsArabic})"""))
             for (s in sentences) if (s.trim().length >= 3) out += Draft(guessTag(s) ?: tag, s.trim(), false)
         }
         return out.distinctBy { it.text.lowercase() }

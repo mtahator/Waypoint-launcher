@@ -57,6 +57,9 @@ class MemoryToolsTest {
         assertEquals(3, offline.size)
         assertEquals("Full name: Alex Rivera", offline[0].text)
         assertEquals("interests", offline[2].tag)
+        val line = Memories.fallbackOrganize("Name: Alex Rivera. I live in Leeds. I go bouldering twice a week.")
+        assertEquals(3, line.size)
+        assertEquals("location", line[1].tag)
     }
 
     @Test fun learnsOnlyValidChanges() {
