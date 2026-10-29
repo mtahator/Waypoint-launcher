@@ -13,19 +13,19 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.annotation.RequiresApi
 import app.olauncher.features.assistant.platform.ApiException
+import app.olauncher.features.space.domain.SpeechChunks
 import app.olauncher.features.space.domain.Wav
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileInputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
  * Transcribes a saved WAV entirely on the phone with Android's on-device speech recognizer
  * (Android 13+: the recognizer reads our audio from a pipe; no network, nothing uploaded). Long notes
- * use a segmented session, so the text arrives in pieces and is joined.
+ * are cut at their pauses and recognised piece by piece, then joined.
  */
 object LocalTranscriber {
 
@@ -65,14 +65,37 @@ object LocalTranscriber {
     suspend fun transcribe(context: Context, wav: File, language: String): String {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) throw ApiException("On-device transcription needs Android 13 or newer")
         if (!SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) throw ApiException("This phone has no on-device speech recognizer")
-        return withContext(Dispatchers.Main) { run(context, wav, language) }
+        // The recognizer ends its session at the first long pause, so feed the note one utterance at a time.
+        val pcm = withContext(Dispatchers.IO) { wav.readBytes() }
+        val bytes = (pcm.size - Wav.HEADER).coerceAtLeast(0)
+        val frames = bytes / SpeechChunks.FRAME_BYTES
+        val energies = FloatArray(frames) { SpeechChunks.energy(pcm, Wav.HEADER + it * SpeechChunks.FRAME_BYTES, SpeechChunks.FRAME_BYTES) }
+        val pieces = SpeechChunks.split(energies)
+        val parts = ArrayList<String>()
+        for ((i, range) in pieces.withIndex()) {
+            val from = Wav.HEADER + range.first * SpeechChunks.FRAME_BYTES
+            val to = if (i == pieces.lastIndex && range.last == frames - 1) pcm.size else Wav.HEADER + (range.last + 1) * SpeechChunks.FRAME_BYTES
+            val text = withContext(Dispatchers.Main) {
+                // one retry with a fresh recognizer if a piece fails for a reason other than the language
+                runCatching { run(context, pcm, from, to, language) }.getOrElse { e ->
+                    if (e is LanguageException || e is kotlinx.coroutines.CancellationException) throw e
+                    run(context, pcm, from, to, language)
+                }
+            }
+            if (text.isNotBlank()) parts += text
+        }
+        return parts.joinToString(" ").trim()
     }
 
+    private class LanguageException(message: String) : ApiException(message)
+
+    /** One recognizer session over pcm[from, to), followed by a second of silence so it can finish. */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    private suspend fun run(context: Context, wav: File, language: String): String = suspendCancellableCoroutine { cont ->
+    private suspend fun run(context: Context, pcm: ByteArray, from: Int, to: Int, language: String): String = suspendCancellableCoroutine { cont ->
         val recognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
         val pipe = ParcelFileDescriptor.createPipe()
         val parts = ArrayList<String>()
+        var partial = ""
         var writer: Thread? = null
 
         var cleaned = false
@@ -87,24 +110,31 @@ object LocalTranscriber {
         fun finish(error: Throwable?) {
             if (!cont.isActive) return
             cleanup()
+            // a session that ended without a final result still heard something: keep its last partial
+            if (parts.isEmpty() && partial.isNotBlank()) parts += partial
             if (error != null) cont.resumeWithException(error) else cont.resume(parts.joinToString(" ").trim())
         }
 
+        fun first(b: Bundle?) = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.trim().orEmpty()
+
         recognizer.setRecognitionListener(object : RecognitionListener {
             override fun onSegmentResults(segment: Bundle) {
-                segment.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { parts += it }
+                first(segment).takeIf { it.isNotBlank() }?.let { parts += it; partial = "" }
             }
             override fun onEndOfSegmentedSession() = finish(null)
             override fun onResults(results: Bundle) {
-                results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { parts += it }
+                first(results).takeIf { it.isNotBlank() }?.let { parts += it; partial = "" }
                 finish(null)
+            }
+            override fun onPartialResults(partialResults: Bundle?) {
+                first(partialResults).takeIf { it.isNotBlank() }?.let { partial = it }
             }
             override fun onError(error: Int) {
                 when (error) {
-                    // no (more) speech: whatever we have is the transcript
+                    // no (more) speech in this piece: whatever we have is its transcript
                     SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> finish(null)
                     SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
-                        finish(ApiException("The on-device model for $language isn't installed. Download it in Wayfinder Setup → Space."))
+                        finish(LanguageException("The on-device model for $language isn't installed. Download it in Wayfinder Setup → Space."))
                     else -> finish(ApiException("On-device recognition failed (error $error)"))
                 }
             }
@@ -113,7 +143,6 @@ object LocalTranscriber {
             override fun onRmsChanged(rmsdB: Float) = Unit
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() = Unit
-            override fun onPartialResults(partialResults: Bundle?) = Unit
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
         })
 
@@ -121,6 +150,7 @@ object LocalTranscriber {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
             putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pipe[0])
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, Wav.CHANNELS)
             putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
@@ -129,19 +159,17 @@ object LocalTranscriber {
         }
         recognizer.startListening(intent)
 
-        // feed the PCM (after the WAV header), then close so the session ends
+        // feed the piece plus trailing silence, then close so the session ends
         writer = Thread({
             runCatching {
                 ParcelFileDescriptor.AutoCloseOutputStream(pipe[1]).use { out ->
-                    FileInputStream(wav).use { input ->
-                        input.skip(Wav.HEADER.toLong())
-                        val buf = ByteArray(8192)
-                        while (!Thread.currentThread().isInterrupted) {
-                            val n = input.read(buf)
-                            if (n < 0) break
-                            out.write(buf, 0, n)
-                        }
+                    var off = from
+                    while (off < to && !Thread.currentThread().isInterrupted) {
+                        val n = minOf(8192, to - off)
+                        out.write(pcm, off, n)
+                        off += n
                     }
+                    if (!Thread.currentThread().isInterrupted) out.write(ByteArray(Wav.BYTES_PER_SECOND))
                 }
             }
         }, "space-local-stt").also { it.start() }

@@ -12,7 +12,7 @@ import java.net.URL
 
 data class ApiConfig(val format: ApiFormat, val baseUrl: String, val model: String, val apiKey: String?)
 
-class ApiException(message: String) : IOException(message)
+open class ApiException(message: String) : IOException(message)
 
 /**
  * Streams a reply from the configured provider (server-sent events), calling [onDelta] with each piece
