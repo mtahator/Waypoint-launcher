@@ -36,6 +36,12 @@ class AssistantSettingsFragment : WpPageFragment() {
         rebuild()
     }
 
+    override fun onViewCreated(view: android.view.View, savedInstanceState: android.os.Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        // inside Wayfinder, match its screens: the wallpaper under a veil when Glass is off
+        if (activity is ChatActivity && !container.prefs.glassTheme) binding.pageRoot.setBackgroundColor(ChatStyle(requireContext()).scrim)
+    }
+
     override fun build(page: PageBuilder) {
         val prefs = container.prefs
         val api = prefs.assistantMode == AssistantMode.API

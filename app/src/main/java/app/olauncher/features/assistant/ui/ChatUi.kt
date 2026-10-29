@@ -18,6 +18,8 @@ internal class ChatStyle(val context: Context) {
     val dark = context.isDarkThemeOn()
     val ink = context.getColorFromAttr(R.attr.primaryColor)
     val background = context.getColorFromAttr(R.attr.primaryShadeDarkColor)
+    /** Without Glass: the phone's wallpaper shows through this veil, which keeps text readable on any picture. */
+    val scrim = if (dark) 0xB3000000.toInt() else 0xB8FFFFFF.toInt()
     val faint = (ink and 0x00FFFFFF) or 0x99000000.toInt()
     val hairline = (ink and 0x00FFFFFF) or 0x33000000
     val codeBg = (ink and 0x00FFFFFF) or 0x1F000000

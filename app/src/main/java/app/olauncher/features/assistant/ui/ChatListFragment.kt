@@ -37,7 +37,7 @@ class ChatListFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, parent: ViewGroup?, savedInstanceState: Bundle?): View {
         val ctx = requireContext()
         style = ChatStyle(ctx)
-        val root = FrameLayout(ctx).apply { if (!style.glass) setBackgroundColor(style.background) }
+        val root = FrameLayout(ctx).apply { if (!style.glass) setBackgroundColor(style.scrim) }
         val column = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         root.addView(column, FrameLayout.LayoutParams(-1, -1))
 

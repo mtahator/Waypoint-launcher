@@ -30,6 +30,12 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Glass / wallpaper / monochrome may have changed in the launcher's settings
+        waypoint.appearance.apply(this)
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         open(intent)
