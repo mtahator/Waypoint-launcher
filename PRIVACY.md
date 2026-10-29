@@ -1,7 +1,12 @@
 # Waypoint privacy policy
 
-- Waypoint's features work entirely on your device. They make **no network requests**. (The upstream
-  optional "Daily wallpaper" feature downloads wallpapers only if you turn it on.)
+- Waypoint's features work on your device. The one exception is **exchange rates**: only when you type a
+  currency conversion in the drawer search (e.g. `1$ to £`) and the cached rates are older than 6 hours,
+  Waypoint downloads public USD rates from `open.er-api.com`. The request is a fixed URL; **nothing you
+  type is sent**. Turn it off or clear the cache in *Privacy & data*. (The upstream optional "Daily
+  wallpaper" feature downloads wallpapers only if you turn it on.)
+- **Ask Gemini** hands your question to the Gemini app (or Gemini in your browser) only when you tap
+  *Send*; Waypoint itself doesn't transmit it.
 - **No analytics, no ads, no crash-reporting SDKs.**
 - **Notification capture** is off by default. When you enable it, Waypoint reads the title and text of
   notifications **only from the apps you select**, extracts amount / currency / merchant / direction /

@@ -65,6 +65,17 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getLong(GLASS_PHOTO_STAMP, 0L)
         set(value) = prefs.edit { putLong(GLASS_PHOTO_STAMP, value) }
 
+    // ---- Quick answers & graphing
+    /** Exchange rates may be fetched (only when a currency conversion is typed). */
+    var onlineRates: Boolean
+        get() = prefs.getBoolean(ONLINE_RATES, true)
+        set(value) = prefs.edit { putBoolean(ONLINE_RATES, value) }
+
+    /** Grapher lines, one expression per entry. */
+    var graphLines: List<String>
+        get() = prefs.getString(GRAPH_LINES, null)?.split(GRAPH_SEP) ?: listOf("y = sin(x)", "a = 1", "y = a x^2")
+        set(value) = prefs.edit { putString(GRAPH_LINES, value.joinToString(GRAPH_SEP)) }
+
     // ---- Gestures (corner swipe is opt-in)
     var cornerSwipeEnabled: Boolean
         get() = prefs.getBoolean(CORNER_ENABLED_V2, false)
@@ -120,6 +131,9 @@ class WaypointPrefs(context: Context) {
         const val GLASS_MONO = "WP_GLASS_MONO"
         const val GLASS_RIB = "WP_GLASS_RIB"
         const val GLASS_PHOTO_STAMP = "WP_GLASS_PHOTO_STAMP"
+        const val ONLINE_RATES = "WP_ONLINE_RATES"
+        const val GRAPH_LINES = "WP_GRAPH_LINES"
+        private const val GRAPH_SEP = "\u001F"
         const val BG_AURORA = "aurora"
         const val BG_PHOTO = "photo"
         const val BG_WALLPAPER = "wallpaper"

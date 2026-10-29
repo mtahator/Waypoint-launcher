@@ -2,6 +2,17 @@
 
 ## 1.1.0 (2026-10-27)
 ### Added
+- **Graphing calculator** (Desmos-style): multiple expressions, sliders, `f(x)` definitions, `y =`, `x =`,
+  implicit equations (marching squares), points; pan, pinch-zoom, double-tap zoom, hold to trace. Mini
+  graph in the drawer search for `sin(x)` and friends. Settings → Graphing calculator.
+- **Math engine** for quick answers: trig/hyperbolic/inverse functions, `log`, `ln`, `√`, `!`, `°`,
+  `nCr`, `mod`, `|x|`, implicit multiplication (`2x`, `3sin x`), Persian digits. `=` prefix forces
+  calculator mode.
+- **Units with dimensions**: powers and compounds (`m3`, `m^3`, `m³`, `sq ft`, `km/h`, `m/s^2`), plus energy,
+  power, pressure, force, frequency, angle, time and data units.
+- **Currency conversion** (`1$ to £`, `100 usd in toman`): public USD rates from open.er-api.com, fetched
+  only when a currency conversion is typed and the cache is older than 6 hours; nothing typed is sent.
+  Toggle and cache clearing in Privacy & data.
 - **Ask Gemini** from the drawer search: type `?` (or `؟`) to open a multi-line composer for whole
   paragraphs; *Send* hands it to the Gemini app (share intent), or Gemini on the web if the app is missing.
 - **Quick answers** in the drawer search, offline: arithmetic (`12×3+4`, `√2`, `2^10`), `15% of 80`, unit

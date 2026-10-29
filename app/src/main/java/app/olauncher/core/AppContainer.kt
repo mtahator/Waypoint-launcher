@@ -1,5 +1,6 @@
 package app.olauncher.core
 
+import app.olauncher.features.quickanswers.platform.ExchangeRateRepository
 import android.content.Context
 import app.olauncher.features.appearance.platform.GlassBackdrop
 import app.olauncher.features.appearance.platform.SystemGrayscaleController
@@ -22,6 +23,7 @@ class AppContainer(context: Context) {
     val dispatchers by lazy { AppDispatchers() }
     val scope by lazy { CoroutineScope(SupervisorJob() + dispatchers.default) }
 
+    val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }
     val grayscale by lazy { SystemGrayscaleController(app) }

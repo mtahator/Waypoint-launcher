@@ -158,9 +158,25 @@
     <string name="wp_gemini_hint">Ask anything. Paragraphs welcome.</string>
     <string name="wp_send_to_gemini">Send ↗</string>
     <string name="wp_cancel">Cancel</string>
-    <string name="wp_search_hint">Search  ·  ? Gemini</string>
+    <string name="wp_search_hint">Search · ? ask · = calc</string>
     <string name="wp_copied">Copied %1$s</string>
     <string name="wp_tap_copy_short">Tap to copy</string>
+    <string name="wp_graph_title">Graph</string>
+    <string name="wp_graph_entry">Graphing calculator</string>
+    <string name="wp_graph_fit">Fit</string>
+    <string name="wp_graph_clear">Clear</string>
+    <string name="wp_graph_add">+ Add expression</string>
+    <string name="wp_graph_hint">y = sin(x)</string>
+    <string name="wp_graph_add_slider">add slider</string>
+    <string name="wp_graph_open">Graph · tap to open</string>
+    <string name="wp_rates_fetching">Fetching exchange rates…</string>
+    <string name="wp_rates_failed">No connection: exchange rates unavailable</string>
+    <string name="wp_rates_off">Online exchange rates are off (Privacy &amp; data)</string>
+    <string name="wp_rates_age">%1$s · rates %2$s</string>
+    <string name="wp_rates_title">Online</string>
+    <string name="wp_rates_toggle">Exchange rates</string>
+    <string name="wp_rates_toggle_hint">Only when you type a currency conversion (like 1$ to £), Waypoint downloads public USD rates from open.er-api.com, at most every 6 hours. Nothing you type is sent.</string>
+    <string name="wp_rates_clear">Clear cached rates</string>
     <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
     <string name="wp_home_layout">Home layout</string>

@@ -1,6 +1,8 @@
 package app.olauncher.features.quickanswers
 
 import app.olauncher.features.quickanswers.domain.Calculator
+import app.olauncher.features.quickanswers.domain.CurrencyQuery
+import app.olauncher.features.quickanswers.domain.ExchangeRates
 import app.olauncher.features.quickanswers.domain.QuickAnswers
 import app.olauncher.features.quickanswers.domain.UnitConverter
 import app.olauncher.features.worldclock.domain.City
@@ -55,10 +57,10 @@ class QuickAnswersTest {
     @Test fun timeInCity() {
         val tokyo = City("Tokyo", "Japan", "Asia/Tokyo")
         val now = Instant.parse("2026-10-28T03:00:00Z")
-        val a = QuickAnswers.answer("time in tokyo", { if (it == "tokyo") tokyo else null }, now)!!
+        val a = QuickAnswers.answer("time in tokyo", cityLookup = { if (it == "tokyo") tokyo else null }, now = now)!!
         assertEquals("12:00", a.value)
         assertEquals("TOKYO · Wed 28 Oct", a.detail)
-        assertNull(QuickAnswers.answer("time in atlantis", { null }, now))
+        assertNull(QuickAnswers.answer("time in atlantis", cityLookup = { null }, now = now))
     }
 
     @Test fun formatting() {
@@ -67,4 +69,67 @@ class QuickAnswersTest {
         assertEquals("-12", QuickAnswers.format(-12.0))
         assertEquals("0.3", QuickAnswers.format(0.1 + 0.2))
     }
+}
+
+class QuickAnswersMoreTest {
+    @Test fun trig() {
+        assertEquals("1", QuickAnswers.answer("sin(pi/2)")!!.value)
+        assertEquals("0.5", QuickAnswers.answer("sin 30°")!!.value)
+        assertEquals("120", QuickAnswers.answer("5!")!!.value)
+    }
+
+    @Test fun forcedMode() {
+        assertNull(QuickAnswers.answer("pi"))
+        assertEquals("3.141592654", QuickAnswers.answer("pi", forced = true)!!.value)
+        assertEquals("42", QuickAnswers.answer("42", forced = true)!!.value)
+    }
+
+    @Test fun graphs() {
+        val a = QuickAnswers.answer("sin(x)")!!
+        assertEquals("sin(x)", a.graph)
+        assertEquals("y = sin(x)", a.value)
+        assertEquals("x^2+y^2=9", QuickAnswers.answer("x^2+y^2=9")!!.graph)
+        assertNull(QuickAnswers.answer("xbox"))
+        assertNull(QuickAnswers.answer("x"))
+        assertEquals("", QuickAnswers.answer("graph")!!.graph)
+    }
+
+    @Test fun unitPowers() {
+        assertEquals(1000.0, UnitConverter.convert("1 m3 to l")!!.value, 1e-9)
+        assertEquals(1000.0, UnitConverter.convert("1 m^3 to l")!!.value, 1e-9)
+        assertEquals(1000.0, UnitConverter.convert("1 m³ to l")!!.value, 1e-9)
+        assertEquals(10.7639, UnitConverter.convert("1 m2 to sq ft")!!.value, 1e-4)
+        assertEquals(27.7778, UnitConverter.convert("100 km/h to m/s")!!.value, 1e-4)
+        assertEquals(62.1371, UnitConverter.convert("100 kmh to mph")!!.value, 1e-4)
+        assertEquals(3.6, UnitConverter.convert("1 kwh to MJ")!!.value, 1e-9)
+        assertEquals(32.174, UnitConverter.convert("9.80665 m/s^2 to ft/s2")!!.value, 1e-3)
+        assertEquals(4046.86, UnitConverter.convert("1 acre to m2")!!.value, 1e-2)
+        assertEquals(1000.0, UnitConverter.convert("1 GB to MB")!!.value, 1e-9)
+        assertEquals(8.0, UnitConverter.convert("1 B to bit")!!.value, 1e-9)
+        assertEquals(Math.PI / 2, UnitConverter.convert("90 deg to rad")!!.value, 1e-12)
+        assertEquals(2.54, UnitConverter.convert("1 in to cm")!!.value, 1e-12)
+        assertEquals(0.393701, UnitConverter.convert("cm to in")!!.value, 1e-6)
+        assertEquals("ft²", UnitConverter.convert("1 m2 to sqft")!!.to)
+        assertNull(UnitConverter.convert("1 m3 to kg"))
+    }
+
+    @Test fun currencyParsing() {
+        assertEquals(CurrencyQuery.Query(1.0, "USD", "GBP"), CurrencyQuery.parse("1$ to £"))
+        assertEquals(CurrencyQuery.Query(20.0, "EUR", "USD"), CurrencyQuery.parse("€20 in $"))
+        assertEquals(CurrencyQuery.Query(100.0, "USD", "EUR"), CurrencyQuery.parse("100 usd to eur"))
+        assertEquals(CurrencyQuery.Query(50.0, "EUR", CurrencyQuery.TOMAN), CurrencyQuery.parse("50 euros in toman"))
+        assertNull(CurrencyQuery.parse("10 pounds to kg"))
+        assertNull(CurrencyQuery.parse("5 km to mi"))
+    }
+
+    @Test fun currencyAnswer() {
+        val rates = ExchangeRates("USD", mapOf("USD" to 1.0, "GBP" to 0.8, "IRR" to 420000.0), 0, 0)
+        val pending = QuickAnswers.answer("1$ to £")!!
+        assertEquals("…", pending.value)
+        val a = QuickAnswers.answer("10$ to £", rates = rates)!!
+        assertEquals("£8", a.value)
+        assertEquals("420,000", QuickAnswers.answer("10 usd to toman", rates = rates)!!.value.substringBefore(" "))
+    }
+
+    @Test fun mathFunctionCommas() = assertEquals("2", QuickAnswers.answer("max(1,2)")!!.value)
 }

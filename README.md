@@ -23,7 +23,9 @@ choose Waypoint.
 ۵. **چیدمان صفحهٔ اصلی:** اپ‌ها به‌طور پیش‌فرض سمت راست هستند. در Appearance با اسلایدر **Apps position** ارتفاع بخش اپ‌ها را از بالا تا پایین تنظیم کنید؛ جای آن ثابت می‌ماند.
 ۶. **ساعت جهانی:** وقتی بیش از یک شهر اضافه کنید، روی ساعت زیر تاریخ به چپ و راست بکشید تا بین شهرها جابه‌جا شوید.
 ۷. **پرسیدن از Gemini:** در جستجوی لیست اپ‌ها علامت `؟` یا `?` را بزنید؛ یک کادر بزرگ چندخطی باز می‌شود که می‌توانید پاراگراف کامل بنویسید (Enter = خط جدید). دکمهٔ قرمز **SEND** سؤال را به اپ Gemini می‌دهد (اگر نصب نباشد، Gemini در مرورگر). خود Waypoint هیچ درخواست اینترنتی نمی‌فرستد.
-۸. **جواب فوری (مثل Spotlight اپل):** در همان جستجو بنویسید: `12×3+4` یا `۱۵% of 80` یا `5 km to mi` یا `100 f to c` یا `time in tokyo`. جواب بزرگ بالای لیست نشان داده می‌شود؛ با لمس یا Enter کپی می‌شود.
+۸. **جواب فوری و ماشین‌حساب:** در جستجو بنویسید: `12×3+4`، `sin(30°)`، `15% of 80`، `2 m3 to l`، `100 km/h to mph`، `time in tokyo` یا ارز مثل `1$ to £` و `100 usd in toman`. با `=` در ابتدا، حالت ماشین‌حساب اجباری می‌شود. جواب با لمس یا Enter کپی می‌شود.
+۹. **نمودار (مثل Desmos):** در جستجو `sin(x)` یا `x^2+y^2=9` بنویسید تا نمودار کوچک نشان داده شود و با لمس، صفحهٔ کامل نمودار باز می‌شود (یا از تنظیمات ← Graphing calculator). چند معادله، اسلایدر (`a = 1`)، تابع `f(x)=…`، نقطه `(2, 3)`، کشیدن، زوم با دو انگشت و نگه‌داشتن برای دیدن مختصات.
+۱۰. **نرخ ارز آنلاین:** فقط وقتی تبدیل ارز تایپ کنید، نرخ‌های عمومی دلار از open.er-api.com دانلود می‌شود (حداکثر هر ۶ ساعت). چیزی از متن شما ارسال نمی‌شود. خاموش‌کردن در Privacy & data. نرخ ریال/تومان نرخ رسمی است، نه بازار آزاد.
 
 </div>
 
@@ -38,7 +40,8 @@ no database, registers no receivers and schedules no work.
 | **World clock slider**: cities under the date; swipe sideways between them (page dots), DST-correct `+1 day` offsets, full panel, offline city search | Settings → Waypoint → World clock |
 | **Corner swipe** (opt-in): from just below the top corner, swipe down/inward (default: toggle monochrome). A pull from the very top edge always opens notifications | Settings → Waypoint → Gestures |
 | **Ask Gemini**: in drawer search, type `?` (or `؟`) to open a large multi-line composer; *Send* hands the question to the Gemini app (or Gemini on the web). Waypoint itself sends nothing over the network | App drawer search |
-| **Quick answers** (Spotlight-style, offline): `12×3+4`, `15% of 80`, `5 km to mi`, `100 f to c`, `2 gb to mb`, `time in tokyo`; tap or Enter copies the result | App drawer search |
+| **Quick answers** (Spotlight-style): `12×3+4`, `sin(30°)`, `ln 2`, `5!`, `15% of 80`, units with powers and compounds (`2 m3 to l`, `1 m² to sq ft`, `100 km/h to mph`, `1 kWh to MJ`), `time in tokyo`, currencies (`1$ to £`, `100 usd in toman`). Start with `=` for calculator mode. Tap or Enter copies | App drawer search |
+| **Graphing calculator** (Desmos-style): many expressions, `y = …`, `f(x) = …`, `x = …`, implicit equations like `x^2 + y^2 = 9`, points `(2, 3)`, sliders (`a = 1`) with one-tap *add slider* for unknown letters; pan, pinch-zoom, double-tap, hold to trace. Typing `sin(x)` in search shows a mini graph | Drawer search, or Settings → Graphing calculator |
 | **Home layout**: right-aligned by default; *Apps position* slider moves the app list from top to bottom | Appearance |
 | **Launcher monochrome & OLED black**: instant, no recreation, no GPU filters | Appearance |
 | **System grayscale**: guidance to Android's own options, plus an optional ADB-granted toggle | Appearance |
@@ -72,7 +75,7 @@ can still be merged.
 ## Docs
 [Upstream notes](docs/upstream-notes.md) · [Dependencies](docs/dependencies.md) · [CSV format](docs/csv-format.md) ·
 [Performance](docs/perf-baseline.md) · [Battery test](docs/battery-test.md) · [Device tests](docs/device-tests.md) ·
-[Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
+[Quick answers & grapher](docs/quick-answers.md) · [Privacy](PRIVACY.md) · [Changelog](CHANGELOG.md)
 
 ## License
 GPL-3.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Waypoint is based on Olauncher by tanujnotes.

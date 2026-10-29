@@ -109,6 +109,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             binding.wpNotifications to R.id.notificationAccessFragment,
             binding.wpExport to R.id.exportPreviewFragment,
             binding.wpPrivacy to R.id.privacyDataFragment,
+            binding.wpGraph to R.id.graphFragment,
         )
         entries.forEach { (view, destination) -> view.setOnClickListener { openPage(destination) } }
         if (requireContext().waypoint.prefs.glassTheme) {

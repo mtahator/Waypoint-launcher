@@ -88,5 +88,8 @@
         android:id="@+id/privacyDataFragment"
         android:name="app.olauncher.features.privacy.PrivacyDataFragment"
         tools:layout="@layout/fragment_wp_page" />
+    <fragment
+        android:id="@+id/graphFragment"
+        android:name="app.olauncher.features.math.ui.GraphFragment" />
 
 </navigation>

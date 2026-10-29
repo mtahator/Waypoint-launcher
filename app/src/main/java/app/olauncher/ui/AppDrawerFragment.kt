@@ -52,6 +52,16 @@ import app.olauncher.features.worldclock.data.WorldClockRepository
 import app.olauncher.features.worldclock.domain.City
 import app.olauncher.features.worldclock.domain.CitySearch
 import kotlinx.coroutines.launch
+import android.widget.LinearLayout
+import androidx.core.os.bundleOf
+import app.olauncher.features.math.domain.MathProgram
+import app.olauncher.features.math.ui.GraphFragment
+import app.olauncher.features.math.ui.GraphView
+import app.olauncher.features.quickanswers.domain.ExchangeRates
+import app.olauncher.features.quickanswers.platform.ExchangeRateRepository
+import app.olauncher.helper.isDarkThemeOn
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import app.olauncher.features.assistant.platform.GeminiHandoff
 
 class AppDrawerFragment : BaseFragment() {
@@ -158,8 +168,11 @@ class AppDrawerFragment : BaseFragment() {
                         return true
                     }
                     val answered = showQuickAnswer(newText)
-                    adapter.allowAutoLaunch = !answered && !isSearchComposing()
-                    adapter.filter.filter(newText)
+                    // "=" puts the search in calculator mode: no app matches, no auto-launch
+                    val calcMode = searchExtras && newText.trimStart().startsWith("=")
+                    binding.recyclerView.visibility = if (calcMode) View.INVISIBLE else View.VISIBLE
+                    adapter.allowAutoLaunch = !answered && !calcMode && !isSearchComposing()
+                    adapter.filter.filter(if (calcMode) "" else newText)
                     binding.appRename.visibility =
                         if (canRename && newText.isNotBlank()) View.VISIBLE else View.GONE
                     return true
@@ -180,19 +193,92 @@ class AppDrawerFragment : BaseFragment() {
     private var citySearch: CitySearch? = null
     private var cityLoading = false
 
+    private var rates: ExchangeRates? = null
+    private var ratesState = RatesState.IDLE
+    private var ratesJob: Job? = null
+    private var ratesFailedAt = 0L
+    private var miniGraph: GraphView? = null
+
+    private enum class RatesState { IDLE, FETCHING, FAILED }
+
     /** @return true if an answer is shown for [text]. */
     private fun showQuickAnswer(text: String): Boolean {
-        val answer = if (searchExtras) QuickAnswers.answer(text, cityLookup(text), is24h = is24Hour()) else null
+        val trimmed = text.trimStart()
+        val forced = trimmed.startsWith("=")
+        val query = if (forced) trimmed.drop(1) else text
+        val answer = if (searchExtras)
+            QuickAnswers.answer(query, forced, cityLookup(query), rates, is24h = is24Hour()) else null
         quickAnswer = answer
         binding.quickAnswer.isVisible = answer != null
         if (answer != null) {
             binding.quickAnswerValue.text = answer.value
-            binding.quickAnswerDetail.text = "${answer.detail}  ·  ${getString(R.string.wp_tap_copy_short)}"
+            binding.quickAnswerDetail.text = detailFor(answer)
             val g = prefs.appLabelAlignment
             binding.quickAnswerValue.gravity = g
             binding.quickAnswerDetail.gravity = g
+            answer.currency?.let { ensureRates() }
         }
+        showMiniGraph(answer?.graph?.takeIf { it.isNotEmpty() })
         return answer != null
+    }
+
+    private fun detailFor(a: QuickAnswers.Answer): String {
+        if (a.graph != null) return getString(R.string.wp_graph_open)
+        if (a.currency == null) return "${a.detail}  ·  ${getString(R.string.wp_tap_copy_short)}"
+        val r = rates
+        if (r == null) return when {
+            !requireContext().waypoint.prefs.onlineRates -> getString(R.string.wp_rates_off)
+            ratesState == RatesState.FAILED -> getString(R.string.wp_rates_failed)
+            else -> getString(R.string.wp_rates_fetching)
+        }
+        val age = android.text.format.DateUtils.getRelativeTimeSpanString(
+            r.fetchedAt, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS,
+        )
+        return getString(R.string.wp_rates_age, a.detail, age)
+    }
+
+    /**
+     * Rates for a currency answer: cached ones at once; the network only after typing pauses, only if the
+     * cache is stale and the setting allows it, one request at a time.
+     */
+    private fun ensureRates() {
+        val repo = requireContext().waypoint.exchangeRates
+        if (ratesJob?.isActive == true) return
+        val now = System.currentTimeMillis()
+        if (rates != null && now - rates!!.fetchedAt < ExchangeRateRepository.MAX_AGE_MS) return
+        ratesJob = viewLifecycleOwner.lifecycleScope.launch {
+            if (rates == null) rates = repo.cached()
+            val stale = rates == null || System.currentTimeMillis() - rates!!.fetchedAt >= ExchangeRateRepository.MAX_AGE_MS
+            val backoff = System.currentTimeMillis() - ratesFailedAt < 60_000 // don't retry on every keystroke
+            if (stale && !backoff && requireContext().waypoint.prefs.onlineRates) {
+                delay(450) // wait for typing to pause
+                ratesState = RatesState.FETCHING
+                val fresh = repo.get()
+                ratesState = if (fresh == null) RatesState.FAILED else RatesState.IDLE
+                if (fresh == null) ratesFailedAt = System.currentTimeMillis()
+                if (fresh != null) rates = fresh
+            }
+            if (_binding != null) showQuickAnswer(binding.search.query.toString())
+        }
+    }
+
+    /** A small, non-interactive plot under the answer for `sin(x)`, `x^2+y^2=9`, … */
+    private fun showMiniGraph(expr: String?) {
+        if (expr == null) { miniGraph?.isVisible = false; return }
+        val g = miniGraph ?: GraphView(requireContext(), interactive = false).also { v ->
+            v.dark = requireContext().isDarkThemeOn()
+            v.panelColor = if (requireContext().isDarkThemeOn()) 0x66000000 else 0x99FFFFFF.toInt()
+            binding.quickAnswer.addView(v, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                (150 * resources.displayMetrics.density).toInt()).apply { topMargin = (10 * resources.displayMetrics.density).toInt() })
+            miniGraph = v
+        }
+        g.isVisible = true
+        g.program = MathProgram(listOf(expr))
+    }
+
+    private fun openGraph(expr: String) {
+        binding.search.hideKeyboard()
+        findNavController().navigate(R.id.graphFragment, bundleOf(GraphFragment.ARG_EXPR to expr))
     }
 
     private fun is24Hour() = android.text.format.DateFormat.is24HourFormat(requireContext())
@@ -218,6 +304,8 @@ class AppDrawerFragment : BaseFragment() {
 
     private fun copyQuickAnswer(): Boolean {
         val answer = quickAnswer ?: return false
+        answer.graph?.let { openGraph(it); return true }
+        if (answer.copy.isEmpty()) return true
         val ctx = requireContext()
         ctx.getSystemService(ClipboardManager::class.java)
             ?.setPrimaryClip(ClipData.newPlainText(getString(R.string.app_name), answer.copy))

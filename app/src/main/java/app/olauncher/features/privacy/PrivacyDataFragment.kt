@@ -47,6 +47,13 @@ class PrivacyDataFragment : WpPageFragment() {
             note(getString(R.string.wp_ledger_not_backed_up))
         }
         page.card {
+            header(getString(R.string.wp_rates_title))
+            toggle(getString(R.string.wp_rates_toggle), container.prefs.onlineRates, getString(R.string.wp_rates_toggle_hint)) {
+                container.prefs.onlineRates = it
+            }
+            row(getString(R.string.wp_rates_clear)) { launchUi { container.exchangeRates.clear() } }
+        }
+        page.card {
             header(getString(R.string.wp_notification_access))
             row(getString(R.string.wp_revoke_access)) {
                 ExternalFlow.start(this@PrivacyDataFragment, Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
