@@ -14,6 +14,7 @@ import app.olauncher.features.assistant.domain.ImageProtocol
 import app.olauncher.features.assistant.domain.Presets
 import app.olauncher.features.assistant.domain.Turn
 import app.olauncher.features.space.domain.TranscriptionApi
+import app.olauncher.features.space.platform.LocalTranscriber
 import app.olauncher.features.assistant.platform.ChatClient
 import app.olauncher.helper.showToast
 import kotlinx.coroutines.withContext
@@ -97,26 +98,6 @@ class AssistantSettingsFragment : WpPageFragment() {
                 note(getString(R.string.wp_image_note))
             }
             page.card {
-                header(getString(R.string.wp_space))
-                row(getString(R.string.wp_transcribe_model), prefs.transcribeModel.ifBlank { getString(R.string.wp_image_off) }) {
-                    requireContext().promptText(R.string.wp_transcribe_model, prefs.transcribeModel,
-                        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {
-                        prefs.transcribeModel = it; rebuild()
-                    }
-                }
-                row(getString(R.string.wp_transcribe_api), when (prefs.transcribeApi) {
-                    TranscriptionApi.AUTO -> getString(R.string.wp_image_api_auto)
-                    TranscriptionApi.WHISPER -> getString(R.string.wp_transcribe_whisper)
-                    TranscriptionApi.CHAT_AUDIO -> getString(R.string.wp_transcribe_chat)
-                }) {
-                    val options = listOf(TranscriptionApi.AUTO, TranscriptionApi.WHISPER, TranscriptionApi.CHAT_AUDIO)
-                    requireContext().chooseOne(R.string.wp_transcribe_api, listOf(
-                        getString(R.string.wp_image_api_auto), getString(R.string.wp_transcribe_whisper), getString(R.string.wp_transcribe_chat),
-                    )) { i -> prefs.transcribeApi = options[i]; rebuild() }
-                }
-                note(getString(R.string.wp_transcribe_note))
-            }
-            page.card {
                 header(getString(R.string.wp_api_behaviour))
                 row(getString(R.string.wp_about_you), prefs.aboutMe.ifBlank { getString(R.string.wp_none) }.replace('\n', ' ').take(40),
                     getString(R.string.wp_about_you_hint)) {
@@ -135,6 +116,58 @@ class AssistantSettingsFragment : WpPageFragment() {
             }
         }
         page.card {
+            header(getString(R.string.wp_space))
+            val local = prefs.transcribeApi == TranscriptionApi.LOCAL
+            row(getString(R.string.wp_transcribe_engine), getString(if (local) R.string.wp_transcribe_local else R.string.wp_transcribe_cloud)) {
+                requireContext().chooseOne(R.string.wp_transcribe_engine, listOf(getString(R.string.wp_transcribe_local), getString(R.string.wp_transcribe_cloud))) { i ->
+                    prefs.transcribeApi = if (i == 0) TranscriptionApi.LOCAL else TranscriptionApi.AUTO
+                    rebuild()
+                }
+            }
+            if (local) {
+                val ctx = requireContext()
+                if (!LocalTranscriber.isSupported(ctx)) {
+                    note(getString(R.string.wp_transcribe_local_unsupported))
+                } else {
+                    val lang = prefs.transcribeLanguage
+                    val state = when {
+                        languages == null -> "…"
+                        languages!!.installed.any { it.equals(lang, true) } -> getString(R.string.wp_transcribe_installed)
+                        languages!!.pending.any { it.equals(lang, true) } -> getString(R.string.wp_transcribe_downloading)
+                        else -> getString(R.string.wp_transcribe_not_installed)
+                    }
+                    row(getString(R.string.wp_transcribe_language), "${java.util.Locale.forLanguageTag(lang).displayName} · $state") { chooseLanguage() }
+                    if (languages != null && languages!!.installed.none { it.equals(lang, true) }) {
+                        row(getString(R.string.wp_transcribe_download)) {
+                            LocalTranscriber.download(ctx, lang)
+                            launchUi { kotlinx.coroutines.delay(1500); loadLanguages() }
+                        }
+                    }
+                    note(getString(R.string.wp_transcribe_local_note))
+                    if (languages == null) launchUi { loadLanguages() }
+                }
+            } else {
+                row(getString(R.string.wp_transcribe_model), prefs.transcribeModel.ifBlank { getString(R.string.wp_image_off) }) {
+                    requireContext().promptText(R.string.wp_transcribe_model, prefs.transcribeModel,
+                        inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS) {
+                        prefs.transcribeModel = it; rebuild()
+                    }
+                }
+                row(getString(R.string.wp_transcribe_api), when (prefs.transcribeApi) {
+                    TranscriptionApi.WHISPER -> getString(R.string.wp_transcribe_whisper)
+                    TranscriptionApi.CHAT_AUDIO -> getString(R.string.wp_transcribe_chat)
+                    else -> getString(R.string.wp_image_api_auto)
+                }) {
+                    val options = listOf(TranscriptionApi.AUTO, TranscriptionApi.WHISPER, TranscriptionApi.CHAT_AUDIO)
+                    requireContext().chooseOne(R.string.wp_transcribe_api, listOf(
+                        getString(R.string.wp_image_api_auto), getString(R.string.wp_transcribe_whisper), getString(R.string.wp_transcribe_chat),
+                    )) { i -> prefs.transcribeApi = options[i]; rebuild() }
+                }
+                note(getString(R.string.wp_transcribe_note))
+            }
+            toggle(getString(R.string.wp_space_summarize), prefs.spaceSummarize, getString(R.string.wp_space_summarize_hint)) { prefs.spaceSummarize = it }
+        }
+        page.card {
             header(getString(R.string.wp_compass_shortcut))
             val choices = listOf("left" to R.string.wp_shortcut_left, "right" to R.string.wp_shortcut_right, "off" to R.string.wp_shortcut_off)
             row(getString(R.string.wp_compass_shortcut_row), getString(choices.firstOrNull { it.first == prefs.compassShortcut }?.second ?: R.string.wp_shortcut_left),
@@ -147,6 +180,27 @@ class AssistantSettingsFragment : WpPageFragment() {
         page.card {
             header(getString(R.string.wp_assistant_privacy))
             note(getString(R.string.wp_assistant_privacy_note))
+        }
+    }
+
+    private var languages: LocalTranscriber.Languages? = null
+
+    private suspend fun loadLanguages() {
+        languages = LocalTranscriber.languages(requireContext().applicationContext) ?: LocalTranscriber.Languages(emptyList(), emptyList(), emptyList())
+        if (view != null) rebuild()
+    }
+
+    /** Installed languages first, then the ones the phone can download. */
+    private fun chooseLanguage() {
+        val l = languages ?: return
+        val tags = (l.installed + l.available.filter { a -> l.installed.none { it.equals(a, true) } }).distinct()
+        if (tags.isEmpty()) return
+        val labels = tags.map { t ->
+            val installed = l.installed.any { it.equals(t, true) }
+            "${java.util.Locale.forLanguageTag(t).displayName} ($t)" + if (installed) " ✓" else ""
+        }
+        requireContext().chooseOne(R.string.wp_transcribe_language, labels) { i ->
+            container.prefs.transcribeLanguage = tags[i]; rebuild()
         }
     }
 
@@ -167,7 +221,6 @@ class AssistantSettingsFragment : WpPageFragment() {
         prefs.apiModel = p.model
         prefs.imageModel = p.imageModel
         prefs.transcribeModel = p.transcribeModel
-        prefs.transcribeApi = TranscriptionApi.AUTO
         prefs.imageApi = ImageApi.AUTO
     }
 

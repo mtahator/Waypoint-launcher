@@ -9,6 +9,7 @@ import app.olauncher.features.assistant.platform.ChatEngine
 import app.olauncher.features.space.data.Note
 import app.olauncher.features.space.data.NotesRepository
 import app.olauncher.features.space.domain.Transcription
+import app.olauncher.features.space.domain.TranscriptionApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,8 +19,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * Space: voice notes that are transcribed and summarised with the user's own API. Audio and text stay
- * in app storage; nothing is uploaded unless a transcription model is set.
+ * Space: voice notes transcribed on the phone (Android's on-device recognizer) by default, or with the
+ * user's API if they choose cloud transcription. Audio and text stay in app storage; the text is sent to
+ * the chat API only for the optional title/summary.
  */
 class SpaceEngine(
     private val context: Context,
@@ -36,7 +38,11 @@ class SpaceEngine(
     val dir: File get() = File(context.filesDir, "space").apply { mkdirs() }
     fun audioFile(note: Note) = File(dir, note.audio)
 
-    fun isTranscribeConfigured() = prefs.apiBaseUrl.isNotBlank() && prefs.transcribeModel.isNotBlank()
+    val isLocal get() = prefs.transcribeApi == TranscriptionApi.LOCAL
+
+    /** On-device: Android 13+ with an on-device recognizer. Cloud: a provider and model are set. */
+    fun isTranscribeConfigured() =
+        if (isLocal) LocalTranscriber.isSupported(context) else prefs.apiBaseUrl.isNotBlank() && prefs.transcribeModel.isNotBlank()
 
     suspend fun saveRecording(file: File, durationMs: Long) {
         if (durationMs < 600) { withContext(io) { file.delete() }; return } // accidental tap
@@ -55,14 +61,15 @@ class SpaceEngine(
         try {
             notes.update(id) { put("status", Note.Status.TRANSCRIBING.name); put("error", "") }
             _changes.tryEmit(id)
-            val text = withContext(io) {
+            val text = if (isLocal) LocalTranscriber.transcribe(context, audioFile(note), prefs.transcribeLanguage)
+            else withContext(io) {
                 TranscriptionClient.transcribe(
                     TranscribeConfig(prefs.transcribeApi, prefs.apiBaseUrl, prefs.transcribeModel, keys.get()),
                     audioFile(note),
                 )
             }
             notes.update(id) { put("transcript", text); put("title", Transcription.fallbackTitle(text)) }
-            if (text.isNotBlank() && chat.isConfigured()) {
+            if (text.isNotBlank() && prefs.spaceSummarize && chat.isConfigured()) {
                 notes.update(id) { put("status", Note.Status.SUMMARIZING.name) }
                 _changes.tryEmit(id)
                 val reply = StringBuilder()

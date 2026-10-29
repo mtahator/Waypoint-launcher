@@ -11,7 +11,8 @@ import org.json.JSONObject
  * - [TranscriptionApi.CHAT_AUDIO]: a chat model that accepts audio (OpenRouter / Gemini, e.g.
  *   google/gemini-2.5-flash): `input_audio` content part with base64 WAV; reply in choices[0].message.content.
  */
-enum class TranscriptionApi { AUTO, WHISPER, CHAT_AUDIO }
+/** LOCAL = Android's on-device recognizer (nothing leaves the phone); the others use the user's API. */
+enum class TranscriptionApi { LOCAL, AUTO, WHISPER, CHAT_AUDIO }
 
 object Transcription {
 

@@ -39,11 +39,16 @@ Like Nothing's Essential Space: tap the red button in **Compass → Space** (or 
 Home) to record. Recording runs in a foreground service with a notification and a Stop button, so it
 continues with the screen off.
 - Audio is saved as 16 kHz mono WAV in app storage (`files/space`).
-- **Transcription model** (same provider and key): *Auto* uses an audio chat model on OpenRouter and the
-  Gemini API (`input_audio`, e.g. `google/gemini-2.5-flash`) and the Whisper endpoint
-  (`/audio/transcriptions`) elsewhere (`gpt-4o-mini-transcribe`, Groq `whisper-large-v3-turbo`). Long
-  recordings are sent in 5-minute parts. Without a model, notes are kept as audio only.
-- After transcription, the chat model writes a title, a short summary and action items.
+- **Speech to text — On this phone (default)**: Android's on-device speech recognizer reads the saved
+  recording through a pipe (Android 13+, `EXTRA_AUDIO_SOURCE`, segmented session for long notes). The
+  audio never leaves the phone and it works offline. Pick the language and download its model once in
+  Compass Setup → Space.
+- **Speech to text — Cloud (optional)**: your provider instead. *Auto* uses an audio chat model on
+  OpenRouter and the Gemini API (`input_audio`, e.g. `google/gemini-2.5-flash`) and the Whisper endpoint
+  (`/audio/transcriptions`) elsewhere; long recordings go in 5-minute parts.
+- **AI title & summary** (on by default, can be turned off): after transcription the chat model writes a
+  title, a short summary and action items. This sends the transcript text, never the audio. Off = Space
+  stays fully on the phone.
 - Each note: play/seek, summary, selectable transcript, Copy, Share, **Ask** (starts a conversation with
   the note as context), rename, transcribe again, delete.
 - Stored in `space.db` + `files/space`, excluded from backup. *Privacy & data → Delete all voice notes*.

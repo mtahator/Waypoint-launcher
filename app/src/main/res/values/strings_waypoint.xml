@@ -249,7 +249,7 @@
     <string name="wp_about_you_example">e.g. My name is Sam, I\'m a designer in Berlin. I prefer short answers and metric units.</string>
     <string name="wp_use_about_you">Use “About you”</string>
     <string name="wp_space">Space</string>
-    <string name="wp_space_empty">Tap the red button to record a voice note. Compass saves the audio, transcribes it and writes a title and summary. Long-press the compass on Home to start recording right away.</string>
+    <string name="wp_space_empty">Tap the red button to record a voice note. Compass saves the audio and transcribes it on the phone. Long-press the compass on Home to start recording right away.</string>
     <string name="wp_space_record">Record</string>
     <string name="wp_space_stop">Stop</string>
     <string name="wp_space_recording">Recording a voice note</string>
@@ -259,7 +259,7 @@
     <string name="wp_space_summarizing">Summarising…</string>
     <string name="wp_space_failed">Failed</string>
     <string name="wp_space_not_transcribed">Audio only</string>
-    <string name="wp_space_set_model">Audio only. Set a transcription model in Setup, then tap here to transcribe.</string>
+    <string name="wp_space_set_model">Audio only. Set up speech to text in Compass Setup → Space, then tap here to transcribe.</string>
     <string name="wp_space_summary">Summary</string>
     <string name="wp_space_transcript">Transcript</string>
     <string name="wp_space_copy">Copy</string>
@@ -282,6 +282,18 @@
     <string name="wp_shortcut_left">Bottom left</string>
     <string name="wp_shortcut_right">Bottom right</string>
     <string name="wp_shortcut_off">Off</string>
+    <string name="wp_transcribe_engine">Speech to text</string>
+    <string name="wp_transcribe_local">On this phone</string>
+    <string name="wp_transcribe_cloud">Cloud (your API)</string>
+    <string name="wp_transcribe_language">Language</string>
+    <string name="wp_transcribe_installed">ready</string>
+    <string name="wp_transcribe_downloading">downloading</string>
+    <string name="wp_transcribe_not_installed">not downloaded</string>
+    <string name="wp_transcribe_download">Download this language</string>
+    <string name="wp_transcribe_local_note">Transcription runs on the phone with Android\'s on-device speech recognizer: the audio never leaves your phone and it works offline. Download the language once.</string>
+    <string name="wp_transcribe_local_unsupported">On-device transcription needs Android 13 or newer with an on-device speech recognizer (Speech Services by Google). Choose Cloud, or keep notes as audio.</string>
+    <string name="wp_space_summarize">AI title &amp; summary</string>
+    <string name="wp_space_summarize_hint">Sends the transcript (not the audio) to your chat API. Turn off to keep Space fully on the phone.</string>
     <string name="wp_gemini_unavailable">Gemini isn\'t installed and no browser is available</string>
     <string name="wp_world_clock_subtitle">Cities follow daylight saving automatically. With more than one city, swipe the clock on Home to move between them.</string>
     <string name="wp_home_layout">Home layout</string>

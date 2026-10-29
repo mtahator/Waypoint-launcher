@@ -123,14 +123,24 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getBoolean(USE_ABOUT_ME, true)
         set(value) = prefs.edit { putBoolean(USE_ABOUT_ME, value) }
 
-    /** Speech-to-text model for Space voice notes (same provider and key); blank = record only. */
+    /** Cloud speech-to-text model for Space (only used when transcription isn't on-device). */
     var transcribeModel: String
         get() = prefs.getString(TRANSCRIBE_MODEL, null) ?: ""
         set(value) = prefs.edit { putString(TRANSCRIBE_MODEL, value.trim()) }
 
     var transcribeApi: TranscriptionApi
-        get() = runCatching { TranscriptionApi.valueOf(prefs.getString(TRANSCRIBE_API, null) ?: "") }.getOrDefault(TranscriptionApi.AUTO)
+        get() = runCatching { TranscriptionApi.valueOf(prefs.getString(TRANSCRIBE_API, null) ?: "") }.getOrDefault(TranscriptionApi.LOCAL)
         set(value) = prefs.edit { putString(TRANSCRIBE_API, value.name) }
+
+    /** BCP-47 language for on-device transcription (default: the phone's language). */
+    var transcribeLanguage: String
+        get() = prefs.getString(TRANSCRIBE_LANGUAGE, null) ?: java.util.Locale.getDefault().toLanguageTag()
+        set(value) = prefs.edit { putString(TRANSCRIBE_LANGUAGE, value) }
+
+    /** After transcribing, let the chat model write a title and summary (sends the text to the API). */
+    var spaceSummarize: Boolean
+        get() = prefs.getBoolean(SPACE_SUMMARIZE, true)
+        set(value) = prefs.edit { putBoolean(SPACE_SUMMARIZE, value) }
 
     /** Compass button on Home: "left", "right" (bottom corners) or "off". */
     var compassShortcut: String
@@ -212,6 +222,8 @@ class WaypointPrefs(context: Context) {
         const val USE_ABOUT_ME = "WP_USE_ABOUT_ME"
         const val TRANSCRIBE_MODEL = "WP_TRANSCRIBE_MODEL"
         const val TRANSCRIBE_API = "WP_TRANSCRIBE_API"
+        const val TRANSCRIBE_LANGUAGE = "WP_TRANSCRIBE_LANGUAGE"
+        const val SPACE_SUMMARIZE = "WP_SPACE_SUMMARIZE"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val IMAGE_MODEL = "WP_IMAGE_MODEL"
         const val IMAGE_API = "WP_IMAGE_API"
