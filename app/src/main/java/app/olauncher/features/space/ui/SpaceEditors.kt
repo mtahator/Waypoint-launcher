@@ -254,16 +254,6 @@ internal object SpaceEditors {
                 render()
                 renderSteps()
                 if (task != null) f.viewLifecycleOwner.lifecycleScope.launch { steps.addAll(space.steps(task.id)); renderSteps() }
-            }.let { inner ->
-                // the editor can grow taller than the screen with many steps: scroll it
-                android.widget.ScrollView(parent.context).apply {
-                    addView(inner)
-                    layoutParams = ViewGroup.MarginLayoutParams(-1, -2)
-                    isVerticalScrollBarEnabled = false
-                }.also { sv ->
-                    val max = (parent.resources.displayMetrics.heightPixels * 0.62f).toInt()
-                    sv.viewTreeObserver.addOnGlobalLayoutListener { if (sv.height > max) sv.layoutParams = sv.layoutParams.apply { height = max } }
-                }
             }
         })
         dialog.showRespectingStatusBar()

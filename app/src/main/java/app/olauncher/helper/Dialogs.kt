@@ -36,6 +36,23 @@ fun View.showPopupMenu(
     return popup
 }
 
+/** A ScrollView no taller than the visible window (above the keyboard) minus [reserved] px. */
+private class KeyboardAwareScroll(context: Context, private val reserved: Int) : android.widget.ScrollView(context) {
+    private val frame = android.graphics.Rect()
+    init { isVerticalScrollBarEnabled = false; isFillViewport = false }
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        getWindowVisibleDisplayFrame(frame)
+        val visible = frame.height().takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        val max = (visible - reserved).coerceAtLeast((120 * resources.displayMetrics.density).toInt())
+        super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(max, View.MeasureSpec.AT_MOST))
+    }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        // keep the focused field in view after the keyboard opens
+        findFocus()?.let { f -> post { requestChildFocus(f, f) } }
+    }
+}
+
 /**
  * App dialog: shows without bringing back a hidden status bar, and blurs the
  * screen behind it on Android 12+, fading blur and dialog out together on dismiss.
@@ -103,8 +120,13 @@ fun Context.createDialog(
         binding.tvNeutral.isVisible = true
     }
     content?.let {
-        binding.contentContainer.addView(it(binding.contentContainer))
+        // custom content scrolls, capped to the space left above the keyboard, so the actions below it
+        // (Save, Delete) are always on screen
+        val scroll = KeyboardAwareScroll(dialog.context, (220 * dialog.context.resources.displayMetrics.density).toInt())
+        scroll.addView(it(binding.contentContainer))
+        binding.contentContainer.addView(scroll, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         binding.contentContainer.isVisible = true
+        dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
     }
     dialog.setView(binding.root)
     binding.ivClose.setOnClickListener { dialog.dismiss() }
