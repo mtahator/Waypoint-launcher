@@ -117,10 +117,11 @@ class ChatFragment : Fragment() {
         stack.addView(empty, FrameLayout.LayoutParams(-1, -1))
         column.addView(stack, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        // composer
+        // composer: one rounded box, the text across the full width on top, the tools and Send underneath
         val composer = LinearLayout(ctx).apply {
-            gravity = Gravity.BOTTOM
-            setPadding(style.dp(12), style.dp(8), style.dp(12), style.dp(10))
+            orientation = LinearLayout.VERTICAL
+            background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 28, style.hairline)
+            setPadding(style.dp(8), style.dp(6), style.dp(8), style.dp(8))
         }
         fun toolButton(icon: Int, label: Int, onClick: () -> Unit) = android.widget.ImageView(ctx).apply {
             setImageResource(icon)
@@ -128,10 +129,6 @@ class ChatFragment : Fragment() {
             contentDescription = getString(label)
             setOnClickListener { onClick() }
         }
-        imageToggle = toolButton(R.drawable.ic_image, R.string.wp_image_mode) { toggleImageMode() }
-        composer.addView(imageToggle, LinearLayout.LayoutParams(style.dp(46), style.dp(46)).apply { marginEnd = style.dp(6); bottomMargin = style.dp(1) })
-        webToggle = toolButton(R.drawable.ic_globe, R.string.wp_web_mode) { toggleWebMode() }
-        composer.addView(webToggle, LinearLayout.LayoutParams(style.dp(46), style.dp(46)).apply { marginEnd = style.dp(6); bottomMargin = style.dp(1) })
         input = EditText(ctx).apply {
             setHint(R.string.wp_chat_hint)
             setTextColor(style.ink)
@@ -139,13 +136,19 @@ class ChatFragment : Fragment() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 17f)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI
-            minLines = 1; maxLines = 6
+            minLines = 2; maxLines = 8
             textDirection = View.TEXT_DIRECTION_FIRST_STRONG
-            gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 22, style.hairline)
-            setPadding(style.dp(16), style.dp(12), style.dp(16), style.dp(12))
+            gravity = Gravity.TOP or Gravity.START
+            background = null
+            setPadding(style.dp(12), style.dp(10), style.dp(12), style.dp(6))
         }
-        composer.addView(input, LinearLayout.LayoutParams(0, -2, 1f))
+        composer.addView(input, LinearLayout.LayoutParams(-1, -2))
+        val tools = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL }
+        imageToggle = toolButton(R.drawable.ic_image, R.string.wp_image_mode) { toggleImageMode() }
+        tools.addView(imageToggle, LinearLayout.LayoutParams(style.dp(42), style.dp(42)).apply { marginEnd = style.dp(8) })
+        webToggle = toolButton(R.drawable.ic_globe, R.string.wp_web_mode) { toggleWebMode() }
+        tools.addView(webToggle, LinearLayout.LayoutParams(style.dp(42), style.dp(42)))
+        tools.addView(View(ctx), LinearLayout.LayoutParams(0, 1, 1f))
         send = android.widget.ImageView(ctx).apply {
             scaleType = android.widget.ImageView.ScaleType.CENTER
             imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
@@ -153,14 +156,15 @@ class ChatFragment : Fragment() {
             contentDescription = getString(R.string.wp_send_to_gemini)
             setOnClickListener { onSend() }
         }
-        composer.addView(send, LinearLayout.LayoutParams(style.dp(48), style.dp(48)).apply { marginStart = style.dp(8) })
+        tools.addView(send, LinearLayout.LayoutParams(style.dp(44), style.dp(44)))
+        composer.addView(tools, LinearLayout.LayoutParams(-1, -2))
         // "/": the user's commands as chips above the composer
         suggestions = LinearLayout(ctx).apply { setPadding(style.dp(12), style.dp(4), style.dp(12), 0); isVisible = false }
         column.addView(android.widget.HorizontalScrollView(ctx).apply {
             isHorizontalScrollBarEnabled = false
             addView(suggestions)
         })
-        column.addView(composer)
+        column.addView(composer, LinearLayout.LayoutParams(-1, -2).apply { setMargins(style.dp(10), style.dp(4), style.dp(10), style.dp(10)) })
         input.doAfterTextChanged { updateSend(); updateSuggestions() }
         styleImageToggle()
 

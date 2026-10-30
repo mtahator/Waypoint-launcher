@@ -67,6 +67,7 @@ class SpaceFragment : Fragment() {
     private lateinit var style: ChatStyle
     private lateinit var list: RecyclerView
     private lateinit var record: ImageView
+    private lateinit var recordLabel: TextView
     private lateinit var timer: TextView
     private lateinit var meter: LevelMeter
     private lateinit var filters: LinearLayout
@@ -138,19 +139,28 @@ class SpaceFragment : Fragment() {
         dock.addView(meter, LinearLayout.LayoutParams(style.dp(220), style.dp(30)))
         timer = style.caption("").apply { textSize = 14f; isVisible = false; setPadding(0, style.dp(2), 0, style.dp(6)) }
         dock.addView(timer)
+        // Write, Record and Add share one centre line (labels sit in their own row underneath), and the
         // equal-width sides keep Record exactly in the middle of the screen
         val buttons = LinearLayout(ctx).apply { gravity = Gravity.CENTER }
-        val sideParams = { LinearLayout.LayoutParams(style.dp(84), -2) }
-        buttons.addView(side(R.drawable.ic_note, R.string.wp_space_write) { (activity as ChatActivity).show(TextNoteFragment.newInstance(0)) }, sideParams())
+        val labels = LinearLayout(ctx).apply { gravity = Gravity.CENTER }
+        fun slot(width: Int, child: View, size: Int) = FrameLayout(ctx).apply {
+            addView(child, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
+        }.also { buttons.addView(it, LinearLayout.LayoutParams(width, style.dp(76))) }
+        fun caption(width: Int, text: Int) = style.caption(getString(text)).apply { gravity = Gravity.CENTER; maxLines = 1 }
+            .also { labels.addView(it, LinearLayout.LayoutParams(width, -2)) }
+        val sideW = style.dp(84); val midW = style.dp(124)
+        slot(sideW, side(R.drawable.ic_note, R.string.wp_space_write) { (activity as ChatActivity).show(TextNoteFragment.newInstance(0)) }, style.dp(52))
         record = ImageView(ctx).apply {
             scaleType = ImageView.ScaleType.CENTER
             background = style.rounded(red, 100)
             imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
             setOnClickListener { toggle() }
         }
-        buttons.addView(record, LinearLayout.LayoutParams(style.dp(76), style.dp(76)).apply { marginStart = style.dp(24); marginEnd = style.dp(24) })
-        buttons.addView(side(R.drawable.ic_plus, R.string.wp_space_add) { addMenu() }, sideParams())
+        slot(midW, record, style.dp(76))
+        slot(sideW, side(R.drawable.ic_plus, R.string.wp_space_add) { addMenu() }, style.dp(52))
+        caption(sideW, R.string.wp_space_write); recordLabel = caption(midW, R.string.wp_space_record); caption(sideW, R.string.wp_space_add)
         dock.addView(buttons, LinearLayout.LayoutParams(-1, -2))
+        dock.addView(labels, LinearLayout.LayoutParams(-1, -2).apply { topMargin = style.dp(4) })
         column.addView(dock)
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
@@ -162,15 +172,11 @@ class SpaceFragment : Fragment() {
         return root
     }
 
-    private fun side(icon: Int, label: Int, onClick: () -> Unit) = LinearLayout(requireContext()).apply {
-        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-        addView(ImageView(context).apply {
-            setImageResource(icon); scaleType = ImageView.ScaleType.CENTER
-            imageTintList = android.content.res.ColorStateList.valueOf(style.ink)
-            background = style.rounded(0, 100, style.hairline)
-            setOnClickListener { onClick() }
-        }, LinearLayout.LayoutParams(style.dp(52), style.dp(52)))
-        addView(style.caption(getString(label)).apply { setPadding(0, style.dp(4), 0, 0); gravity = Gravity.CENTER; maxLines = 1 })
+    /** A round outlined button (the label is drawn in the row under the dock). */
+    private fun side(icon: Int, label: Int, onClick: () -> Unit) = ImageView(requireContext()).apply {
+        setImageResource(icon); scaleType = ImageView.ScaleType.CENTER
+        imageTintList = android.content.res.ColorStateList.valueOf(style.ink)
+        background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: 0, 100, style.hairline)
         contentDescription = getString(label)
         setOnClickListener { onClick() }
     }
@@ -205,6 +211,7 @@ class SpaceFragment : Fragment() {
     private fun bindRecorder(s: Recorder.State) {
         record.setImageResource(if (s.recording) R.drawable.ic_stop else R.drawable.ic_mic)
         record.contentDescription = getString(if (s.recording) R.string.wp_space_stop else R.string.wp_space_record)
+        recordLabel.text = record.contentDescription
         meter.isVisible = s.recording
         timer.isVisible = s.recording
         meter.push(s.level)
