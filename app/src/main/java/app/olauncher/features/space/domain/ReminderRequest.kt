@@ -10,7 +10,7 @@ import java.time.ZoneId
  */
 object ReminderRequest {
 
-    data class Request(val title: String, val due: Long?, val remind: Boolean)
+    data class Request(val title: String, val due: Long?, val remind: Boolean, val repeat: RepeatRule = RepeatRule.NONE)
 
     private val REMINDER = Regex(
         """^\s*(?:(?:can you|could you|please|hey|ok)\s+)*(?:set|create|add|make|schedule)\s+(?:me\s+)?(?:a\s+|an\s+)?(?:reminder|alarm|alert)s?\b""" +
@@ -49,7 +49,8 @@ object ReminderRequest {
             else -> return null
         }
         val isReminder = reminder != null
-        val (due, left) = ReminderParser.extractTime(rest, now, zone)
+        val (rule, noRepeat) = RepeatParser.extract(rest)
+        val (due, left) = ReminderParser.extractTime(noRepeat, now, zone)
         rest = left
         // strip leftovers on both sides: "for  that I must do the dishes!" → "do the dishes"
         repeat(4) { rest = LEAD.replace(rest, "").let { FA_LEAD.replace(it, "") } }
@@ -59,6 +60,6 @@ object ReminderRequest {
         if (rest.length < 2) return null
         // a time that has already passed today ("tonight" at 23:00) means the next one
         val fixed = due?.let { if (it < now) Instant.ofEpochMilli(it).atZone(zone).plusDays(1).toInstant().toEpochMilli() else it }
-        return Request(rest.replaceFirstChar { it.uppercase() }, fixed, isReminder && fixed != null)
+        return Request(rest.replaceFirstChar { it.uppercase() }, fixed, isReminder && fixed != null, rule)
     }
 }

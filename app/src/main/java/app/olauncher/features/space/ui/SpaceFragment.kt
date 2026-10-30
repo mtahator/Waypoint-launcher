@@ -35,6 +35,7 @@ import app.olauncher.features.space.data.Note
 import app.olauncher.features.space.data.Task
 import app.olauncher.features.space.domain.Goals
 import app.olauncher.features.space.platform.Recorder
+import app.olauncher.helper.showToast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -57,6 +58,7 @@ class SpaceFragment : Fragment() {
         data class TaskRow(val task: Task) : Row()
         data class GoalStrip(val goals: List<Pair<Goal, Goals.Progress>>) : Row()
         data class GoalCard(val goal: Goal, val progress: Goals.Progress) : Row()
+        data class ProjectCard(val goal: Goal, val status: app.olauncher.features.space.domain.Projects.Status) : Row()
         data class NoteRow(val note: Note) : Row()
         data class ShotTile(val note: Note) : Row()
         data class Empty(val text: String) : Row()
@@ -236,13 +238,17 @@ class SpaceFragment : Fragment() {
 
         val ns = notes.filter { inCat(it.category) && matches(it.text) }
         val ts = tasks.filter { inCat(it.category) && matches(it.title) }
-        val gs = goals.filter { query.isEmpty() || it.title.contains(query, true) }.map { it to Goals.progress(it.period, it.target, it.checkins, now) }
+        val matching = goals.filter { query.isEmpty() || it.title.contains(query, true) }
+        val gs = matching.filter { it.kind == Goal.Kind.HABIT }.map { it to Goals.progress(it.period, it.target, it.checkins, now) }
+        val projects = matching.filter { it.kind == Goal.Kind.PROJECT }
+            .map { it to app.olauncher.features.space.domain.Projects.status(it.created, it.deadline, it.percent, now) }
+            .sortedWith(compareBy({ it.second.done }, { it.first.deadline }))
 
         // filter tabs with counts
         filters.removeAllViews()
         val counts = mapOf(
             Filter.ALL to -1, Filter.VOICE to ns.count { it.kind == Note.Kind.VOICE }, Filter.NOTES to ns.count { it.kind == Note.Kind.TEXT },
-            Filter.SCREENS to ns.count { it.kind == Note.Kind.SCREENSHOT }, Filter.TODO to ts.count { !it.done }, Filter.GOALS to gs.size,
+            Filter.SCREENS to ns.count { it.kind == Note.Kind.SCREENSHOT }, Filter.TODO to ts.count { !it.done }, Filter.GOALS to gs.size + projects.size,
         )
         Filter.values().forEach { f -> filters.addView(tab(f, counts[f] ?: -1)) }
         val cats = (notes.map { it.category } + tasks.map { it.category }).filter { it.isNotBlank() }.distinct().sorted()
@@ -264,7 +270,11 @@ class SpaceFragment : Fragment() {
                 if (query.isEmpty() && category == null) out += Row.Today
                 val next = open.sortedWith(compareBy({ it.due == 0L }, { it.due })).take(3)
                 if (next.isNotEmpty()) { out += Row.Header(getString(R.string.wp_next_up), open.size); next.forEach { out += Row.TaskRow(it) } }
-                if (gs.isNotEmpty() && category == null) { out += Row.Header(getString(R.string.wp_filter_goals), gs.size); out += Row.GoalStrip(gs) }
+                if ((gs.isNotEmpty() || projects.isNotEmpty()) && category == null) {
+                    out += Row.Header(getString(R.string.wp_filter_goals), gs.size + projects.size)
+                    if (gs.isNotEmpty()) out += Row.GoalStrip(gs)
+                    projects.filter { !it.second.done }.take(3).forEach { (g, st) -> out += Row.ProjectCard(g, st) }
+                }
                 byDay(ns, tiles = false)
             }
             Filter.VOICE -> byDay(ns.filter { it.kind == Note.Kind.VOICE }, false)
@@ -285,7 +295,10 @@ class SpaceFragment : Fragment() {
                     if (showDone) done.forEach { out += Row.TaskRow(it) }
                 }
             }
-            Filter.GOALS -> gs.forEach { (g, p) -> out += Row.GoalCard(g, p) }
+            Filter.GOALS -> {
+                if (projects.isNotEmpty()) { out += Row.Header(getString(R.string.wp_goal_projects), projects.size); projects.forEach { (g, st) -> out += Row.ProjectCard(g, st) } }
+                if (gs.isNotEmpty()) { out += Row.Header(getString(R.string.wp_goal_habits), gs.size); gs.forEach { (g, p) -> out += Row.GoalCard(g, p) } }
+            }
         }
         if (out.isEmpty() || (out.size == 1 && out[0] is Row.Today)) {
             out += Row.Empty(getString(if (query.isNotEmpty()) R.string.wp_space_no_results else when (filter) {
@@ -336,7 +349,7 @@ class SpaceFragment : Fragment() {
         override fun getItemCount() = rows.size
         override fun getItemViewType(position: Int) = when (rows[position]) {
             is Row.Header -> 0; is Row.Today -> 1; is Row.TaskRow -> 2; is Row.GoalStrip -> 3; is Row.GoalCard -> 4
-            is Row.NoteRow -> 5; is Row.ShotTile -> 6; is Row.Empty -> 7
+            is Row.NoteRow -> 5; is Row.ShotTile -> 6; is Row.Empty -> 7; is Row.ProjectCard -> 8
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = Holder(LinearLayout(parent.context).apply {
@@ -354,6 +367,7 @@ class SpaceFragment : Fragment() {
                 is Row.TaskRow -> bindTask(root, r.task)
                 is Row.GoalStrip -> bindGoalStrip(root, r.goals)
                 is Row.GoalCard -> bindGoalCard(root, r.goal, r.progress)
+                is Row.ProjectCard -> bindProject(root, r.goal, r.status)
                 is Row.NoteRow -> bindNote(root, r.note)
                 is Row.ShotTile -> bindShot(root, r.note)
                 is Row.Empty -> root.addView(style.caption(r.text).apply { gravity = Gravity.CENTER; setPadding(style.dp(28), style.dp(36), style.dp(28), style.dp(36)) },
@@ -379,12 +393,12 @@ class SpaceFragment : Fragment() {
         if (r.text == getString(R.string.wp_filter_goals) && filter == Filter.ALL) root.setOnClickListener { filter = Filter.GOALS; render() }
     }
 
-    /** Today: the date in dot-matrix, and a one-line brief of what's due. */
+    /** Today: the date in dot-matrix, three tappable numbers (today, overdue, goals), the next reminder and quick adds. */
     private fun bindToday(root: LinearLayout) {
-        card(root, 22)
+        card(root, 24)
         root.orientation = LinearLayout.VERTICAL
         root.gravity = Gravity.START
-        root.setPadding(style.dp(18), style.dp(16), style.dp(18), style.dp(16))
+        root.setPadding(style.dp(18), style.dp(18), style.dp(18), style.dp(14))
         val ctx = root.context
         val now = System.currentTimeMillis()
         val zone = java.time.ZoneId.systemDefault()
@@ -397,21 +411,57 @@ class SpaceFragment : Fragment() {
         val open = tasks.filter { !it.done }
         val overdue = open.count { it.due in 1 until now }
         val dueToday = open.count { it.due in now until endOfToday }
+        val habits = goals.filter { it.kind == Goal.Kind.HABIT }
+        val onTrack = habits.count { Goals.progress(it.period, it.target, it.checkins, now).complete }
+        val stats = LinearLayout(ctx).apply { setPadding(0, style.dp(16), 0, style.dp(4)) }
+        fun stat(value: String, label: Int, alert: Boolean, onClick: () -> Unit) = stats.addView(LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = style.rounded(if (alert) red else style.codeBg, 16)
+            setPadding(style.dp(12), style.dp(10), style.dp(12), style.dp(10))
+            addView(TextView(ctx, null, 0, R.style.TextLarge).apply {
+                text = value; textSize = 24f; typeface = android.graphics.Typeface.MONOSPACE
+                setTextColor(if (alert) 0xFFFFFFFF.toInt() else style.ink)
+            })
+            addView(style.caption(getString(label)).apply { if (alert) setTextColor(0xDDFFFFFF.toInt()); maxLines = 1 })
+            setOnClickListener { onClick() }
+        }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = style.dp(8) })
+        stat(dueToday.toString(), R.string.wp_stat_today, false) { filter = Filter.TODO; render() }
+        stat(overdue.toString(), R.string.wp_stat_overdue, overdue > 0) { filter = Filter.TODO; render() }
+        val projectsOpen = goals.count { it.kind == Goal.Kind.PROJECT && it.percent < 100 }
+        if (habits.isNotEmpty() || projectsOpen == 0) stat("$onTrack/${habits.size}", R.string.wp_stat_goals, false) { filter = Filter.GOALS; render() }
+        else stat(projectsOpen.toString(), R.string.wp_stat_projects, false) { filter = Filter.GOALS; render() }
+        (stats.getChildAt(stats.childCount - 1).layoutParams as LinearLayout.LayoutParams).marginEnd = 0
+        root.addView(stats, LinearLayout.LayoutParams(-1, -2))
         val next = open.filter { it.due >= now && it.remind }.minByOrNull { it.due }
-        val parts = buildList {
-            add(resources.getQuantityString(R.plurals.wp_todos_today, dueToday, dueToday))
-            if (overdue > 0) add(getString(R.string.wp_overdue_count, overdue))
-            val onTrack = goals.count { Goals.progress(it.period, it.target, it.checkins, now).complete }
-            if (goals.isNotEmpty()) add(getString(R.string.wp_goals_on_track, onTrack, goals.size))
+        if (next != null) root.addView(style.caption("🔔  " + dueLabel(next.due) + "  ·  " + next.title).apply {
+            textSize = 13f; setPadding(style.dp(2), style.dp(10), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        val quick = LinearLayout(ctx).apply { setPadding(0, style.dp(12), 0, 0) }
+        listOf(R.string.wp_quick_todo to { SpaceEditors.task(this, null) }, R.string.wp_quick_goal to { SpaceEditors.goal(this) }).forEach { (label, click) ->
+            quick.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                text = getString(label); textSize = 13f; setTextColor(style.ink); gravity = Gravity.CENTER
+                background = style.rounded(0, 100, style.hairline)
+                minHeight = style.dp(36)
+                setPadding(style.dp(14), style.dp(6), style.dp(14), style.dp(6))
+                setOnClickListener { click() }
+            }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = style.dp(8) })
         }
-        root.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
-            text = parts.joinToString("  ·  "); setTextColor(style.ink); textSize = 14f; setPadding(0, style.dp(12), 0, 0)
-        })
-        if (next != null) root.addView(style.caption("🔔 " + android.text.format.DateUtils.formatDateTime(ctx, next.due,
-            android.text.format.DateUtils.FORMAT_SHOW_TIME or android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_ABBREV_ALL) + "  " + next.title).apply {
-            setPadding(0, style.dp(6), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
-        })
-        if (overdue > 0) { root.setOnClickListener { filter = Filter.TODO; render() } }
+        root.addView(quick)
+    }
+
+    /** "Today 18:00", "Tomorrow 9:00", "Mon 3 Nov 9:00". */
+    private fun dueLabel(due: Long): String {
+        val zone = java.time.ZoneId.systemDefault()
+        val d = java.time.Instant.ofEpochMilli(due).atZone(zone)
+        val today = java.time.LocalDate.now(zone)
+        val time = android.text.format.DateFormat.getTimeFormat(requireContext()).format(java.util.Date(due))
+        val day = when (d.toLocalDate()) {
+            today -> getString(R.string.wp_day_today)
+            today.plusDays(1) -> getString(R.string.wp_task_tomorrow)
+            today.minusDays(1) -> getString(R.string.wp_day_yesterday)
+            else -> d.format(java.time.format.DateTimeFormatter.ofPattern(if (d.year == today.year) "EEE d MMM" else "d MMM yyyy", java.util.Locale.getDefault()))
+        }
+        return "$day $time"
     }
 
     private fun bindNote(root: LinearLayout, n: Note) {
@@ -496,33 +546,62 @@ class SpaceFragment : Fragment() {
 
     private fun bindTask(root: LinearLayout, t: Task) {
         card(root)
-        root.setPadding(style.dp(10), style.dp(10), style.dp(14), style.dp(10))
+        root.setPadding(style.dp(8), style.dp(10), style.dp(14), style.dp(10))
         val ctx = root.context
+        val overdue = !t.done && t.due in 1 until System.currentTimeMillis()
         root.addView(ImageView(ctx).apply {
             setImageResource(if (t.done) R.drawable.ic_check_circle else R.drawable.ic_circle)
             scaleType = ImageView.ScaleType.CENTER
-            imageTintList = android.content.res.ColorStateList.valueOf(if (t.done) red else style.ink)
-            setOnClickListener { viewLifecycleOwner.lifecycleScope.launch { space.setTaskDone(t.id, !t.done) } }
+            imageTintList = android.content.res.ColorStateList.valueOf(if (t.done || overdue) red else style.ink)
+            setOnClickListener {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val next = space.setTaskDone(t.id, !t.done)
+                    // a repeating to-do comes back on its next date
+                    if (next != null && isAdded) requireContext().showToast(getString(R.string.wp_repeat_next, dueLabel(next)))
+                }
+            }
             contentDescription = getString(if (t.done) R.string.wp_task_undo else R.string.wp_task_done)
-        }, LinearLayout.LayoutParams(style.dp(40), style.dp(40)).apply { marginEnd = style.dp(6) })
+        }, LinearLayout.LayoutParams(style.dp(44), style.dp(44)).apply { marginEnd = style.dp(6) })
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
         col.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
             text = t.title; setTextColor(if (t.done) style.faint else style.ink); textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+            maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END
             paintFlags = if (t.done) paintFlags or Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and Paint.STRIKE_THRU_TEXT_FLAG.inv()
         })
-        if (t.category.isNotBlank()) col.addView(style.caption(t.category).apply { setPadding(0, style.dp(2), 0, 0) })
+        val parts = listOfNotNull(
+            if (t.due > 0) (if (overdue) getString(R.string.wp_todo_overdue) + " · " else "") + (if (t.remind && !t.done) "🔔 " else "") + dueLabel(t.due) else null,
+            t.rule.takeIf { it.repeats }?.let { "↻ " + it.describe() },
+            t.category.ifBlank { null },
+        )
+        if (parts.isNotEmpty()) col.addView(style.caption(parts.joinToString("  ·  ")).apply {
+            setPadding(0, style.dp(3), 0, 0); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+            if (overdue) setTextColor(red)
+        })
         root.addView(col, LinearLayout.LayoutParams(0, -2, 1f))
-        if (t.due > 0) {
-            val overdue = !t.done && t.due < System.currentTimeMillis()
-            val label = DateUtils.formatDateTime(ctx, t.due, DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_ALL)
-            root.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
-                text = (if (t.remind) "🔔 " else "") + label; textSize = 12f
-                setTextColor(if (overdue) 0xFFFFFFFF.toInt() else style.ink)
-                background = if (overdue) style.rounded(red, 100) else style.rounded(0, 100, style.hairline)
-                setPadding(style.dp(10), style.dp(5), style.dp(10), style.dp(5))
-            }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = style.dp(8) })
-        }
         root.setOnClickListener { SpaceEditors.task(this, t) }
+    }
+
+    /** A project: title, % done, a bar with a tick where an even pace would be, and the pace in words. */
+    private fun bindProject(root: LinearLayout, g: Goal, st: app.olauncher.features.space.domain.Projects.Status) {
+        card(root, 20)
+        root.orientation = LinearLayout.VERTICAL
+        root.gravity = Gravity.START
+        root.setPadding(style.dp(16), style.dp(14), style.dp(16), style.dp(14))
+        val ctx = root.context
+        val top = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL }
+        top.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
+            text = g.title; setTextColor(style.ink); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+            textDirection = View.TEXT_DIRECTION_FIRST_STRONG
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        top.addView(TextView(ctx, null, 0, R.style.TextMedium).apply {
+            text = "${st.percent}%"; typeface = android.graphics.Typeface.MONOSPACE; setTextColor(if (st.done) red else style.ink)
+        })
+        root.addView(top, LinearLayout.LayoutParams(-1, -2))
+        root.addView(ProjectBar(ctx, st.percent / 100f, if (st.done) -1f else st.expected / 100f, style.ink, red),
+            LinearLayout.LayoutParams(-1, style.dp(14)).apply { topMargin = style.dp(10); bottomMargin = style.dp(8) })
+        val behind = !st.done && (st.overdue || st.delta <= -5)
+        root.addView(style.caption(SpaceEditors.paceText(ctx, st)).apply { if (behind) setTextColor(red) })
+        root.setOnClickListener { SpaceEditors.projectProgress(this, g) }
     }
 
     /** Goals as a horizontal strip of ring tiles: tap the ring to check in. */
@@ -612,3 +691,22 @@ internal class LevelMeter(context: android.content.Context) : View(context) {
     }
 }
 
+/** Progress bar for a project: filled to [fraction], with a small tick at the even-pace point ([expected], -1 = none). */
+internal class ProjectBar(context: android.content.Context, private val fraction: Float, private val expected: Float, private val ink: Int, private val accent: Int) : View(context) {
+    private val d = resources.displayMetrics.density
+    private val track = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = (ink and 0x00FFFFFF) or 0x22000000 }
+    private val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = accent }
+    private val tick = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = ink; strokeWidth = 2 * d }
+    private val r = android.graphics.RectF()
+    override fun onDraw(canvas: android.graphics.Canvas) {
+        val h = 6 * d
+        val top = (height - h) / 2
+        r.set(0f, top, width.toFloat(), top + h)
+        canvas.drawRoundRect(r, h / 2, h / 2, track)
+        if (fraction > 0f) { r.set(0f, top, width * fraction.coerceIn(0f, 1f), top + h); canvas.drawRoundRect(r, h / 2, h / 2, fill) }
+        if (expected >= 0f) {
+            val x = (width * expected.coerceIn(0f, 1f)).coerceIn(d, width - d)
+            canvas.drawLine(x, 0f, x, height.toFloat(), tick)
+        }
+    }
+}

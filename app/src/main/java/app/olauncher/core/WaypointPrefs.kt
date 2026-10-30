@@ -18,7 +18,7 @@ import app.olauncher.features.worldclock.domain.WorldClockEntry
  * Waypoint settings. Same SharedPreferences file as upstream [app.olauncher.data.Prefs] (already
  * loaded at start), keys prefixed `WP_`.
  */
-class WaypointPrefs(context: Context) {
+class WaypointPrefs(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app.olauncher", 0)
 
     // ---- World clock
@@ -219,14 +219,6 @@ class WaypointPrefs(context: Context) {
         get() = prefs.getInt(CORNER_SENSITIVITY, 1).coerceIn(0, 2)
         set(value) = prefs.edit { putInt(CORNER_SENSITIVITY, value.coerceIn(0, 2)) }
 
-    // ---- Notification capture / ledger
-    var ledgerCaptureEnabled: Boolean
-        get() = prefs.getBoolean(LEDGER_CAPTURE, false)
-        set(value) = prefs.edit { putBoolean(LEDGER_CAPTURE, value) }
-
-    var capturePackages: Set<String>
-        get() = prefs.getStringSet(CAPTURE_PACKAGES, emptySet()).orEmpty().toSet()
-        set(value) = prefs.edit { putStringSet(CAPTURE_PACKAGES, value) }
 
     fun registerListener(l: SharedPreferences.OnSharedPreferenceChangeListener) = prefs.registerOnSharedPreferenceChangeListener(l)
     fun unregisterListener(l: SharedPreferences.OnSharedPreferenceChangeListener) = prefs.unregisterOnSharedPreferenceChangeListener(l)
@@ -237,12 +229,15 @@ class WaypointPrefs(context: Context) {
      * Also drops keys of the removed automation feature.
      */
     fun migrate() {
-        if (prefs.getInt(MIGRATION, 0) >= 2) return
+        val done = prefs.getInt(MIGRATION, 0)
+        if (done >= 3) return
+        if (done < 2) prefs.edit { putBoolean(MONOCHROME, false) }
+        // 3: the notification reader and its ledger were removed; drop their settings and data
         prefs.edit {
-            putBoolean(MONOCHROME, false)
             OBSOLETE_KEYS.forEach { remove(it) }
-            putInt(MIGRATION, 2)
+            putInt(MIGRATION, 3)
         }
+        runCatching { context.deleteDatabase("ledger.db") }
     }
 
     companion object {
@@ -292,11 +287,10 @@ class WaypointPrefs(context: Context) {
         const val CORNER_SIDE = "WP_CORNER_SIDE"
         const val CORNER_ACTION = "WP_CORNER_ACTION"
         const val CORNER_SENSITIVITY = "WP_CORNER_SENSITIVITY"
-        const val LEDGER_CAPTURE = "WP_LEDGER_CAPTURE"
-        const val CAPTURE_PACKAGES = "WP_CAPTURE_PACKAGES"
         private const val MIGRATION = "WP_MIGRATION"
         private const val CORNER_ENABLED_V1 = "WP_CORNER_ENABLED"
         private val OBSOLETE_KEYS = listOf(
+            "WP_LEDGER_CAPTURE", "WP_CAPTURE_PACKAGES",
             CORNER_ENABLED_V1, "WP_ENABLED_RULES", "WP_ENABLED_RULE_TYPES", "WP_ALARM_AT", "WP_ALARM_RULES", "WP_RULE_PACKAGES",
         )
     }

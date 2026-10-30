@@ -38,18 +38,32 @@ data class Note(
 }
 
 /** A to-do; [due] epoch millis (0 = none); [remind] schedules a notification at [due]. */
-data class Task(val id: Long, val title: String, val done: Boolean, val due: Long, val remind: Boolean, val created: Long, val noteId: Long, val category: String)
+data class Task(
+    val id: Long, val title: String, val done: Boolean, val due: Long, val remind: Boolean, val created: Long, val noteId: Long, val category: String,
+    /** [RepeatRule] encoding; "" = once. */
+    val repeat: String = "",
+) {
+    val rule get() = app.olauncher.features.space.domain.RepeatRule.decode(repeat)
+}
 
-data class Goal(val id: Long, val title: String, val target: Int, val period: app.olauncher.features.space.domain.GoalPeriod, val created: Long, val checkins: List<Long>)
+/**
+ * A habit ([target] check-ins per [period]) or a project (finish by [deadline], [percent] done so far).
+ */
+data class Goal(
+    val id: Long, val title: String, val target: Int, val period: app.olauncher.features.space.domain.GoalPeriod, val created: Long, val checkins: List<Long>,
+    val kind: Kind = Kind.HABIT, val deadline: Long = 0, val percent: Int = 0,
+) {
+    enum class Kind { HABIT, PROJECT }
+}
 
-private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 3) {
+private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 4) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER NOT NULL, duration INTEGER NOT NULL, " +
                 "audio TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', transcript TEXT NOT NULL DEFAULT '', " +
                 "summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '')",
         )
-        onUpgrade(db, 1, 3)
+        onUpgrade(db, 1, 4)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -68,6 +82,13 @@ private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space
         }
         if (oldVersion < 3) {
             db.execSQL("ALTER TABLE notes ADD COLUMN raw TEXT NOT NULL DEFAULT ''")
+        }
+        if (oldVersion < 4) {
+            // repeating to-dos; project goals (deadline + % done)
+            db.execSQL("ALTER TABLE tasks ADD COLUMN repeat TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE goals ADD COLUMN kind TEXT NOT NULL DEFAULT 'HABIT'")
+            db.execSQL("ALTER TABLE goals ADD COLUMN deadline INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE goals ADD COLUMN percent INTEGER NOT NULL DEFAULT 0")
         }
     }
 }
@@ -112,8 +133,8 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
 
     // ---- tasks
 
-    private fun readTask(c: android.database.Cursor) = Task(c.getLong(0), c.getString(1), c.getInt(2) != 0, c.getLong(3), c.getInt(4) != 0, c.getLong(5), c.getLong(6), c.getString(7))
-    private val taskCols = "id, title, done, due, remind, created, note_id, category"
+    private fun readTask(c: android.database.Cursor) = Task(c.getLong(0), c.getString(1), c.getInt(2) != 0, c.getLong(3), c.getInt(4) != 0, c.getLong(5), c.getLong(6), c.getString(7), c.getString(8))
+    private val taskCols = "id, title, done, due, remind, created, note_id, category, repeat"
 
     suspend fun tasks(): List<Task> = withContext(io) {
         db.rawQuery("SELECT $taskCols FROM tasks ORDER BY done, CASE WHEN due = 0 THEN 1 ELSE 0 END, due, created DESC", null)
@@ -124,8 +145,9 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
         db.rawQuery("SELECT $taskCols FROM tasks WHERE id = ?", arrayOf(id.toString())).use { c -> if (c.moveToFirst()) readTask(c) else null }
     }
 
-    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = ""): Long = withContext(io) {
+    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = "", repeat: String = ""): Long = withContext(io) {
         db.insert("tasks", null, ContentValues().apply {
+            put("repeat", repeat)
             put("title", title); put("due", due); put("remind", if (remind) 1 else 0); put("created", System.currentTimeMillis())
             put("note_id", noteId); put("category", category)
         })
@@ -143,17 +165,29 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
         val checks = db.rawQuery("SELECT goal_id, at FROM checkins", null).use { c ->
             buildList { while (c.moveToNext()) add(c.getLong(0) to c.getLong(1)) }
         }.groupBy({ it.first }, { it.second })
-        db.rawQuery("SELECT id, title, target, period, created FROM goals ORDER BY created DESC", null).use { c ->
+        db.rawQuery("SELECT id, title, target, period, created, kind, deadline, percent FROM goals ORDER BY created DESC", null).use { c ->
             buildList {
                 while (c.moveToNext()) add(Goal(c.getLong(0), c.getString(1), c.getInt(2),
                     runCatching { app.olauncher.features.space.domain.GoalPeriod.valueOf(c.getString(3)) }.getOrDefault(app.olauncher.features.space.domain.GoalPeriod.WEEK),
-                    c.getLong(4), checks[c.getLong(0)].orEmpty()))
+                    c.getLong(4), checks[c.getLong(0)].orEmpty(),
+                    runCatching { Goal.Kind.valueOf(c.getString(5)) }.getOrDefault(Goal.Kind.HABIT), c.getLong(6), c.getInt(7)))
             }
         }
     }
 
     suspend fun addGoal(title: String, target: Int, period: app.olauncher.features.space.domain.GoalPeriod): Long = withContext(io) {
         db.insert("goals", null, ContentValues().apply { put("title", title); put("target", target); put("period", period.name); put("created", System.currentTimeMillis()) })
+    }
+
+    suspend fun addProject(title: String, deadline: Long, percent: Int): Long = withContext(io) {
+        db.insert("goals", null, ContentValues().apply {
+            put("title", title); put("target", 100); put("period", "TOTAL"); put("created", System.currentTimeMillis())
+            put("kind", Goal.Kind.PROJECT.name); put("deadline", deadline); put("percent", percent.coerceIn(0, 100))
+        })
+    }
+
+    suspend fun updateGoal(id: Long, block: ContentValues.() -> Unit) = withContext(io) {
+        db.update("goals", ContentValues().apply(block), "id = ?", arrayOf(id.toString()))
     }
 
     suspend fun checkIn(goalId: Long, at: Long = System.currentTimeMillis()) = withContext(io) {

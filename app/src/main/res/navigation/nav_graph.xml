@@ -73,18 +73,6 @@
         android:name="app.olauncher.features.appearance.ui.AppearanceSettingsFragment"
         tools:layout="@layout/fragment_wp_page" />
     <fragment
-        android:id="@+id/notificationAccessFragment"
-        android:name="app.olauncher.features.notifications.ui.NotificationAccessFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
-        android:id="@+id/transactionLedgerFragment"
-        android:name="app.olauncher.features.transactions.ui.TransactionLedgerFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
-        android:id="@+id/exportPreviewFragment"
-        android:name="app.olauncher.features.export.ui.ExportPreviewFragment"
-        tools:layout="@layout/fragment_wp_page" />
-    <fragment
         android:id="@+id/privacyDataFragment"
         android:name="app.olauncher.features.privacy.PrivacyDataFragment"
         tools:layout="@layout/fragment_wp_page" />

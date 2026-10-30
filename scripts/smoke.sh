@@ -110,8 +110,15 @@ tap "Stop" || adb shell input keyevent 4; sleep 3; shot 16g-space-note
 # Write a note with a reminder, add a to-do and a goal
 tap "Write"; sleep 2; adb shell "input text 'Remind%sme%sto%scall%smom%stomorrow%sat%s5pm'"; sleep 1; shot 16h-space-write
 adb shell input keyevent 4; sleep 1; adb shell input keyevent 4; sleep 3; shot 16i-space-organised
-tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Exercise'"; tap "Okay" exact; sleep 2
+# a habit, a project (finish by a date) and a repeating to-do, through the chip editors
+tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Exercise'"; sleep 1; shot 16k-goal-editor; tap "Save" exact; sleep 2
+tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Coursework'"; tap "Project · finish by a date"; sleep 1
+tap "+25%"; sleep 1; shot 16l-project-editor; tap "Save" exact; sleep 2
+tap "Add"; sleep 1; tap "To-do"; sleep 1; adb shell "input text 'Gym'"; tap "Tomorrow"; sleep 1; tap "Weekdays"; sleep 1
+shot 16m-todo-editor; tap "Save" exact; sleep 2
+shot 16n-space-dashboard
 tap "To-do"; sleep 2; shot 16j-space-todo
+tap "Goals"; sleep 2; shot 16o-space-goals
 home
 adb shell input swipe $((W/2)) $((H*3/4)) $((W/2)) $((H/4)) 200; sleep 1
 # "?" opens the Gemini composer (multi-line)

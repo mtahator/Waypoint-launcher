@@ -151,29 +151,7 @@
                     android:text="@string/wp_appearance" />
 
 
-                <TextView
-                    android:id="@+id/wpNotifications"
-                    style="@style/TextSmall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:focusable="true"
-                    android:minHeight="48dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/wp_notifications_and_ledger" />
 
-                <TextView
-                    android:id="@+id/wpExport"
-                    style="@style/TextSmall"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="?attr/selectableItemBackground"
-                    android:focusable="true"
-                    android:minHeight="48dp"
-                    android:gravity="center_vertical"
-                    android:text="@string/wp_export_csv" />
 
                 <TextView
                     android:id="@+id/wpPrivacy"

@@ -152,21 +152,7 @@
             </intent-filter>
         </service>
 
-        <!-- Waypoint: notification capture for user-selected apps only -->
-        <service
-            android:name=".features.notifications.platform.NotificationCaptureService"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.notification.default_filter_types"
-                android:value="conversations|alerting|silent" />
-        </service>
-
-        <!-- Waypoint: temporary CSV files handed to the share sheet -->
+        <!-- Waypoint: files handed to the share sheet (chat images) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.exports"

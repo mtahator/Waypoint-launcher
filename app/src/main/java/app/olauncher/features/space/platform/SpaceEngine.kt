@@ -12,6 +12,7 @@ import app.olauncher.features.space.domain.Categories
 import app.olauncher.features.space.domain.GoalPeriod
 import app.olauncher.features.space.domain.ReminderParser
 import app.olauncher.features.space.domain.ReminderRequest
+import app.olauncher.features.space.domain.RepeatRule
 import app.olauncher.features.space.domain.SpaceAi
 import app.olauncher.features.space.domain.Transcription
 import app.olauncher.features.space.domain.TranscriptCleanup
@@ -246,12 +247,12 @@ class SpaceEngine(
     /** A chat message like "remind me tonight to do the dishes" becomes a to-do/reminder; returns the confirmation. */
     suspend fun chatRequest(text: String): String? {
         val r = ReminderRequest.parse(text, System.currentTimeMillis()) ?: return null
-        addTask(r.title, r.due ?: 0, r.remind)
+        addTask(r.title, r.due ?: 0, r.remind, repeat = r.repeat.encode())
         val fa = text.any { it in '\u0600'..'\u06FF' }
         val time = r.due?.let {
             android.text.format.DateUtils.formatDateTime(context, it, android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or
                 android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME or android.text.format.DateUtils.FORMAT_ABBREV_ALL)
-        }
+        }?.let { t -> if (r.repeat.repeats) "$t (${r.repeat.describe().lowercase()})" else t }
         return when {
             fa && r.remind -> "یادآوری تنظیم شد: **${r.title}** — $time\nدر Space → کارها می‌توانید آن را تغییر دهید."
             fa -> "به کارها اضافه شد: **${r.title}**${time?.let { " — $it" }.orEmpty()}"
@@ -260,17 +261,30 @@ class SpaceEngine(
         }
     }
 
-    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = ""): Long {
-        val id = notes.addTask(title.trim(), due, remind, noteId, category.ifBlank { Categories.categorize(title) })
+    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = "", repeat: String = ""): Long {
+        val id = notes.addTask(title.trim(), due, remind, noteId, category.ifBlank { Categories.categorize(title) }, repeat)
         notes.task(id)?.let { ReminderScheduler.schedule(context, it) }
         _changes.tryEmit(0)
         return id
     }
 
-    suspend fun setTaskDone(id: Long, done: Boolean) {
+    /**
+     * Ticks a to-do off (or back on). A repeating one isn't finished: it moves to its next date, with its
+     * reminder; the new due time is returned so the UI can say when it comes back.
+     */
+    suspend fun setTaskDone(id: Long, done: Boolean): Long? {
+        val task = notes.task(id) ?: return null
+        if (done && task.rule.repeats) {
+            val next = RepeatRule.advance(task.due, task.rule, System.currentTimeMillis())
+            notes.updateTask(id) { put("due", next); put("done", 0) }
+            notes.task(id)?.let { ReminderScheduler.schedule(context, it) }
+            _changes.tryEmit(0)
+            return next
+        }
         notes.updateTask(id) { put("done", if (done) 1 else 0) }
         notes.task(id)?.let { if (done) ReminderScheduler.cancel(context, id) else ReminderScheduler.schedule(context, it) }
         _changes.tryEmit(0)
+        return null
     }
 
     suspend fun setTaskDue(id: Long, due: Long, remind: Boolean) {
@@ -279,8 +293,8 @@ class SpaceEngine(
         _changes.tryEmit(0)
     }
 
-    suspend fun updateTask(id: Long, title: String, due: Long, remind: Boolean) {
-        notes.updateTask(id) { put("title", title.trim()); put("due", due); put("remind", if (remind) 1 else 0) }
+    suspend fun updateTask(id: Long, title: String, due: Long, remind: Boolean, repeat: String = "") {
+        notes.updateTask(id) { put("title", title.trim()); put("due", due); put("remind", if (remind) 1 else 0); put("repeat", repeat) }
         notes.task(id)?.let { ReminderScheduler.schedule(context, it) }
         _changes.tryEmit(0)
     }
@@ -293,6 +307,12 @@ class SpaceEngine(
     suspend fun checkIn(goalId: Long) { notes.checkIn(goalId); _changes.tryEmit(0) }
     suspend fun undoCheckIn(goalId: Long) { notes.undoCheckIn(goalId); _changes.tryEmit(0) }
     suspend fun deleteGoal(goalId: Long) { notes.deleteGoal(goalId); _changes.tryEmit(0) }
+    suspend fun addProject(title: String, deadline: Long, percent: Int) { notes.addProject(title.trim(), deadline, percent); _changes.tryEmit(0) }
+    suspend fun setGoalProgress(goalId: Long, percent: Int) { notes.updateGoal(goalId) { put("percent", percent.coerceIn(0, 100)) }; _changes.tryEmit(0) }
+    suspend fun updateGoal(goalId: Long, title: String, target: Int, period: GoalPeriod, deadline: Long) {
+        notes.updateGoal(goalId) { put("title", title.trim()); put("target", target.coerceAtLeast(1)); put("period", period.name); put("deadline", deadline) }
+        _changes.tryEmit(0)
+    }
 
     suspend fun setCategory(id: Long, category: String) { notes.update(id) { put("category", category) }; _changes.tryEmit(id) }
 

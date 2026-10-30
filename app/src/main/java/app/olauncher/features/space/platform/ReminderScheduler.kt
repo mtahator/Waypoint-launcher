@@ -102,7 +102,8 @@ class ReminderReceiver : BroadcastReceiver() {
                         val task = c.space.notes.task(id) ?: return@launch
                         when (intent.action) {
                             ReminderScheduler.ACTION_FIRE -> if (!task.done) ReminderScheduler.show(app, task)
-                            ReminderScheduler.ACTION_DONE -> { c.space.setTaskDone(id, true); ReminderScheduler.cancel(app, id) }
+                            // cancel first: a repeating to-do is rescheduled for its next date by setTaskDone
+                            ReminderScheduler.ACTION_DONE -> { ReminderScheduler.cancel(app, id); c.space.setTaskDone(id, true) }
                             ReminderScheduler.ACTION_SNOOZE -> {
                                 ReminderScheduler.cancel(app, id)
                                 c.space.setTaskDue(id, System.currentTimeMillis() + 10 * 60_000L, remind = true)

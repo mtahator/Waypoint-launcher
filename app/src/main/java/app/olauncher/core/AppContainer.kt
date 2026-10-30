@@ -12,13 +12,9 @@ import app.olauncher.features.assistant.platform.ChatEngine
 import app.olauncher.features.assistant.platform.ToolHost
 import app.olauncher.features.assistant.platform.ToolRunner
 import app.olauncher.features.assistant.platform.ImageClient
-import app.olauncher.features.notifications.platform.CaptureController
 import app.olauncher.features.quickanswers.platform.ExchangeRateRepository
 import app.olauncher.features.space.data.NotesRepository
 import app.olauncher.features.space.platform.SpaceEngine
-import app.olauncher.features.transactions.data.LedgerDatabase
-import app.olauncher.features.transactions.data.TransactionRepository
-import app.olauncher.features.transactions.domain.ParserRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
@@ -57,9 +53,6 @@ class AppContainer(context: Context) {
     val appearance by lazy { AppearanceController(prefs, backdrop) }
     val grayscale by lazy { SystemGrayscaleController(app) }
 
-    val transactions by lazy { TransactionRepository({ LedgerDatabase(app) }, dispatchers.io) }
-    val parsers by lazy { ParserRegistry.default() }
-    val capture by lazy { CaptureController(app, prefs) }
 }
 
 val Context.waypoint: AppContainer get() = (applicationContext as WaypointApplication).container
