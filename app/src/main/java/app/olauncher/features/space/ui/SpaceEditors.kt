@@ -106,8 +106,66 @@ internal object SpaceEditors {
         var due = task?.due ?: 0L
         var remind = task?.remind ?: false
         var rule = task?.rule ?: RepeatRule.NONE
+        val steps = ArrayList<app.olauncher.features.space.platform.SpaceEngine.Step>()
+        var suggesting = false
         lateinit var title: EditText
         lateinit var dynamic: LinearLayout
+        lateinit var stepsBox: LinearLayout
+
+        fun renderSteps() {
+            stepsBox.removeAllViews()
+            val st = ChatStyle(ctx)
+            label(stepsBox, R.string.wp_task_steps)
+            steps.forEachIndexed { i, s ->
+                stepsBox.addView(LinearLayout(ctx).apply {
+                    gravity = Gravity.CENTER_VERTICAL
+                    minimumHeight = dp(ctx, 40)
+                    addView(android.widget.ImageView(ctx).apply {
+                        setImageResource(if (s.done) R.drawable.ic_check_circle else R.drawable.ic_circle)
+                        imageTintList = android.content.res.ColorStateList.valueOf(if (s.done) 0xFFD71921.toInt() else st.ink)
+                        scaleType = android.widget.ImageView.ScaleType.CENTER
+                        setOnClickListener { steps[i] = s.copy(done = !s.done); renderSteps() }
+                    }, LinearLayout.LayoutParams(dp(ctx, 36), dp(ctx, 36)))
+                    addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                        text = s.title; textSize = 15f; setTextColor(if (s.done) st.faint else st.ink)
+                        paintFlags = if (s.done) paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG else paintFlags and android.graphics.Paint.STRIKE_THRU_TEXT_FLAG.inv()
+                        setPadding(dp(ctx, 6), 0, dp(ctx, 6), 0)
+                        setOnClickListener {
+                            ctx.promptText(R.string.wp_task_step_edit, s.title) { t -> if (t.isNotBlank()) { steps[i] = s.copy(title = t.trim()); renderSteps() } }
+                        }
+                    }, LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                        text = "✕"; textSize = 15f; setTextColor(st.faint); gravity = Gravity.CENTER
+                        contentDescription = ctx.getString(R.string.wp_delete)
+                        setOnClickListener { steps.removeAt(i); renderSteps() }
+                    }, LinearLayout.LayoutParams(dp(ctx, 40), dp(ctx, 40)))
+                })
+            }
+            chips(stepsBox, listOfNotNull(
+                Triple(ctx.getString(R.string.wp_task_step_add), false, {
+                    ctx.promptText(R.string.wp_task_step_add, "", hint = R.string.wp_task_step_hint) { t ->
+                        // several lines = several steps
+                        t.lines().map { it.trim().trimStart('-', '•', '*').trim() }.filter { it.isNotEmpty() }
+                            .forEach { steps += app.olauncher.features.space.platform.SpaceEngine.Step(0, it, false) }
+                        renderSteps()
+                    }
+                }),
+                if (ctx.waypoint.chatEngine.isConfigured()) Triple(ctx.getString(if (suggesting) R.string.wp_task_step_suggesting else R.string.wp_task_step_suggest), suggesting, {
+                    val t = title.text.toString().trim()
+                    if (t.isEmpty()) ctx.showToast(ctx.getString(R.string.wp_task_step_need_title))
+                    else if (!suggesting) {
+                        suggesting = true; renderSteps()
+                        f.viewLifecycleOwner.lifecycleScope.launch {
+                            val got = space.suggestSteps(t)
+                            suggesting = false
+                            if (got.isEmpty()) ctx.showToast(ctx.getString(R.string.wp_task_step_failed))
+                            got.filter { g -> steps.none { it.title.equals(g, true) } }.forEach { steps += app.olauncher.features.space.platform.SpaceEngine.Step(0, it, false) }
+                            renderSteps()
+                        }
+                    }
+                }) else null,
+            ))
+        }
 
         fun render() {
             dynamic.removeAllViews()
@@ -173,9 +231,12 @@ internal object SpaceEditors {
             if (rule.repeats && due == 0L) due = RepeatRule.advance(0, rule, System.currentTimeMillis())
             val finalTitle = text.replaceFirstChar { it.uppercase() }
             val repeat = if (due > 0) rule.encode() else ""
-            f.viewLifecycleOwner.lifecycleScope.launch {
-                if (task == null) space.addTask(finalTitle, due, remind && due > 0, repeat = repeat)
-                else space.updateTask(task.id, finalTitle, due, remind && due > 0, repeat)
+            val finalSteps = steps.toList()
+            // the app scope: the dialog (and maybe the page) may be gone before this finishes
+            ctx.waypoint.scope.launch {
+                val id = if (task == null) space.addTask(finalTitle, due, remind && due > 0, repeat = repeat)
+                else { space.updateTask(task.id, finalTitle, due, remind && due > 0, repeat); task.id }
+                if (task != null || finalSteps.isNotEmpty()) space.saveSteps(id, finalSteps)
             }
         }, neutral = if (task != null) R.string.wp_delete else 0, onNeutral = {
             if (task != null) f.viewLifecycleOwner.lifecycleScope.launch { space.deleteTask(task.id) }
@@ -188,7 +249,21 @@ internal object SpaceEditors {
                 b.addView(title)
                 dynamic = LinearLayout(b.context).apply { orientation = LinearLayout.VERTICAL }
                 b.addView(dynamic)
+                stepsBox = LinearLayout(b.context).apply { orientation = LinearLayout.VERTICAL }
+                b.addView(stepsBox)
                 render()
+                renderSteps()
+                if (task != null) f.viewLifecycleOwner.lifecycleScope.launch { steps.addAll(space.steps(task.id)); renderSteps() }
+            }.let { inner ->
+                // the editor can grow taller than the screen with many steps: scroll it
+                android.widget.ScrollView(parent.context).apply {
+                    addView(inner)
+                    layoutParams = ViewGroup.MarginLayoutParams(-1, -2)
+                    isVerticalScrollBarEnabled = false
+                }.also { sv ->
+                    val max = (parent.resources.displayMetrics.heightPixels * 0.62f).toInt()
+                    sv.viewTreeObserver.addOnGlobalLayoutListener { if (sv.height > max) sv.layoutParams = sv.layoutParams.apply { height = max } }
+                }
             }
         })
         dialog.showRespectingStatusBar()

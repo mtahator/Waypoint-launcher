@@ -24,7 +24,7 @@ import kotlin.coroutines.resume
 /** What the tools need from the rest of the app (Space), without the assistant depending on it. */
 interface ToolHost {
     /** Adds a to-do (reminder when [due] > 0); returns a confirmation line. */
-    suspend fun addReminder(title: String, due: Long): String
+    suspend fun addReminder(title: String, due: Long, steps: List<String> = emptyList()): String
     /** The best matching Space items as short text. */
     suspend fun searchNotes(query: String): String
     /** Saves a fact to the memory about the user; returns a confirmation line. */
@@ -44,7 +44,8 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
             Tools.PLACES -> places(args.optString("query"), args.optString("near").takeIf { it.isNotBlank() }, args.optInt("limit", 5).coerceIn(1, 10))
             Tools.ROUTE -> route(args.optString("from").takeIf { it.isNotBlank() }, args.optString("to"), Tools.normalizeMode(args.optString("mode")))
             Tools.WEATHER -> weather(args.optString("place").takeIf { it.isNotBlank() })
-            Tools.REMINDER -> JSONObject().put("result", host.addReminder(args.optString("title"), parseDue(args.optString("due")))).toString()
+            Tools.REMINDER -> JSONObject().put("result", host.addReminder(args.optString("title"), parseDue(args.optString("due")),
+                args.optJSONArray("steps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } }.orEmpty())).toString()
             Tools.SPACE -> JSONObject().put("results", host.searchNotes(args.optString("query"))).toString()
             Tools.REMEMBER -> JSONObject().put("result", host.remember(args.optString("tag"), args.optString("text"))).toString()
             else -> error("Unknown tool ${call.name}")

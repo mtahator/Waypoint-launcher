@@ -537,4 +537,12 @@
     <string name="wp_try_nearby">Nearest supermarket to me</string>
     <string name="wp_try_reminder">Remind me tomorrow at 9 to call home</string>
     <string name="wp_try_explain">Explain this simply: </string>
+    <string name="wp_task_steps">Steps</string>
+    <string name="wp_task_step_add">＋ Add a step</string>
+    <string name="wp_task_step_hint">One step per line</string>
+    <string name="wp_task_step_edit">Edit step</string>
+    <string name="wp_task_step_suggest">✨ Suggest steps</string>
+    <string name="wp_task_step_suggesting">✨ Thinking…</string>
+    <string name="wp_task_step_need_title">Write the to-do first</string>
+    <string name="wp_task_step_failed">Couldn\'t get steps from the AI</string>
 </resources>

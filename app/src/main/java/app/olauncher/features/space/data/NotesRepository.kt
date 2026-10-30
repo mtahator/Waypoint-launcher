@@ -42,6 +42,8 @@ data class Task(
     val id: Long, val title: String, val done: Boolean, val due: Long, val remind: Boolean, val created: Long, val noteId: Long, val category: String,
     /** [RepeatRule] encoding; "" = once. */
     val repeat: String = "",
+    /** The to-do this is a step of (0 = a to-do of its own). */
+    val parent: Long = 0,
 ) {
     val rule get() = app.olauncher.features.space.domain.RepeatRule.decode(repeat)
 }
@@ -56,14 +58,14 @@ data class Goal(
     enum class Kind { HABIT, PROJECT }
 }
 
-private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 4) {
+private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space.db", null, 5) {
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL(
             "CREATE TABLE notes (id INTEGER PRIMARY KEY AUTOINCREMENT, created INTEGER NOT NULL, duration INTEGER NOT NULL, " +
                 "audio TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', transcript TEXT NOT NULL DEFAULT '', " +
                 "summary TEXT NOT NULL DEFAULT '', status TEXT NOT NULL, error TEXT NOT NULL DEFAULT '')",
         )
-        onUpgrade(db, 1, 4)
+        onUpgrade(db, 1, 5)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -90,6 +92,7 @@ private class SpaceDatabase(context: Context) : SQLiteOpenHelper(context, "space
             db.execSQL("ALTER TABLE goals ADD COLUMN deadline INTEGER NOT NULL DEFAULT 0")
             db.execSQL("ALTER TABLE goals ADD COLUMN percent INTEGER NOT NULL DEFAULT 0")
         }
+        if (oldVersion < 5) db.execSQL("ALTER TABLE tasks ADD COLUMN parent INTEGER NOT NULL DEFAULT 0")
     }
 }
 
@@ -133,8 +136,8 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
 
     // ---- tasks
 
-    private fun readTask(c: android.database.Cursor) = Task(c.getLong(0), c.getString(1), c.getInt(2) != 0, c.getLong(3), c.getInt(4) != 0, c.getLong(5), c.getLong(6), c.getString(7), c.getString(8))
-    private val taskCols = "id, title, done, due, remind, created, note_id, category, repeat"
+    private fun readTask(c: android.database.Cursor) = Task(c.getLong(0), c.getString(1), c.getInt(2) != 0, c.getLong(3), c.getInt(4) != 0, c.getLong(5), c.getLong(6), c.getString(7), c.getString(8), c.getLong(9))
+    private val taskCols = "id, title, done, due, remind, created, note_id, category, repeat, parent"
 
     suspend fun tasks(): List<Task> = withContext(io) {
         db.rawQuery("SELECT $taskCols FROM tasks ORDER BY done, CASE WHEN due = 0 THEN 1 ELSE 0 END, due, created DESC", null)
@@ -145,9 +148,9 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
         db.rawQuery("SELECT $taskCols FROM tasks WHERE id = ?", arrayOf(id.toString())).use { c -> if (c.moveToFirst()) readTask(c) else null }
     }
 
-    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = "", repeat: String = ""): Long = withContext(io) {
+    suspend fun addTask(title: String, due: Long, remind: Boolean, noteId: Long = 0, category: String = "", repeat: String = "", parent: Long = 0): Long = withContext(io) {
         db.insert("tasks", null, ContentValues().apply {
-            put("repeat", repeat)
+            put("repeat", repeat); put("parent", parent)
             put("title", title); put("due", due); put("remind", if (remind) 1 else 0); put("created", System.currentTimeMillis())
             put("note_id", noteId); put("category", category)
         })
@@ -157,7 +160,15 @@ class NotesRepository(context: Context, private val io: CoroutineDispatcher) {
         db.update("tasks", ContentValues().apply(block), "id = ?", arrayOf(id.toString()))
     }
 
-    suspend fun deleteTask(id: Long) = withContext(io) { db.delete("tasks", "id = ?", arrayOf(id.toString())) }
+    suspend fun deleteTask(id: Long) = withContext(io) {
+        db.delete("tasks", "parent = ?", arrayOf(id.toString())); db.delete("tasks", "id = ?", arrayOf(id.toString()))
+    }
+
+    /** The steps of [parentId], in the order they were added. */
+    suspend fun steps(parentId: Long): List<Task> = withContext(io) {
+        db.rawQuery("SELECT $taskCols FROM tasks WHERE parent = ? ORDER BY id", arrayOf(parentId.toString()))
+            .use { c -> buildList { while (c.moveToNext()) add(readTask(c)) } }
+    }
 
     // ---- goals
 

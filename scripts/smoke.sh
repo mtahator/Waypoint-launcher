@@ -115,6 +115,7 @@ tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Exercise'"; slee
 tap "Add"; sleep 1; tap "Goal"; sleep 1; adb shell "input text 'Coursework'"; tap "Project · finish by a date"; sleep 1
 tap "+25%"; sleep 1; shot 16l-project-editor; tap "Save" exact; sleep 2
 tap "Add"; sleep 1; tap "To-do"; sleep 1; adb shell "input text 'Gym'"; tap "Tomorrow"; sleep 1; tap "Weekdays"; sleep 1
+tap "Add a step"; sleep 1; adb shell "input text 'Warm%sup'"; tap "Okay" exact; sleep 1
 shot 16m-todo-editor; tap "Save" exact; sleep 2
 shot 16n-space-dashboard
 tap "To-do"; sleep 2; shot 16j-space-todo

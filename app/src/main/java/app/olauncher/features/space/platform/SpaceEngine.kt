@@ -218,9 +218,10 @@ class SpaceEngine(
     // ---- tasks and reminders
 
     /** For the assistant's add_reminder tool. */
-    suspend fun toolReminder(title: String, due: Long): String {
+    suspend fun toolReminder(title: String, due: Long, steps: List<String> = emptyList()): String {
         if (title.isBlank()) return "Nothing to add"
-        addTask(title, due, due > 0)
+        val id = addTask(title, due, due > 0)
+        if (steps.isNotEmpty()) saveSteps(id, steps.map { Step(0, it, false) })
         return if (due > 0) "Reminder set: $title at " + android.text.format.DateUtils.formatDateTime(context, due,
             android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME)
         else "Added to to-dos: $title (no reminder time)"
@@ -277,6 +278,8 @@ class SpaceEngine(
         if (done && task.rule.repeats) {
             val next = RepeatRule.advance(task.due, task.rule, System.currentTimeMillis())
             notes.updateTask(id) { put("due", next); put("done", 0) }
+            // the next time round starts with its steps unticked
+            notes.steps(id).forEach { s -> notes.updateTask(s.id) { put("done", 0) } }
             notes.task(id)?.let { ReminderScheduler.schedule(context, it) }
             _changes.tryEmit(0)
             return next
@@ -300,6 +303,37 @@ class SpaceEngine(
     }
 
     suspend fun deleteTask(id: Long) { ReminderScheduler.cancel(context, id); notes.deleteTask(id); _changes.tryEmit(0) }
+
+    // ---- steps (sub-tasks)
+
+    data class Step(val id: Long, val title: String, val done: Boolean)
+
+    suspend fun steps(taskId: Long): List<Step> = notes.steps(taskId).map { Step(it.id, it.title, it.done) }
+
+    /** Makes [taskId]'s steps exactly [steps]: new ones (id 0) added, missing ones removed, ticks kept. */
+    suspend fun saveSteps(taskId: Long, steps: List<Step>) {
+        val existing = notes.steps(taskId)
+        val keep = steps.map { it.id }.filter { it > 0 }.toSet()
+        existing.filter { it.id !in keep }.forEach { notes.deleteTask(it.id) }
+        for (s in steps) {
+            if (s.id > 0) notes.updateTask(s.id) { put("title", s.title.trim()); put("done", if (s.done) 1 else 0) }
+            else notes.addTask(s.title.trim(), 0, false, parent = taskId).also { id -> if (s.done) notes.updateTask(id) { put("done", 1) } }
+        }
+        _changes.tryEmit(0)
+    }
+
+    suspend fun setStepDone(stepId: Long, done: Boolean) { notes.updateTask(stepId) { put("done", if (done) 1 else 0) }; _changes.tryEmit(0) }
+
+    /** The chat model's suggested steps for a to-do (empty when no chat API is set or it fails). */
+    suspend fun suggestSteps(title: String, context: String = ""): List<String> {
+        if (!chat.isConfigured() || title.isBlank()) return emptyList()
+        return runCatching { withContext(io) { ask(app.olauncher.features.space.domain.Steps.prompt(title, context)) } }
+            .map { app.olauncher.features.space.domain.Steps.parse(it) }.getOrDefault(emptyList())
+    }
+
+    /** Step counts per to-do: (done, total). */
+    suspend fun stepCounts(): Map<Long, Pair<Int, Int>> =
+        notes.tasks().filter { it.parent > 0 }.groupBy { it.parent }.mapValues { (_, l) -> l.count { it.done } to l.size }
 
     // ---- goals
 

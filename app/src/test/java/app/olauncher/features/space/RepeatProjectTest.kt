@@ -67,4 +67,12 @@ class RepeatProjectTest {
         assertEquals(RepeatRule(RepeatRule.Kind.WEEKLY, setOf(DayOfWeek.MONDAY)) to "باشگاه", x("باشگاه هر دوشنبه"))
         assertEquals(RepeatRule.NONE to "Call mom on Friday", x("Call mom on Friday"))
     }
+
+    @Test fun parsesSteps() {
+        val steps = app.olauncher.features.space.domain.Steps
+        assertEquals(listOf("Outline the report", "Write the method section", "Proofread"),
+            steps.parse("""Here you go: {"steps": ["Outline the report", "Write the method section.", "Proofread"]}"""))
+        assertEquals(listOf("Buy flour", "Preheat oven"), steps.parse("1. Buy flour\n2) Preheat oven\nEnjoy!"))
+        assertTrue(steps.parse("no steps here").isEmpty())
+    }
 }

@@ -80,6 +80,7 @@ class SpaceFragment : Fragment() {
     private var notes: List<Note> = emptyList()
     private var tasks: List<Task> = emptyList()
     private var goals: List<Goal> = emptyList()
+    private var stepCounts: Map<Long, Pair<Int, Int>> = emptyMap()
 
     private val space get() = requireContext().waypoint.space
     private val red = 0xFFD71921.toInt()
@@ -219,7 +220,10 @@ class SpaceFragment : Fragment() {
 
     private suspend fun reload() {
         val repo = space.notes
-        notes = repo.all(); tasks = repo.tasks(); goals = repo.goals()
+        val all = repo.tasks()
+        // steps live inside their to-do, not in the lists
+        notes = repo.all(); tasks = all.filter { it.parent == 0L }; goals = repo.goals()
+        stepCounts = all.filter { it.parent > 0 }.groupBy { it.parent }.mapValues { (_, l) -> l.count { it.done } to l.size }
         if (view == null) return
         render()
     }
@@ -571,6 +575,7 @@ class SpaceFragment : Fragment() {
         val parts = listOfNotNull(
             if (t.due > 0) (if (overdue) getString(R.string.wp_todo_overdue) + " · " else "") + (if (t.remind && !t.done) "🔔 " else "") + dueLabel(t.due) else null,
             t.rule.takeIf { it.repeats }?.let { "↻ " + it.describe() },
+            stepCounts[t.id]?.let { (d, n) -> "☑ $d/$n" },
             t.category.ifBlank { null },
         )
         if (parts.isNotEmpty()) col.addView(style.caption(parts.joinToString("  ·  ")).apply {

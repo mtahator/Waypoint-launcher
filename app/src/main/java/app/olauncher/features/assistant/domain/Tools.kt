@@ -48,12 +48,13 @@ object Tools {
             )),
         ToolSpec(WEATHER, "Current weather and the next days' forecast for a place.",
             schema(Triple("place", "string", "City or place; omit for the user's current location"))),
-        ToolSpec(REMINDER, "Add a to-do to the user's Space, optionally with a reminder notification at a time.",
+        ToolSpec(REMINDER, "Add a to-do to the user's Space, optionally with a reminder notification at a time and a list of steps.",
             schema(
                 Triple("title", "string", "What to do"),
                 Triple("due", "string", "Local date-time YYYY-MM-DDTHH:MM for a reminder, or omit"),
                 required = listOf("title"),
-            )),
+            ).also { it.getJSONObject("properties").put("steps", JSONObject().put("type", "array").put("items", JSONObject().put("type", "string"))
+                .put("description", "Optional sub-tasks (steps), in order, when the to-do is a bigger job or the user asks for them")) }),
         ToolSpec(SPACE, "Search the user's own notes, voice-note transcripts, screenshots and to-dos in Space.",
             schema(Triple("query", "string", "Words to look for"), required = listOf("query"))),
         ToolSpec(REMEMBER, "Save a durable fact about the user to their long-term memory (e.g. their home address, " +

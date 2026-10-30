@@ -34,7 +34,7 @@ class AppContainer(context: Context) {
     val braveKeys by lazy { ApiKeyStore(prefs, ApiKeyStore.Slot.BRAVE) }
     val chatEngine: ChatEngine by lazy { ChatEngine(prefs, apiKeys, braveKeys, chats, ImageClient(app), scope, dispatchers.io, localAction = { space.chatRequest(it) },
         tools = ToolRunner(app, object : ToolHost {
-            override suspend fun addReminder(title: String, due: Long) = space.toolReminder(title, due)
+            override suspend fun addReminder(title: String, due: Long, steps: List<String>) = space.toolReminder(title, due, steps)
             override suspend fun searchNotes(query: String) = space.searchText(query)
             override suspend fun remember(tag: String, text: String): String {
                 val t = text.trim()
