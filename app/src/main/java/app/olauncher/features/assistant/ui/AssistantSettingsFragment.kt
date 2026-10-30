@@ -67,10 +67,10 @@ class AssistantSettingsFragment : WpPageFragment() {
         val api = prefs.assistantMode == AssistantMode.API
         page.card {
             header(getString(R.string.wp_assistant_mode))
-            row(getString(R.string.wp_assistant_gemini_app), if (!api) "●" else "", getString(R.string.wp_assistant_gemini_app_hint)) {
+            row(getString(R.string.wp_assistant_gemini_app), if (!api) "✓" else "", getString(R.string.wp_assistant_gemini_app_hint)) {
                 prefs.assistantMode = AssistantMode.GEMINI_APP; rebuild()
             }
-            row(getString(R.string.wp_assistant_api), if (api) "●" else "", getString(R.string.wp_assistant_api_hint)) {
+            row(getString(R.string.wp_assistant_api), if (api) "✓" else "", getString(R.string.wp_assistant_api_hint)) {
                 prefs.assistantMode = AssistantMode.API
                 if (prefs.apiBaseUrl.isBlank()) applyPreset(0)
                 rebuild()

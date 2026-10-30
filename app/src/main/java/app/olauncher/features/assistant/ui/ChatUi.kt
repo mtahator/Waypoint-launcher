@@ -47,7 +47,7 @@ internal class ChatStyle(val context: Context) {
         gravity = Gravity.CENTER_VERTICAL
         listOf(false to R.string.wp_chats, true to R.string.wp_space).forEach { (isSpace, label) ->
             addView(title(context.getString(label)).apply {
-                alpha = if (isSpace == space) 1f else 0.38f
+                alpha = if (isSpace == space) 1f else 0.5f
                 if (!glass) textSize = 24f
                 setPadding(0, 0, dp(18), 0)
                 setOnClickListener { if (isSpace != space) onSelect(isSpace) }
@@ -71,5 +71,6 @@ internal class ChatStyle(val context: Context) {
         setTextColor(faint)
         typeface = Typeface.MONOSPACE
         textSize = 12f
+        if (glass) GlassStyler.softShadow(this)
     }
 }

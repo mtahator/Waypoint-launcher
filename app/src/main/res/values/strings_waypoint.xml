@@ -152,7 +152,7 @@
     <string name="wp_try_it_recognized">Recognized ✓</string>
     <string name="wp_unknown_zone">%1$s (unknown zone)</string>
     <string name="wp_unknown_zone_remove">Unknown zone. This time zone no longer exists on this device; you can remove it.</string>
-    <string name="wp_waypoint_section">Waypoint</string>
+    <string name="wp_waypoint_section">Features</string>
     <string name="wp_world_clock">World clock</string>
     <string name="wp_ask_gemini">Ask Gemini</string>
     <string name="wp_ask_model">Ask %1$s</string>
@@ -531,4 +531,10 @@
     <string name="wp_quick_goal">＋ Goal</string>
     <string name="wp_goal_projects">Projects</string>
     <string name="wp_goal_habits">Habits</string>
+    <string name="wp_chat_empty_title">What can I help with?</string>
+    <string name="wp_chat_empty_hint">Ask anything. Wayfinder can search the web, find places, check the weather and set reminders.</string>
+    <string name="wp_try_weather">What\'s the weather today?</string>
+    <string name="wp_try_nearby">Nearest supermarket to me</string>
+    <string name="wp_try_reminder">Remind me tomorrow at 9 to call home</string>
+    <string name="wp_try_explain">Explain this simply: </string>
 </resources>

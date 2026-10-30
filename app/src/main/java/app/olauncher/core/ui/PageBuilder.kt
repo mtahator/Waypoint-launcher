@@ -102,8 +102,11 @@ class PageBuilder(private val container: LinearLayout) {
         }
         val row = Row(b)
         row.title = title
-        row.value = value
-        row.subtitle = subtitle
+        // a long value ("English (United States) · Not downloaded") would wrap into a narrow column on the
+        // right: show it under the title instead
+        val long = (value?.length ?: 0) > (if (glass) 14 else 22)
+        row.value = if (long) null else value
+        row.subtitle = if (long) listOfNotNull(value, subtitle).joinToString("\n") else subtitle
         if (onClick != null) b.root.setOnClickListener { onClick(row) } else {
             b.root.isClickable = false
             b.root.background = null

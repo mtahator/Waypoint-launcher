@@ -94,7 +94,28 @@ class ChatFragment : Fragment() {
             setPadding(style.dp(12), style.dp(8), style.dp(12), style.dp(8))
             itemAnimator = null
         }
-        column.addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
+        // a new chat starts with a few things to try instead of an empty screen
+        empty = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            setPadding(style.dp(28), 0, style.dp(28), style.dp(40))
+            addView(TextView(ctx, null, 0, R.style.TextLarge).apply {
+                text = getString(R.string.wp_chat_empty_title); setTextColor(style.ink); gravity = Gravity.CENTER; textSize = 24f
+                if (style.glass) app.olauncher.features.appearance.ui.GlassStyler.softShadow(this)
+            })
+            addView(style.caption(getString(R.string.wp_chat_empty_hint)).apply { gravity = Gravity.CENTER; setPadding(0, style.dp(8), 0, style.dp(18)) })
+            listOf(R.string.wp_try_weather, R.string.wp_try_nearby, R.string.wp_try_reminder, R.string.wp_try_explain).forEach { s ->
+                addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                    text = getString(s); setTextColor(style.ink); textSize = 14f; gravity = Gravity.CENTER
+                    background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 100, style.hairline)
+                    setPadding(style.dp(16), style.dp(10), style.dp(16), style.dp(10))
+                    setOnClickListener { input.setText(text); input.setSelection(input.text.length); input.focusAndShowKeyboard() }
+                }, LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = style.dp(8) })
+            }
+        }
+        val stack = FrameLayout(ctx)
+        stack.addView(list, FrameLayout.LayoutParams(-1, -1))
+        stack.addView(empty, FrameLayout.LayoutParams(-1, -1))
+        column.addView(stack, LinearLayout.LayoutParams(-1, 0, 1f))
 
         // composer
         val composer = LinearLayout(ctx).apply {
@@ -185,6 +206,7 @@ class ChatFragment : Fragment() {
             messages = chats.messages(conversationId)
         }
         if (view == null) return
+        empty.isVisible = messages.isEmpty()
         val atEnd = !list.canScrollVertically(1)
         list.adapter?.notifyDataSetChanged()
         if (atEnd) scrollToEnd()
@@ -196,6 +218,7 @@ class ChatFragment : Fragment() {
     }
 
     private lateinit var suggestions: LinearLayout
+    private lateinit var empty: LinearLayout
     private var commands: List<app.olauncher.features.assistant.domain.ChatCommand> = emptyList()
 
     private fun updateSuggestions() {

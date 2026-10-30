@@ -80,9 +80,19 @@ object GlassStyler {
         dotTypeface ?: (ResourcesCompat.getFont(context, R.font.doto_dot) ?: Typeface.MONOSPACE).also { dotTypeface = it }
 
     /** Big dot-matrix clock. */
+    /**
+     * Light text gets a wide, faint shadow: invisible on dark backdrops, but it keeps labels readable over
+     * the bright parts of the reeded glass. Dark text (light theme) stays crisp.
+     */
+    fun softShadow(view: TextView) {
+        val c = view.currentTextColor
+        val light = (0.299 * ((c shr 16) and 0xFF) + 0.587 * ((c shr 8) and 0xFF) + 0.114 * (c and 0xFF)) > 150
+        if (light) view.setShadowLayer(dp(view.context, 8f), 0f, dp(view.context, 0.5f), 0x59000000) else view.setShadowLayer(0f, 0f, 0f, 0)
+    }
+
     fun styleClock(view: TextView) {
         view.typeface = dotFont(view.context)
-        view.setShadowLayer(0f, 0f, 0f, 0)
+        softShadow(view)
         view.letterSpacing = 0.02f
         view.includeFontPadding = false
     }
@@ -92,16 +102,16 @@ object GlassStyler {
         view.typeface = Typeface.MONOSPACE
         view.isAllCaps = true
         view.letterSpacing = 0.14f
-        view.setShadowLayer(0f, 0f, 0f, 0)
+        softShadow(view)
         if (accentDot) {
             view.setCompoundDrawablesRelativeWithIntrinsicBounds(accentDot(view.context), null, null, null)
             view.compoundDrawablePadding = dp(view.context, 10f).toInt()
         }
     }
 
-    /** App labels: crisp, no shadow, a touch of tracking. */
+    /** App labels: a touch of tracking, with the soft shadow for bright backdrops. */
     fun styleLabel(view: TextView) {
-        view.setShadowLayer(0f, 0f, 0f, 0)
+        softShadow(view)
         view.letterSpacing = 0.01f
     }
 
