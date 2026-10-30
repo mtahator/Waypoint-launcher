@@ -39,10 +39,17 @@ fun View.showPopupMenu(
 /** A ScrollView no taller than the visible window (above the keyboard) minus [reserved] px. */
 private class KeyboardAwareScroll(context: Context, private val reserved: Int) : android.widget.ScrollView(context) {
     private val frame = android.graphics.Rect()
-    init { isVerticalScrollBarEnabled = false; isFillViewport = false }
+    init {
+        isVerticalScrollBarEnabled = false; isFillViewport = false
+        // re-measure when the keyboard opens or closes
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(this) { v, insets -> v.post { v.requestLayout() }; insets }
+    }
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         getWindowVisibleDisplayFrame(frame)
-        val visible = frame.height().takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+        // the keyboard's height from the insets too: dialogs don't always resize for it
+        val ime = androidx.core.view.ViewCompat.getRootWindowInsets(this)?.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())?.bottom ?: 0
+        val screen = resources.displayMetrics.heightPixels
+        val visible = minOf(frame.height().takeIf { it > 0 } ?: screen, screen - ime)
         val max = (visible - reserved).coerceAtLeast((120 * resources.displayMetrics.density).toInt())
         super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(max, View.MeasureSpec.AT_MOST))
     }
@@ -127,6 +134,13 @@ fun Context.createDialog(
         binding.contentContainer.addView(scroll, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         binding.contentContainer.isVisible = true
         dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        // editors: Save / Delete right under the title, where the keyboard can never cover them
+        val actions = binding.tvAction.parent as ViewGroup
+        val root = binding.root
+        root.removeView(actions)
+        root.addView(actions, 1)
+        (actions.layoutParams as ViewGroup.MarginLayoutParams).apply { topMargin = (6 * dialog.context.resources.displayMetrics.density).toInt(); bottomMargin = 0 }
+        binding.tvAction.setTextColor(0xFFD71921.toInt())
     }
     dialog.setView(binding.root)
     binding.ivClose.setOnClickListener { dialog.dismiss() }
