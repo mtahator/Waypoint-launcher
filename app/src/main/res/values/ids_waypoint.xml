@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="wp_chat_container" type="id" />
+    <item name="wp_ink_original" type="id" />
+    <item name="wp_ink_skip" type="id" />
+    <item name="wp_ink_page" type="id" />
 </resources>

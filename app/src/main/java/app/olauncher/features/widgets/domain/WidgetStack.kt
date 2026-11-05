@@ -4,8 +4,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * What the Home widget stack holds, in order: Waypoint's own widgets and widgets from installed apps.
- * One stack, swiped through like a smart stack; Music joins at the front by itself while something plays.
+ * What the Home widget stack holds: pages of Waypoint's own widgets and widgets from installed apps, one or
+ * two per page, swiped through like a smart stack; Music joins at the front by itself while something plays.
  * Pure.
  */
 sealed class WidgetItem {
@@ -20,17 +20,19 @@ sealed class WidgetItem {
     val key get() = when (this) { is Own -> "own:${kind.name}"; is App -> "app:$appWidgetId" }
 }
 
-/** A stack on Home: square (two fit side by side) or full width; swipe through its widgets. */
-data class StackSlot(val id: Int, val wide: Boolean, val items: List<WidgetItem>)
+/** A page of the Home stack: one widget (full width) or two side by side (squares). */
+data class WidgetPage(val items: List<WidgetItem>) {
+    val wide get() = items.size == 1
+}
 
 object WidgetStack {
-    /** To start with: a full-width stack (calendar, to-dos, capture) and two squares (goals, weather). */
-    val DEFAULT_LAYOUT = listOf(
-        StackSlot(1, true, listOf(WidgetItem.Own(WidgetItem.Kind.CALENDAR), WidgetItem.Own(WidgetItem.Kind.SPACE), WidgetItem.Own(WidgetItem.Kind.CAPTURE))),
-        StackSlot(2, false, listOf(WidgetItem.Own(WidgetItem.Kind.WEATHER))),
-        StackSlot(3, false, listOf(WidgetItem.Own(WidgetItem.Kind.GOALS))),
+    /** To start with: calendar, to-dos, weather + goals side by side, capture. */
+    val DEFAULT_PAGES = listOf(
+        WidgetPage(listOf(WidgetItem.Own(WidgetItem.Kind.CALENDAR))),
+        WidgetPage(listOf(WidgetItem.Own(WidgetItem.Kind.SPACE))),
+        WidgetPage(listOf(WidgetItem.Own(WidgetItem.Kind.WEATHER), WidgetItem.Own(WidgetItem.Kind.GOALS))),
+        WidgetPage(listOf(WidgetItem.Own(WidgetItem.Kind.CAPTURE))),
     )
-    val DEFAULT = DEFAULT_LAYOUT.flatMap { it.items }
 
     private fun item(o: JSONObject): WidgetItem? = when {
         o.has("own") -> runCatching { WidgetItem.Own(WidgetItem.Kind.valueOf(o.getString("own"))) }.getOrNull()
@@ -43,70 +45,55 @@ object WidgetStack {
         is WidgetItem.App -> JSONObject().put("app", i.appWidgetId).put("provider", i.provider).put("label", i.label)
     }
 
-    fun encodeLayout(slots: List<StackSlot>): String = JSONObject().put("stacks", JSONArray().apply {
-        slots.forEach { s -> put(JSONObject().put("id", s.id).put("wide", s.wide).put("items", JSONArray().apply { s.items.forEach { put(json(it)) } })) }
+    private fun items(a: JSONArray?): List<WidgetItem> = if (a == null) emptyList() else (0 until a.length()).mapNotNull { n -> a.optJSONObject(n)?.let { item(it) } }
+
+    fun encodePages(pages: List<WidgetPage>): String = JSONObject().put("pages", JSONArray().apply {
+        pages.forEach { p -> put(JSONArray().apply { p.items.take(2).forEach { put(json(it)) } }) }
     }).toString()
 
-    /** Stacks from settings; an older single list becomes one full-width stack. */
-    fun decodeLayout(raw: String?): List<StackSlot> {
-        if (raw.isNullOrBlank()) return DEFAULT_LAYOUT
-        return runCatching {
-            if (raw.trimStart().startsWith("[")) listOf(StackSlot(1, true, decode(raw)))
-            else {
-                val a = JSONObject(raw).getJSONArray("stacks")
-                (0 until a.length()).map { k ->
-                    val o = a.getJSONObject(k); val items = o.optJSONArray("items")
-                    StackSlot(o.getInt("id"), o.optBoolean("wide", true),
-                        if (items == null) emptyList() else (0 until items.length()).mapNotNull { n -> items.optJSONObject(n)?.let { item(it) } }.distinctBy { it.key })
+    /**
+     * The pages from settings. Older layouts still load: a single list becomes one widget per page, and the
+     * stacks of the square/full-width layout become one page per widget, consecutive squares paired.
+     * A widget appears once; empty pages are dropped.
+     */
+    fun decodePages(raw: String?): List<WidgetPage> {
+        if (raw.isNullOrBlank()) return DEFAULT_PAGES
+        val pages = runCatching {
+            val t = raw.trimStart()
+            when {
+                t.startsWith("[") -> items(JSONArray(raw)).map { WidgetPage(listOf(it)) }
+                JSONObject(raw).has("pages") -> {
+                    val a = JSONObject(raw).getJSONArray("pages")
+                    (0 until a.length()).map { WidgetPage(items(a.optJSONArray(it)).take(2)) }
+                }
+                else -> {
+                    val a = JSONObject(raw).getJSONArray("stacks")
+                    val out = ArrayList<WidgetPage>()
+                    var square: WidgetItem? = null
+                    for (k in 0 until a.length()) {
+                        val o = a.getJSONObject(k)
+                        val list = items(o.optJSONArray("items"))
+                        if (o.optBoolean("wide", true)) { square?.let { out += WidgetPage(listOf(it)) }; square = null; list.forEach { out += WidgetPage(listOf(it)) } }
+                        else for (i in list) { val s = square; if (s == null) square = i else { out += WidgetPage(listOf(s, i)); square = null } }
+                    }
+                    square?.let { out += WidgetPage(listOf(it)) }
+                    out
                 }
             }
-        }.getOrDefault(DEFAULT_LAYOUT)
+        }.getOrNull() ?: return DEFAULT_PAGES
+        val seen = HashSet<String>()
+        return pages.map { p -> WidgetPage(p.items.filter { seen.add(it.key) }) }.filter { it.items.isNotEmpty() }
     }
 
-    fun nextId(slots: List<StackSlot>) = (slots.maxOfOrNull { it.id } ?: 0) + 1
-
-    /** Rows on Home: a full-width stack alone; square ones in pairs (a lone square sits at the side). */
-    fun rows(slots: List<StackSlot>): List<List<StackSlot>> {
-        val out = ArrayList<List<StackSlot>>()
-        var pending: StackSlot? = null
-        for (s in slots.filter { it.items.isNotEmpty() || it.id == MUSIC_SLOT }) {
-            if (s.wide) { pending?.let { out += listOf(it) }; pending = null; out += listOf(s) }
-            else if (pending == null) pending = s
-            else { out += listOf(pending, s); pending = null }
-        }
-        pending?.let { out += listOf(it) }
-        return out
-    }
-
-    /**
-     * While music has a session (playing or paused), Music sits at the front of the first stack, unless
-     * the user put it in a stack themselves.
-     */
-    fun withMusic(slots: List<StackSlot>, active: Boolean): List<StackSlot> {
+    /** While music has a session (playing or paused) it is the first page, unless the user placed it. */
+    fun withMusic(pages: List<WidgetPage>, active: Boolean): List<WidgetPage> {
         val music = WidgetItem.Own(WidgetItem.Kind.MUSIC)
-        if (!active) return slots.map { s -> s.copy(items = s.items.filter { it != music }) }
-        if (slots.any { music in it.items }) return slots
-        if (slots.isEmpty()) return listOf(StackSlot(MUSIC_SLOT, true, listOf(music)))
-        return slots.mapIndexed { i, s -> if (i == 0) s.copy(items = listOf(music) + s.items) else s }
+        if (!active) return pages.map { p -> WidgetPage(p.items.filter { it != music }) }.filter { it.items.isNotEmpty() }
+        if (pages.any { music in it.items }) return pages
+        return listOf(WidgetPage(listOf(music))) + pages
     }
 
-    const val MUSIC_SLOT = -1
-
-    fun decode(json: String?): List<WidgetItem> {
-        if (json.isNullOrBlank()) return DEFAULT
-        return runCatching {
-            val a = JSONArray(json)
-            (0 until a.length()).mapNotNull { k -> a.optJSONObject(k)?.let { item(it) } }.distinctBy { it.key }
-        }.getOrDefault(DEFAULT)
-    }
-
-    fun encode(items: List<WidgetItem>): String = JSONArray().apply { items.forEach { put(json(it)) } }.toString()
-
-    fun visible(items: List<WidgetItem>, playing: Boolean): List<WidgetItem> {
-        val music = WidgetItem.Own(WidgetItem.Kind.MUSIC)
-        val rest = items.filter { it != music }
-        return if (playing) listOf(music) + rest else rest
-    }
+    fun all(pages: List<WidgetPage>) = pages.flatMap { it.items }
 
     fun <T> move(items: List<T>, from: Int, to: Int): List<T> {
         if (from !in items.indices || to !in items.indices) return items

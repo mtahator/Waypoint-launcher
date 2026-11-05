@@ -29,18 +29,60 @@ import java.net.URL
 object CalendarSource {
     fun hasPermission(c: Context) = ContextCompat.checkSelfPermission(c, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    data class Cal(val id: Long, val name: String, val account: String, val color: Int, val synced: Boolean)
+    fun canWrite(c: Context) = ContextCompat.checkSelfPermission(c, Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    /** Every calendar on the phone, so the user can pick; one that isn't syncing has no events here. */
+    data class Cal(val id: Long, val name: String, val account: String, val color: Int, val synced: Boolean, val accountType: String = "", val upcoming: Int = 0)
+
+    /** Every calendar on the phone, so the user can pick, with how many events each has in the next 14 days. */
     suspend fun calendars(c: Context): List<Cal> = withContext(Dispatchers.IO) {
         if (!hasPermission(c)) return@withContext emptyList()
         val cols = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME,
-            CalendarContract.Calendars.CALENDAR_COLOR, CalendarContract.Calendars.SYNC_EVENTS)
+            CalendarContract.Calendars.CALENDAR_COLOR, CalendarContract.Calendars.SYNC_EVENTS, CalendarContract.Calendars.ACCOUNT_TYPE)
+        val now = System.currentTimeMillis()
+        val counts = counts(c, now - 86_400_000L, now + 14 * 86_400_000L)
         runCatching {
             c.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, cols, null, null, null)?.use { cur ->
-                buildList { while (cur.moveToNext()) add(Cal(cur.getLong(0), cur.getString(1).orEmpty(), cur.getString(2).orEmpty(), cur.getInt(3), cur.getInt(4) != 0)) }
+                buildList {
+                    while (cur.moveToNext()) {
+                        val id = cur.getLong(0)
+                        add(Cal(id, cur.getString(1).orEmpty(), cur.getString(2).orEmpty(), cur.getInt(3), cur.getInt(4) != 0, cur.getString(5).orEmpty(), counts[id] ?: 0))
+                    }
+                }
             }.orEmpty()
         }.getOrDefault(emptyList())
+    }
+
+    private fun counts(c: Context, from: Long, to: Long): Map<Long, Int> = runCatching {
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().also {
+            android.content.ContentUris.appendId(it, from); android.content.ContentUris.appendId(it, to)
+        }.build()
+        val out = HashMap<Long, Int>()
+        c.contentResolver.query(uri, arrayOf(CalendarContract.Instances.CALENDAR_ID), null, null, null)?.use { cur ->
+            while (cur.moveToNext()) { val id = cur.getLong(0); out[id] = (out[id] ?: 0) + 1 }
+        }
+        out as Map<Long, Int>
+    }.getOrDefault(emptyMap())
+
+    /**
+     * Turns on a calendar that isn't stored on the phone (a subscribed or shared one, like a class timetable):
+     * Android lets apps set SYNC_EVENTS and VISIBLE. Then asks its account to sync now.
+     */
+    suspend fun enableSync(c: Context, cal: Cal): Boolean = withContext(Dispatchers.IO) {
+        if (!canWrite(c)) return@withContext false
+        val ok = runCatching {
+            val values = android.content.ContentValues().apply {
+                put(CalendarContract.Calendars.SYNC_EVENTS, 1); put(CalendarContract.Calendars.VISIBLE, 1)
+            }
+            c.contentResolver.update(android.content.ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, cal.id), values, null, null) > 0
+        }.getOrDefault(false)
+        if (cal.account.isNotBlank() && cal.accountType.isNotBlank()) runCatching {
+            android.content.ContentResolver.requestSync(android.accounts.Account(cal.account, cal.accountType), CalendarContract.AUTHORITY,
+                android.os.Bundle().apply {
+                    putBoolean(android.content.ContentResolver.SYNC_EXTRAS_MANUAL, true)
+                    putBoolean(android.content.ContentResolver.SYNC_EXTRAS_EXPEDITED, true)
+                })
+        }
+        ok
     }
 
     /** Events from every calendar except those in [hidden] (ids), whatever their "visible" flag says. */
@@ -160,8 +202,13 @@ class MediaListenerService : NotificationListenerService() {
 
 /** Weather where you are, for the widget: Open-Meteo, at most every 30 minutes. */
 object WeatherSource {
-    data class Hour(val hour: Int, val temp: Double, val code: Int)
-    data class Now(val temp: Double, val code: Int, val min: Double, val max: Double, val rainChance: Int, val hourly: List<Hour>, val at: Long, val feels: Double = temp)
+    data class Hour(val hour: Int, val temp: Double, val code: Int, val rain: Int = 0)
+    data class Day(val date: java.time.LocalDate, val code: Int, val min: Double, val max: Double, val rain: Int)
+    data class Now(
+        val temp: Double, val code: Int, val min: Double, val max: Double, val rainChance: Int, val hourly: List<Hour>, val at: Long,
+        val feels: Double = temp, val humidity: Int = -1, val wind: Double = -1.0, val uv: Double = -1.0,
+        val sunrise: String = "", val sunset: String = "", val days: List<Day> = emptyList(),
+    )
 
     private var cache: Now? = null
 
@@ -175,19 +222,40 @@ object WeatherSource {
         val loc = listOf("fused", LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
             .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time } ?: return@withContext cache
         runCatching {
-            val url = "https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&timezone=auto&forecast_days=2" +
-                "&current=temperature_2m,apparent_temperature,weather_code&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+            val url = "https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&timezone=auto&forecast_days=7" +
+                "&current=temperature_2m,apparent_temperature,weather_code,relative_humidity_2m,wind_speed_10m" +
+                "&hourly=temperature_2m,weather_code,precipitation_probability" +
+                "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max"
             val conn = (URL(url).openConnection() as HttpURLConnection).apply { connectTimeout = 8_000; readTimeout = 8_000 }
             val o = try { JSONObject(conn.inputStream.bufferedReader().use { it.readText() }) } finally { conn.disconnect() }
-            val cur = o.getJSONObject("current"); val d = o.getJSONObject("daily"); val h = o.getJSONObject("hourly")
-            val hourNow = java.time.LocalDateTime.now().hour
-            val times = h.getJSONArray("time"); val temps = h.getJSONArray("temperature_2m"); val codes = h.optJSONArray("weather_code")
-            val hourly = (0 until times.length()).map { i -> Hour(times.getString(i).substring(11, 13).toInt(), temps.getDouble(i), codes?.optInt(i) ?: 0) }
-                .drop(hourNow + 1).filterIndexed { i, _ -> i % 2 == 0 }.take(5)
-            Now(cur.getDouble("temperature_2m"), cur.getInt("weather_code"), d.getJSONArray("temperature_2m_min").getDouble(0),
-                d.getJSONArray("temperature_2m_max").getDouble(0), d.optJSONArray("precipitation_probability_max")?.optInt(0) ?: 0, hourly,
-                System.currentTimeMillis(), cur.optDouble("apparent_temperature", cur.getDouble("temperature_2m"))).also { cache = it }
+            parse(o, java.time.LocalDateTime.now()).also { cache = it }
         }.getOrNull() ?: cache
+    }
+
+    /** Open-Meteo's answer → [Now]; the hours start after [now]'s hour (12 of them). Pure. */
+    fun parse(o: JSONObject, now: java.time.LocalDateTime, at: Long = System.currentTimeMillis()): Now {
+        val cur = o.getJSONObject("current"); val d = o.getJSONObject("daily"); val h = o.getJSONObject("hourly")
+        val times = h.getJSONArray("time"); val temps = h.getJSONArray("temperature_2m")
+        val codes = h.optJSONArray("weather_code"); val rains = h.optJSONArray("precipitation_probability")
+        val stamp = now.withMinute(0).withSecond(0).withNano(0)
+        val hourly = (0 until times.length()).mapNotNull { i ->
+            val t = runCatching { java.time.LocalDateTime.parse(times.getString(i)) }.getOrNull() ?: return@mapNotNull null
+            if (!t.isAfter(stamp)) null else Hour(t.hour, temps.getDouble(i), codes?.optInt(i) ?: 0, rains?.optInt(i) ?: 0)
+        }.take(12)
+        val dTimes = d.getJSONArray("time")
+        val days = (0 until dTimes.length()).mapNotNull { i ->
+            runCatching {
+                Day(java.time.LocalDate.parse(dTimes.getString(i)), d.optJSONArray("weather_code")?.optInt(i) ?: 0,
+                    d.getJSONArray("temperature_2m_min").getDouble(i), d.getJSONArray("temperature_2m_max").getDouble(i),
+                    d.optJSONArray("precipitation_probability_max")?.optInt(i) ?: 0)
+            }.getOrNull()
+        }
+        fun clock(key: String) = d.optJSONArray(key)?.optString(0).orEmpty().substringAfter('T', "")
+        val temp = cur.getDouble("temperature_2m")
+        return Now(temp, cur.getInt("weather_code"), d.getJSONArray("temperature_2m_min").getDouble(0), d.getJSONArray("temperature_2m_max").getDouble(0),
+            d.optJSONArray("precipitation_probability_max")?.optInt(0) ?: 0, hourly, at, cur.optDouble("apparent_temperature", temp),
+            cur.optInt("relative_humidity_2m", -1), cur.optDouble("wind_speed_10m", -1.0), d.optJSONArray("uv_index_max")?.optDouble(0, -1.0) ?: -1.0,
+            clock("sunrise"), clock("sunset"), days)
     }
 }
 

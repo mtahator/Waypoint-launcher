@@ -22,6 +22,8 @@ import androidx.core.os.bundleOf
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.core.view.setPadding
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -109,7 +111,10 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             openPage(R.id.worldClockPanelFragment)
         }
         if (glass) applyGlass()
-        widgets = app.olauncher.features.widgets.ui.HomeWidgets(this, binding.widgetStackHost, glass) { openPage(R.id.widgetsSettingsFragment) }
+        widgets = app.olauncher.features.widgets.ui.HomeWidgets(this, binding.widgetStackHost, wp.backdropSampler) { openPage(R.id.widgetsSettingsFragment) }
+            .also { it.stack.onSettled = { scheduleInk() } }
+        // every text on Home picks its colour from what is right behind it, after each layout change
+        binding.root.viewTreeObserver.addOnGlobalLayoutListener(inkOnLayout)
 
         initObservers()
         setHomeAlignment(prefs.homeAlignment)
@@ -121,6 +126,20 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         super.onStart()
         worldClocks?.onStart()
         widgets?.onStart()
+        viewLifecycleOwner.lifecycleScope.launch { wp.backdropSampler.refresh(); _binding?.root?.invalidate(); scheduleInk() }
+    }
+
+    // ---- per-text ink (docs/widget-design.md §3)
+
+    private val ink by lazy { app.olauncher.features.appearance.ui.AdaptiveInk(wp.backdropSampler) { wp.prefs.inkMode } }
+    private val inkOnLayout = android.view.ViewTreeObserver.OnGlobalLayoutListener { scheduleInk() }
+    private val inkRun = Runnable { _binding?.root?.let { ink.apply(it) } }
+
+    /** Coalesces bursts of layout and data changes into one pass shortly after. */
+    private fun scheduleInk() {
+        val root = _binding?.root ?: return
+        root.removeCallbacks(inkRun)
+        root.postDelayed(inkRun, 80)
     }
 
     override fun onResume() {
@@ -906,8 +925,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     }
 
     /**
-     * Wayfinder pin in a bottom corner of Home: tap opens Space ready to record, long-press starts a voice
-     * note immediately. Position (left / right / off) is set in Wayfinder settings.
+     * The red record button in a bottom corner of Home, the same as Space's: tap records a voice note,
+     * long-press opens Space. Position (left / right / off) is set in Wayfinder settings.
      */
     private fun applyWayfinderShortcut() {
         val ctx = requireContext()
@@ -915,16 +934,23 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         val root = binding.root as? FrameLayout ?: return
         if (where == "off") { wayfinderButton?.let { root.removeView(it) }; wayfinderButton = null; return }
         val button = wayfinderButton ?: android.widget.ImageView(ctx).also { v ->
-            v.setImageResource(R.drawable.ic_wayfinder)
-            v.imageTintList = android.content.res.ColorStateList.valueOf(ctx.getColorFromAttr(R.attr.primaryColor))
-            v.alpha = 0.85f
-            val pad = (12 * resources.displayMetrics.density).toInt()
-            v.setPadding(pad, pad, pad, pad)
-            v.contentDescription = getString(R.string.wp_chat_app_label)
-            v.setOnClickListener { app.olauncher.features.assistant.ui.ChatActivity.open(ctx, space = true) }
+            v.setImageResource(R.drawable.ic_mic)
+            v.scaleType = android.widget.ImageView.ScaleType.CENTER
+            v.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+            v.background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(app.olauncher.features.appearance.ui.GlassStyler.ACCENT_RED)
+            }
+            v.elevation = 0f
+            v.setTag(R.id.wp_ink_skip, true)
+            v.contentDescription = getString(R.string.wp_space_record)
+            v.setOnClickListener {
+                v.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
+                app.olauncher.features.assistant.ui.ChatActivity.open(ctx, record = true)
+            }
             v.setOnLongClickListener {
                 v.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                app.olauncher.features.assistant.ui.ChatActivity.open(ctx, record = true)
+                app.olauncher.features.assistant.ui.ChatActivity.open(ctx, space = true)
                 true
             }
             root.addView(v)
@@ -936,8 +962,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
                 insets
             }
         }
-        val size = (52 * resources.displayMetrics.density).toInt()
-        val side = (16 * resources.displayMetrics.density).toInt()
+        val size = (48 * resources.displayMetrics.density).toInt()
+        val side = (20 * resources.displayMetrics.density).toInt()
         button.layoutParams = FrameLayout.LayoutParams(size, size).apply {
             gravity = android.view.Gravity.BOTTOM or if (where == "right") android.view.Gravity.END else android.view.Gravity.START
             marginStart = side; marginEnd = side
@@ -962,6 +988,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     }
 
     override fun onDestroyView() {
+        _binding?.root?.let { it.viewTreeObserver.removeOnGlobalLayoutListener(inkOnLayout); it.removeCallbacks(inkRun) }
         super.onDestroyView()
         worldClocks?.onStop()
         worldClocks = null

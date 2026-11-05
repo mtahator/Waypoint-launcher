@@ -1,6 +1,7 @@
 package app.olauncher.core
 
 import android.content.Context
+import app.olauncher.features.appearance.platform.BackdropSampler
 import app.olauncher.features.appearance.platform.GlassBackdrop
 import app.olauncher.features.appearance.platform.SystemGrayscaleController
 import app.olauncher.features.appearance.ui.AppearanceController
@@ -56,6 +57,7 @@ class AppContainer(context: Context) {
     val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }
+    val backdropSampler by lazy { BackdropSampler(app, prefs, backdrop) }
     val grayscale by lazy { SystemGrayscaleController(app) }
 
 }

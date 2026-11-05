@@ -136,6 +136,11 @@ class WaypointPrefs(private val context: Context) {
         set(value) = prefs.edit { putBoolean(WIDGETS_ON_HOME, value) }
 
     /** [WidgetStack] JSON; null = the default stack. */
+    /** Text colour on Home: "auto" (per text, from what is behind it), "light" or "dark". */
+    var inkMode: String
+        get() = prefs.getString(INK_MODE, "auto") ?: "auto"
+        set(value) = prefs.edit { putString(INK_MODE, value) }
+
     var widgetStackRaw: String?
         get() = prefs.getString(WIDGET_STACK, null)
         set(value) = prefs.edit { putString(WIDGET_STACK, value) }
@@ -284,6 +289,7 @@ class WaypointPrefs(private val context: Context) {
         const val TOOLS_ENABLED = "WP_TOOLS_ENABLED"
         const val WIDGETS_ON_HOME = "WP_WIDGETS_ON_HOME"
         const val WIDGET_STACK = "WP_WIDGET_STACK"
+        const val INK_MODE = "WP_INK_MODE"
         const val HIDDEN_CALENDARS = "WP_HIDDEN_CALENDARS"
         const val TOOLS_UNSUPPORTED = "WP_TOOLS_UNSUPPORTED"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"

@@ -16,6 +16,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Home calendar widget: your day from the phone's calendars (incl. Google Calendar), asked for when you add it -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- only to switch on a calendar that is not syncing to the phone (SYNC_EVENTS / VISIBLE) -->
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />

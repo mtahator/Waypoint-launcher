@@ -7,8 +7,8 @@ import app.olauncher.features.assistant.domain.Tools
 import app.olauncher.features.space.domain.ReminderRequest
 import app.olauncher.features.widgets.domain.Agenda
 import app.olauncher.features.widgets.domain.AgendaEvent
-import app.olauncher.features.widgets.domain.StackSlot
 import app.olauncher.features.widgets.domain.WidgetItem
+import app.olauncher.features.widgets.domain.WidgetPage
 import app.olauncher.features.widgets.domain.WidgetStack
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -19,33 +19,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PanelsWidgetsTest {
-    @Test fun widgetStack() {
-        val items = listOf(WidgetItem.Own(WidgetItem.Kind.CALENDAR), WidgetItem.App(12, "com.x/.W", "Notes"), WidgetItem.Own(WidgetItem.Kind.WEATHER))
-        assertEquals(items, WidgetStack.decode(WidgetStack.encode(items)))
-        assertEquals(WidgetStack.DEFAULT, WidgetStack.decode(null))
-        val music = WidgetItem.Own(WidgetItem.Kind.MUSIC)
-        assertEquals(listOf(music) + items, WidgetStack.visible(items, playing = true))
-        assertEquals(items, WidgetStack.visible(items + music, playing = false))
-        assertEquals(listOf(items[1], items[0], items[2]), WidgetStack.move(items, 1, 0))
-        assertEquals(items, WidgetStack.move(items, 0, -1))
-    }
-
-    @Test fun stackLayout() {
+    @Test fun widgetPages() {
         val cal = WidgetItem.Own(WidgetItem.Kind.CALENDAR); val wx = WidgetItem.Own(WidgetItem.Kind.WEATHER)
         val goals = WidgetItem.Own(WidgetItem.Kind.GOALS); val music = WidgetItem.Own(WidgetItem.Kind.MUSIC)
-        val slots = listOf(StackSlot(1, true, listOf(cal)), StackSlot(2, false, listOf(wx)), StackSlot(3, false, listOf(goals)), StackSlot(4, false, emptyList()))
-        assertEquals(slots, WidgetStack.decodeLayout(WidgetStack.encodeLayout(slots)))
-        assertEquals(WidgetStack.DEFAULT_LAYOUT, WidgetStack.decodeLayout(null))
-        // an older single list becomes one full-width stack
-        assertEquals(listOf(StackSlot(1, true, listOf(cal, wx))), WidgetStack.decodeLayout(WidgetStack.encode(listOf(cal, wx))))
-        // wide alone, squares paired, empty stacks hidden
-        assertEquals(listOf(listOf(slots[0]), listOf(slots[1], slots[2])), WidgetStack.rows(slots))
-        val lone = listOf(StackSlot(2, false, listOf(wx)), StackSlot(1, true, listOf(cal)))
-        assertEquals(listOf(listOf(lone[0]), listOf(lone[1])), WidgetStack.rows(lone))
-        assertEquals(listOf(music, cal), WidgetStack.withMusic(slots, true)[0].items)
-        assertEquals(slots, WidgetStack.withMusic(slots.map { it.copy(items = it.items + music) }, false))
-        assertEquals(listOf(StackSlot(WidgetStack.MUSIC_SLOT, true, listOf(music))), WidgetStack.rows(WidgetStack.withMusic(emptyList(), true)).flatten())
-        assertEquals(5, WidgetStack.nextId(slots))
+        val app = WidgetItem.App(12, "com.x/.W", "Notes")
+        val pages = listOf(WidgetPage(listOf(cal)), WidgetPage(listOf(wx, goals)), WidgetPage(listOf(app)))
+        assertEquals(pages, WidgetStack.decodePages(WidgetStack.encodePages(pages)))
+        assertEquals(WidgetStack.DEFAULT_PAGES, WidgetStack.decodePages(null))
+        assertTrue(pages[1].items.size == 2 && !pages[1].wide && pages[0].wide)
+        // the oldest format: one list, one widget per page
+        assertEquals(listOf(WidgetPage(listOf(cal)), WidgetPage(listOf(wx))), WidgetStack.decodePages("""[{"own":"CALENDAR"},{"own":"WEATHER"}]"""))
+        // the square / full-width stacks: squares paired, a widget only once, empty pages dropped
+        val stacks = """{"stacks":[{"id":1,"wide":true,"items":[{"own":"CALENDAR"}]},{"id":2,"wide":false,"items":[{"own":"WEATHER"}]},""" +
+            """{"id":3,"wide":false,"items":[{"own":"GOALS"},{"own":"CALENDAR"}]},{"id":4,"wide":false,"items":[]}]}"""
+        assertEquals(listOf(WidgetPage(listOf(cal)), WidgetPage(listOf(wx, goals))), WidgetStack.decodePages(stacks))
+        assertEquals(listOf(WidgetPage(listOf(music))) + pages, WidgetStack.withMusic(pages, true))
+        assertEquals(pages, WidgetStack.withMusic(listOf(WidgetPage(listOf(music))) + pages, false))
+        assertEquals(listOf(WidgetPage(listOf(music))), WidgetStack.withMusic(emptyList(), true))
+        assertEquals(listOf(pages[1], pages[0], pages[2]), WidgetStack.move(pages, 1, 0))
+        assertEquals(pages, WidgetStack.move(pages, 0, -1))
     }
 
     @Test fun agenda() {

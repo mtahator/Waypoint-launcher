@@ -9,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import app.olauncher.R
 import app.olauncher.core.waypoint
 import app.olauncher.features.assistant.ui.ChatActivity
+import app.olauncher.features.appearance.platform.BackdropSampler
 import app.olauncher.features.widgets.domain.WidgetItem
 import app.olauncher.features.widgets.domain.WidgetStack
 import app.olauncher.features.widgets.platform.CalendarSource
@@ -19,25 +20,28 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Runs the Home widget stack: builds it from settings, keeps its data fresh while Home is visible (every
- * minute, and at once when music starts or stops), and hosts other apps' widgets.
+ * Runs the Home widget stack: builds its pages from settings, keeps their data fresh while Home is visible
+ * (every minute, and at once when music changes), and hosts other apps' widgets. Nothing runs while Home
+ * is hidden.
  */
-class HomeWidgets(private val fragment: Fragment, private val container: FrameLayout, private val glass: Boolean, private val openSettings: () -> Unit) : WidgetActions {
+class HomeWidgets(
+    private val fragment: Fragment, private val container: FrameLayout, private val sampler: BackdropSampler?, private val openSettings: () -> Unit,
+) : WidgetActions {
     private val ctx = fragment.requireContext()
     private val wp = ctx.waypoint
     private val d = ctx.resources.displayMetrics.density
-    /** Rows of stacks: one full-width stack, or two squares side by side (a lone square on the right). */
-    private val rowsView = android.widget.LinearLayout(ctx).apply { orientation = android.widget.LinearLayout.VERTICAL }
-    private val stacks = ArrayList<WidgetStackView>()
+    val stack = WidgetStackView(ctx, sampler, this)
     private var loop: Job? = null
     private var music: Job? = null
     private var playing = false
     private var wasPlaying = false
     private var signature = ""
+    private var unsynced = 0
+    private var unsyncedAt = 0L
 
     init {
         container.removeAllViews()
-        container.addView(rowsView, FrameLayout.LayoutParams(-1, -2))
+        container.addView(stack, FrameLayout.LayoutParams(-1, -2))
     }
 
     fun onStart() {
@@ -50,13 +54,13 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
         loop = fragment.viewLifecycleOwner.lifecycleScope.launch { while (true) { refresh(); delay(60_000) } }
         music = fragment.viewLifecycleOwner.lifecycleScope.launch {
             NowPlaying.track.collect { t ->
-                // a paused session keeps its card; it goes when the app ends the session
+                // a paused session keeps its page; it goes when the app ends the session
                 val now = t != null
                 val started = t?.playing == true && !wasPlaying
                 wasPlaying = t?.playing == true
                 if (now != playing) { playing = now; rebuild() }
-                if (started) stacks.firstOrNull()?.showFirst()
-                refresh(onlyMusic = true)
+                if (started) stack.showFirst()
+                last = last.copy(track = t); stack.update(last)
             }
         }
     }
@@ -66,58 +70,50 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
         wp.widgetHost.stop()
     }
 
-    /** Re-reads the arranged stacks; app widget views are created for the size of their stack. */
+    /** Re-reads the pages; app widget views are created for the size of their cell. */
     fun rebuild(force: Boolean = false) {
-        val slots = WidgetStack.withMusic(WidgetStack.decodeLayout(wp.prefs.widgetStackRaw), playing)
-        val rows = WidgetStack.rows(slots)
-        val key = rows.joinToString("|") { r -> r.joinToString(";") { s -> "${s.wide}:" + s.items.joinToString { it.key } } }
+        val pages = WidgetStack.withMusic(WidgetStack.decodePages(wp.prefs.widgetStackRaw), playing)
+        val key = pages.joinToString("|") { p -> p.items.joinToString(";") { it.key } }
         if (!force && key == signature) return
         signature = key
-        rowsView.removeAllViews(); stacks.clear()
         val screenDp = (ctx.resources.displayMetrics.widthPixels / d).toInt()
-        for ((index, row) in rows.withIndex()) {
-            val line = android.widget.LinearLayout(ctx).apply { gravity = android.view.Gravity.END }
-            for ((k, slot) in row.withIndex()) {
-                val view = WidgetStackView(ctx, glass, this, wide = slot.wide)
-                val widthDp = if (slot.wide) screenDp - 32 else (screenDp - 44) / 2
-                val views = HashMap<Int, AppWidgetHostView>()
-                slot.items.filterIsInstance<WidgetItem.App>().forEach { a ->
-                    val info = runCatching { wp.widgetHost.manager.getAppWidgetInfo(a.appWidgetId) }.getOrNull() ?: return@forEach
-                    runCatching { wp.widgetHost.host.createView(ctx.applicationContext, a.appWidgetId, info) }.getOrNull()?.let { v ->
-                        WidgetStackView.sizeFor(v, widthDp, 164); views[a.appWidgetId] = v
-                    }
+        val views = HashMap<Int, AppWidgetHostView>()
+        pages.forEach { page ->
+            val widthDp = if (page.wide) screenDp - 36 else (screenDp - 36 - WidgetDesign.GAP_DP) / 2
+            page.items.filterIsInstance<WidgetItem.App>().forEach { a ->
+                val info = runCatching { wp.widgetHost.manager.getAppWidgetInfo(a.appWidgetId) }.getOrNull() ?: return@forEach
+                runCatching { wp.widgetHost.host.createView(ctx.applicationContext, a.appWidgetId, info) }.getOrNull()?.let { v ->
+                    WidgetStackView.sizeFor(v, widthDp, WidgetDesign.PAGE_HEIGHT_DP); views[a.appWidgetId] = v
                 }
-                view.setItems(slot.items, views)
-                view.update(last)
-                stacks += view
-                line.addView(view, if (slot.wide) android.widget.LinearLayout.LayoutParams(-1, -2)
-                else android.widget.LinearLayout.LayoutParams(0, -2, 1f).apply { if (k == 0 && row.size == 2) marginEnd = (12 * d).toInt() })
-                // a lone square keeps its half width, on the right
-                if (!slot.wide && row.size == 1) line.weightSum = 2f
             }
-            rowsView.addView(line, android.widget.LinearLayout.LayoutParams(-1, -2).apply { if (index > 0) topMargin = (8 * d).toInt() })
         }
+        stack.setPages(pages, views)
+        stack.update(last)
     }
 
     private var last = WidgetData()
 
-    private suspend fun refresh(onlyMusic: Boolean = false) {
-        val track = NowPlaying.track.value
-        if (onlyMusic) { last = last.copy(track = track); stacks.forEach { it.update(last) }; return }
+    private suspend fun refresh() {
         val zone = java.time.ZoneId.systemDefault()
         val start = java.time.LocalDate.now().atStartOfDay(zone).toInstant().toEpochMilli()
         val calendar = CalendarSource.hasPermission(ctx)
-        val events = if (calendar) CalendarSource.events(ctx, start, start + 2 * 86_400_000L, wp.prefs.hiddenCalendars) else null
+        val hidden = wp.prefs.hiddenCalendars
+        val events = if (calendar) CalendarSource.events(ctx, start, start + 15 * 86_400_000L, hidden) else null
         val now = System.currentTimeMillis()
+        // calendars that aren't stored on the phone (their events can't be read): checked every 10 minutes
+        if (calendar && now - unsyncedAt > 10 * 60_000) {
+            unsyncedAt = now
+            unsynced = CalendarSource.calendars(ctx).count { !it.synced && it.id !in hidden }
+        }
         val endOfToday = start + 86_400_000L
         val tasks = runCatching { wp.space.notes.tasks() }.getOrDefault(emptyList()).filter { it.parent == 0L && !it.done }
-        val todos = tasks.filter { it.due in 1 until endOfToday || it.due == 0L }
-            .sortedWith(compareBy({ it.due == 0L }, { it.due }))
+        val todos = tasks.sortedWith(compareBy({ it.due == 0L }, { it.due }))
             .map { WidgetData.Todo(it.id, it.title, it.due, it.rule.repeats) }
         val located = listOf(android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION).any {
             androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
-        val weather = if (located && WidgetStack.decodeLayout(wp.prefs.widgetStackRaw).any { WidgetItem.Own(WidgetItem.Kind.WEATHER) in it.items }) WeatherSource.now(ctx) else null
+        val hasWeather = WidgetStack.all(WidgetStack.decodePages(wp.prefs.widgetStackRaw)).contains(WidgetItem.Own(WidgetItem.Kind.WEATHER))
+        val weather = if (located && hasWeather) WeatherSource.now(ctx) else null
         val goals = runCatching { wp.space.notes.goals() }.getOrDefault(emptyList())
         val habits = goals.filter { it.kind == app.olauncher.features.space.data.Goal.Kind.HABIT }.map {
             val p = app.olauncher.features.space.domain.Goals.progress(it.period, it.target, it.checkins, now)
@@ -127,9 +123,10 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
             val st = app.olauncher.features.space.domain.Projects.status(it.created, it.deadline, it.percent, now)
             WidgetData.Project(it.id, it.title, st.percent, st.expected, st.daysLeft)
         }.sortedBy { it.daysLeft }
-        val notes = runCatching { wp.space.notes.all() }.getOrDefault(emptyList()).take(3).map { WidgetData.NoteLine(it.id, it.displayTitle, it.kind.name, it.created) }
-        last = WidgetData(events, calendar, todos, tasks.count { it.due in 1 until now }, weather, located, track, habits, projects, notes)
-        stacks.forEach { it.update(last) }
+        val notes = runCatching { wp.space.notes.all() }.getOrDefault(emptyList()).take(8).map { WidgetData.NoteLine(it.id, it.displayTitle, it.kind.name, it.created) }
+        last = WidgetData(events, calendar, if (calendar) unsynced else 0, todos, tasks.count { it.due in start until endOfToday }, tasks.count { it.due in 1 until now },
+            weather, located, NowPlaying.track.value, habits, projects, notes)
+        stack.update(last)
     }
 
     // ---- actions
@@ -163,6 +160,7 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
     override fun askCalendar() = openSettings()
     override fun askLocation() = openSettings()
     override fun editStack() = openSettings()
+    override fun fixCalendars() = openSettings()
 
     companion object {
         fun label(ctx: android.content.Context, item: WidgetItem): String = when (item) {
