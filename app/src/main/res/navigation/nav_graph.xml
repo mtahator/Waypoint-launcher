@@ -73,6 +73,10 @@
         android:name="app.olauncher.features.appearance.ui.AppearanceSettingsFragment"
         tools:layout="@layout/fragment_wp_page" />
     <fragment
+        android:id="@+id/screenTimeFragment"
+        android:name="app.olauncher.features.screentime.ui.ScreenTimeFragment"
+        tools:layout="@layout/fragment_wp_page" />
+    <fragment
         android:id="@+id/widgetsSettingsFragment"
         android:name="app.olauncher.features.widgets.ui.WidgetsSettingsFragment"
         tools:layout="@layout/fragment_wp_page" />

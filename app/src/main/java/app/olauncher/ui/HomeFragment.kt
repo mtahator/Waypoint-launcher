@@ -86,6 +86,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     private var topSpace: Space? = null
     private var bottomSpace: Space? = null
     private var wayfinderButton: android.widget.ImageView? = null
+    private var screenBadge: app.olauncher.features.screentime.ui.ScreenTimeBadge? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -365,10 +366,20 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun populateScreenTime() {
-        if (requireContext().appUsagePermissionGranted().not()) return
+        if (requireContext().appUsagePermissionGranted().not()) { screenBadge?.isVisible = false; return }
 
-        viewModel.getTodaysScreenTime()
-        binding.tvScreenTime.visibility = View.VISIBLE
+        // the rings badge stands where upstream's plain "1h 49m" line was
+        binding.tvScreenTime.visibility = View.GONE
+        val host = binding.tvScreenTime.parent as? ViewGroup ?: return
+        val badge = screenBadge ?: app.olauncher.features.screentime.ui.ScreenTimeBadge(requireContext(), requireContext().getColorFromAttr(R.attr.primaryColor)).also { b ->
+            b.setOnClickListener { openPage(R.id.screenTimeFragment) }
+            b.setOnLongClickListener { openScreenTimeDigitalWellbeing(); true }
+            host.addView(b)
+            screenBadge = b
+        }
+        badge.isVisible = true
+        wp.screenTime.cached()?.let { badge.bind(it) }
+        viewLifecycleOwner.lifecycleScope.launch { wp.screenTime.today()?.let { screenBadge?.bind(it); scheduleInk() } }
 
         val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val horizontalMargin = if (isLandscape) 64.dpToPx() else 10.dpToPx()
@@ -386,8 +397,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             marginEnd = horizontalMargin
             gravity = if (prefs.homeAlignment == Gravity.END) Gravity.START else Gravity.END
         }
-        binding.tvScreenTime.layoutParams = params
-        binding.tvScreenTime.setPadding(10.dpToPx())
+        badge.layoutParams = params
     }
 
     private fun populateHomeScreen(appCountUpdated: Boolean) {
@@ -997,6 +1007,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         dotClock = null
         dotDate = null
         wayfinderButton = null
+        screenBadge = null
         topSpace = null
         bottomSpace = null
         _binding = null

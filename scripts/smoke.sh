@@ -19,6 +19,7 @@ add_city() {
 }
 
 adb install -r "$APK"
+adb shell appops set $PKG GET_USAGE_STATS allow || true   # the screen-time rings on Home
 adb logcat -c
 adb shell cmd package set-home-activity "$PKG/app.olauncher.MainActivity" || true
 home; sleep 4; home; sleep 2

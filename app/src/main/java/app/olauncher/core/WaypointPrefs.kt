@@ -1,6 +1,7 @@
 package app.olauncher.core
 
 import android.content.Context
+import app.olauncher.features.screentime.domain.ScreenScore
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import app.olauncher.features.assistant.domain.ApiFormat
@@ -136,6 +137,30 @@ class WaypointPrefs(private val context: Context) {
         set(value) = prefs.edit { putBoolean(WIDGETS_ON_HOME, value) }
 
     /** [WidgetStack] JSON; null = the default stack. */
+    /** Screen-time rings: the day's budget, the break to aim for, the purposeful share to aim for. */
+    var screenBudgetMin: Int
+        get() = prefs.getInt(SCREEN_BUDGET, 180)
+        set(value) = prefs.edit { putInt(SCREEN_BUDGET, value) }
+    var screenBreakMin: Int
+        get() = prefs.getInt(SCREEN_BREAK, 90)
+        set(value) = prefs.edit { putInt(SCREEN_BREAK, value) }
+    var screenPurposePct: Int
+        get() = prefs.getInt(SCREEN_PURPOSE, 60)
+        set(value) = prefs.edit { putInt(SCREEN_PURPOSE, value) }
+
+    /** The user's own call on what an app is (feed and fun / purpose / neutral), by package. */
+    val appKinds: Map<String, ScreenScore.Kind>
+        get() = prefs.getString(APP_KINDS, "").orEmpty().split(';').mapNotNull { e ->
+            val k = e.substringAfterLast('=', ""); val p = e.substringBeforeLast('=', "")
+            runCatching { p.takeIf { it.isNotBlank() }?.let { it to ScreenScore.Kind.valueOf(k) } }.getOrNull()
+        }.toMap()
+
+    fun setAppKind(pkg: String, kind: ScreenScore.Kind?) {
+        val m = appKinds.toMutableMap()
+        if (kind == null) m.remove(pkg) else m[pkg] = kind
+        prefs.edit { putString(APP_KINDS, m.entries.joinToString(";") { "${it.key}=${it.value.name}" }) }
+    }
+
     /** Widgets folded away on Home (pinch them; tap the line to bring them back). */
     var widgetsHidden: Boolean
         get() = prefs.getBoolean(WIDGETS_HIDDEN, false)
@@ -299,6 +324,10 @@ class WaypointPrefs(private val context: Context) {
         const val WIDGETS_ON_HOME = "WP_WIDGETS_ON_HOME"
         const val WIDGET_STACK = "WP_WIDGET_STACK"
         const val INK_MODE = "WP_INK_MODE"
+        const val SCREEN_BUDGET = "WP_SCREEN_BUDGET"
+        const val SCREEN_BREAK = "WP_SCREEN_BREAK"
+        const val SCREEN_PURPOSE = "WP_SCREEN_PURPOSE"
+        const val APP_KINDS = "WP_APP_KINDS"
         const val WIDGETS_HIDDEN = "WP_WIDGETS_HIDDEN"
         const val WIDGETS_HIDE_HINT = "WP_WIDGETS_HIDE_HINT"
         const val HIDDEN_CALENDARS = "WP_HIDDEN_CALENDARS"

@@ -2,6 +2,7 @@ package app.olauncher.core
 
 import android.content.Context
 import app.olauncher.features.appearance.platform.BackdropSampler
+import app.olauncher.features.screentime.platform.ScreenTimeSource
 import app.olauncher.features.appearance.platform.GlassBackdrop
 import app.olauncher.features.appearance.platform.SystemGrayscaleController
 import app.olauncher.features.appearance.ui.AppearanceController
@@ -58,6 +59,7 @@ class AppContainer(context: Context) {
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }
     val backdropSampler by lazy { BackdropSampler(app, prefs, backdrop) }
+    val screenTime by lazy { ScreenTimeSource(app, prefs) }
     val grayscale by lazy { SystemGrayscaleController(app) }
 
 }
