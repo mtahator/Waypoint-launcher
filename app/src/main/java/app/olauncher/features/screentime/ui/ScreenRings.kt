@@ -66,7 +66,8 @@ class ScreenTimeBadge(context: Context, ink: Int) : LinearLayout(context) {
         val pad = (6 * d).toInt(); setPadding(pad, pad, pad, pad)
         addView(rings, LayoutParams((46 * d).toInt(), (46 * d).toInt()))
         val col = LinearLayout(context).apply { orientation = VERTICAL }
-        col.addView(score)
+        // wrap_content: a match_parent child doesn't count toward a wrap_content column's width, so "100" got cut
+        col.addView(score, LayoutParams(-2, -2))
         col.addView(time, LayoutParams(-2, -2).apply { topMargin = (6 * d).toInt() })
         addView(col, LayoutParams(-2, -2).apply { marginStart = (10 * d).toInt() })
     }
