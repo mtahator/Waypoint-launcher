@@ -18,8 +18,12 @@ class InkTest {
         // a 4×2 screen, left half black, right half white: each side gets its own ink
         val b = 0xFF000000.toInt(); val w = 0xFFFFFFFF.toInt()
         val px = intArrayOf(b, b, w, w, b, b, w, w)
-        assertTrue(Ink.lightInkOn(Ink.average(px, 4, 2, 0, 0, 2, 2)))
-        assertFalse(Ink.lightInkOn(Ink.average(px, 4, 2, 2, 0, 4, 2)))
+        val map = Ink.brightnessMap(px, 4, 2)
+        assertTrue(Ink.lightInkOn(Ink.average(map, 4, 2, 0, 0, 2, 2)))
+        assertFalse(Ink.lightInkOn(Ink.average(map, 4, 2, 2, 0, 4, 2)))
+        assertEquals(0.5f, Ink.average(map, 4, 2, 0, 0, 4, 2), 0.001f)
+        // out of bounds clamps to the edge
+        assertEquals(1f, Ink.average(map, 4, 2, 3, 1, 9, 9), 0.001f)
     }
 
     @Test fun glassKeepsInkConsistent() {

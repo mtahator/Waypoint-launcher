@@ -45,15 +45,29 @@ object Ink {
 
     fun withAlphaOf(ink: Int, original: Int): Int = (ink and 0x00FFFFFF) or (original and 0xFF000000.toInt())
 
-    /** Average luminance of a [w]×[h] pixel array inside the rectangle (clamped). */
-    fun average(px: IntArray, w: Int, h: Int, left: Int, top: Int, right: Int, bottom: Int): Float {
+    /**
+     * The backdrop's brightness map, made once when the backdrop is made: a summed-area table of luminance
+     * ((w+1)×(h+1)), so the average under any rectangle is four reads ([average]), whatever its size.
+     */
+    fun brightnessMap(px: IntArray, w: Int, h: Int): FloatArray {
+        val t = FloatArray((w + 1) * (h + 1))
+        for (y in 0 until h) {
+            var row = 0f
+            for (x in 0 until w) {
+                row += luminance(px[y * w + x])
+                t[(y + 1) * (w + 1) + x + 1] = t[y * (w + 1) + x + 1] + row
+            }
+        }
+        return t
+    }
+
+    /** Average luminance inside the rectangle (pixels of the [w]×[h] map, clamped). */
+    fun average(map: FloatArray, w: Int, h: Int, left: Int, top: Int, right: Int, bottom: Int): Float {
         val l = left.coerceIn(0, w - 1); val t = top.coerceIn(0, h - 1)
         val r = right.coerceIn(l + 1, w); val b = bottom.coerceIn(t + 1, h)
-        var sum = 0.0; var n = 0
-        val step = maxOf(1, ((r - l) * (b - t)) / 400) // at most ~400 samples
-        var i = 0
-        for (y in t until b) for (x in l until r) { if (i++ % step == 0) { sum += luminance(px[y * w + x]); n++ } }
-        return if (n == 0) 0f else (sum / n).toFloat()
+        val s = w + 1
+        val sum = map[b * s + r] - map[t * s + r] - map[b * s + l] + map[t * s + l]
+        return sum / ((r - l) * (b - t))
     }
 
     /** Three passes of a box blur (≈ Gaussian), in place. */

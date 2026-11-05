@@ -23,7 +23,8 @@ import kotlin.math.max
  */
 class BackdropSampler(private val context: Context, private val prefs: WaypointPrefs, private val glass: GlassBackdrop) {
 
-    class Snapshot(val bitmap: Bitmap, val px: IntArray, val exact: Boolean, val key: String)
+    /** [map] is the brightness map (see [Ink.brightnessMap]), made once with the snapshot. */
+    class Snapshot(val bitmap: Bitmap, val map: FloatArray, val exact: Boolean, val key: String)
 
     @Volatile var snapshot: Snapshot? = null
         private set
@@ -64,7 +65,7 @@ class BackdropSampler(private val context: Context, private val prefs: WaypointP
         if (key.startsWith("wall|") && prefs.glassTheme && exact) scrim(px, dark)
         if (bw > 1) Ink.blur(px, bw, bh, 5)
         val out = Bitmap.createBitmap(px, bw, bh, Bitmap.Config.ARGB_8888)
-        return Snapshot(out, px, exact, key)
+        return Snapshot(out, Ink.brightnessMap(px, bw, bh), exact, key)
     }
 
     private fun solid(color: Int) = Bitmap.createBitmap(intArrayOf(color or 0xFF000000.toInt()), 1, 1, Bitmap.Config.ARGB_8888)
@@ -121,10 +122,9 @@ class BackdropSampler(private val context: Context, private val prefs: WaypointP
     fun luminance(left: Int, top: Int, right: Int, bottom: Int, winW: Int, winH: Int): Float? {
         val s = snapshot ?: return null
         val bw = s.bitmap.width; val bh = s.bitmap.height
-        if (bw == 1 && bh == 1) return Ink.luminance(s.px[0])
         val scale = max(winW.toFloat() / bw, winH.toFloat() / bh)
         val ox = (winW - bw * scale) / 2f; val oy = (winH - bh * scale) / 2f
-        return Ink.average(s.px, bw, bh, ((left - ox) / scale).toInt(), ((top - oy) / scale).toInt(),
+        return Ink.average(s.map, bw, bh, ((left - ox) / scale).toInt(), ((top - oy) / scale).toInt(),
             ((right - ox) / scale).toInt() + 1, ((bottom - oy) / scale).toInt() + 1)
     }
 }
