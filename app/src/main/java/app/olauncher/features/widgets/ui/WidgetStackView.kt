@@ -118,10 +118,11 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
     private fun renderDots() {
         dots.removeAllViews()
         dots.isVisible = items.size > 1
+        val on = current
         items.indices.forEach { i ->
             dots.addView(View(context).apply {
-                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (i == current) GlassStyler.ACCENT_RED else ink) }
-                alpha = if (i == current) 1f else 0.35f
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(if (i == on) GlassStyler.ACCENT_RED else ink) }
+                alpha = if (i == on) 1f else 0.35f
             }, LayoutParams((5 * d).toInt(), (5 * d).toInt()).apply { marginStart = (3.5f * d).toInt(); marginEnd = (3.5f * d).toInt() })
         }
     }
