@@ -80,6 +80,14 @@
                 android:orientation="horizontal"
                 android:paddingHorizontal="3dp" />
         </LinearLayout>
+
+        <!-- Waypoint: widget stack (swipe between widgets; Music comes to the front while playing) -->
+        <FrameLayout
+            android:id="@+id/widgetStackHost"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <!-- Screen time-->

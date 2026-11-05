@@ -130,6 +130,16 @@ class WaypointPrefs(private val context: Context) {
         get() = prefs.getBoolean(LEARN_FROM_CHATS, true)
         set(value) = prefs.edit { putBoolean(LEARN_FROM_CHATS, value) }
 
+    /** The widget stack on Home. */
+    var widgetsOnHome: Boolean
+        get() = prefs.getBoolean(WIDGETS_ON_HOME, true)
+        set(value) = prefs.edit { putBoolean(WIDGETS_ON_HOME, value) }
+
+    /** [WidgetStack] JSON; null = the default stack. */
+    var widgetStackRaw: String?
+        get() = prefs.getString(WIDGET_STACK, null)
+        set(value) = prefs.edit { putString(WIDGET_STACK, value) }
+
     /** The assistant's tools: location, places, routes, weather, reminders, Space search. */
     var toolsEnabled: Boolean
         get() = prefs.getBoolean(TOOLS_ENABLED, true)
@@ -267,6 +277,8 @@ class WaypointPrefs(private val context: Context) {
         const val SPACE_CLEANUP = "WP_SPACE_CLEANUP"
         const val LEARN_FROM_CHATS = "WP_LEARN_FROM_CHATS"
         const val TOOLS_ENABLED = "WP_TOOLS_ENABLED"
+        const val WIDGETS_ON_HOME = "WP_WIDGETS_ON_HOME"
+        const val WIDGET_STACK = "WP_WIDGET_STACK"
         const val TOOLS_UNSUPPORTED = "WP_TOOLS_UNSUPPORTED"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val AUTO_SCREENSHOTS = "WP_AUTO_SCREENSHOTS"

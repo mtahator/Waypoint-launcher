@@ -75,6 +75,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     // Waypoint
     private val wp get() = requireContext().waypoint
     private var worldClocks: WorldClockSlider? = null
+    private var widgets: app.olauncher.features.widgets.ui.HomeWidgets? = null
     private var glass = false
     private var baseAppsPaddingTop = 0
     private var alignment = Gravity.END
@@ -106,6 +107,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             openPage(R.id.worldClockPanelFragment)
         }
         if (glass) applyGlass()
+        widgets = app.olauncher.features.widgets.ui.HomeWidgets(this, binding.widgetStackHost, glass) { openPage(R.id.widgetsSettingsFragment) }
 
         initObservers()
         setHomeAlignment(prefs.homeAlignment)
@@ -116,6 +118,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
     override fun onStart() {
         super.onStart()
         worldClocks?.onStart()
+        widgets?.onStart()
     }
 
     override fun onResume() {
@@ -129,6 +132,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
 
     override fun onStop() {
         worldClocks?.onStop()
+        widgets?.onStop()
         super.onStop()
     }
 
@@ -947,6 +951,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         super.onDestroyView()
         worldClocks?.onStop()
         worldClocks = null
+        widgets = null
         dotClock = null
         dotDate = null
         wayfinderButton = null

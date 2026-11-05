@@ -106,6 +106,7 @@ class SettingsFragment : BaseFragment(), View.OnClickListener, View.OnLongClickL
             binding.wpWorldClock to R.id.worldClockSettingsFragment,
             binding.wpGestures to R.id.gestureSettingsFragment,
             binding.wpAppearance to R.id.appearanceSettingsFragment,
+            binding.wpWidgets to R.id.widgetsSettingsFragment,
             binding.wpPrivacy to R.id.privacyDataFragment,
             binding.wpGraph to R.id.graphFragment,
             binding.wpAssistant to R.id.assistantSettingsFragment,

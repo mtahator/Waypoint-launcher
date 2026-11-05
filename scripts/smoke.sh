@@ -43,15 +43,28 @@ for n in r.iter("node"):
         b=list(map(int,re.findall(r"\d+",n.get("bounds")))); print((b[1]+b[3])//2); break
 PY
 )
-if [ -n "$SY" ]; then adb shell input swipe $((W*3/4)) "$SY" $((W/5)) "$SY" 250; fi
+# swipe up inside the clock: next city (it loops)
+if [ -n "$SY" ]; then adb shell input swipe $((W*3/4)) $((SY+50)) $((W*3/4)) $((SY-50)) 250; fi
 shot 06-home-world-clock-swiped
 tap "London"; shot 07-world-clock-panel; home
 
 open_settings; tap "Gestures"; shot 08-gestures
 tap "Enabled" exact
-open_settings; tap "Notifications & ledger"; shot 09-notifications
-open_settings; tap "Export CSV"; shot 10-export
 open_settings; tap "Privacy & data"; shot 11-privacy
+open_settings; tap "Widgets"; sleep 1; shot 11b-widgets-settings
+home; sleep 2; shot 11c-home-widgets
+# swipe the widget stack sideways inside its card
+WY=$(python3 - <<'PY'
+import subprocess,re,xml.etree.ElementTree as ET
+subprocess.run(["adb","shell","uiautomator","dump","/sdcard/ui.xml"],capture_output=True)
+x=subprocess.run(["adb","shell","cat","/sdcard/ui.xml"],capture_output=True,text=True).stdout
+r=ET.fromstring(x[x.index("<"):])
+for n in r.iter("node"):
+    if n.get("resource-id","").endswith("widgetStackHost"):
+        b=list(map(int,re.findall(r"\d+",n.get("bounds")))); print((b[1]+b[3])//2); break
+PY
+)
+if [ -n "$WY" ]; then adb shell input swipe $((W*4/5)) "$WY" $((W/5)) "$WY" 250; sleep 1; shot 11d-home-widgets-swiped; fi
 
 # Glass theme
 open_settings; tap "Appearance"; shot 12-appearance

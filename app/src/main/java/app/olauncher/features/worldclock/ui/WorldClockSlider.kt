@@ -25,7 +25,8 @@ import java.time.Instant
 import java.time.ZoneId
 
 /**
- * Home world clock: one city per page, swipe between them, dots show the position. The slot has a fixed
+ * Home world clock: one city per page; swipe up or down inside the clock (never across the screen) to go to
+ * the next city, round and round: after the last comes the first again. Dots show the position. The slot has a fixed
  * height, so adding cities or swiping never moves anything else on Home. Times are system-driven
  * TextClocks (they stop ticking when not visible); only day-offset labels are refreshed by us, on
  * minute ticks and time/zone/date changes, with the receiver registered between onStart and onStop.
@@ -44,7 +45,8 @@ class WorldClockSlider(
     private var current = 0
 
     init {
-        pager.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        pager.layoutManager = LinearLayoutManager(context, LinearLayoutManager.VERTICAL, false)
+        pager.isNestedScrollingEnabled = false
         pager.setHasFixedSize(true)
         pager.itemAnimator = null
         pager.adapter = adapter
@@ -54,8 +56,9 @@ class WorldClockSlider(
                 if (newState != RecyclerView.SCROLL_STATE_IDLE) return
                 val view = snap.findSnapView(recyclerView.layoutManager) ?: return
                 val position = recyclerView.getChildAdapterPosition(view)
-                if (position != RecyclerView.NO_POSITION && position != current) {
-                    current = position
+                val n = adapter.entries.size
+                if (position != RecyclerView.NO_POSITION && n > 0 && position % n != current) {
+                    current = position % n
                     renderDots()
                 }
             }
@@ -76,6 +79,8 @@ class WorldClockSlider(
         layout.isVisible = entries.isNotEmpty()
         adapter.submit(entries, gravity, glass)
         current = current.coerceIn(0, (entries.size - 1).coerceAtLeast(0))
+        // start in the middle of the endless list, on the current city, so both directions loop
+        if (entries.size > 1) (pager.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(adapter.loopStart() + current, 0)
         dots.gravity = gravity or Gravity.CENTER_VERTICAL
         renderDots()
         return layout.isVisible
@@ -87,7 +92,7 @@ class WorldClockSlider(
 
     private fun renderDots() {
         dots.removeAllViews()
-        val count = adapter.itemCount
+        val count = adapter.entries.size
         dots.isVisible = count > 1
         if (count <= 1) return
         val density = context.resources.displayMetrics.density
@@ -138,7 +143,10 @@ class WorldClockSlider(
             @Suppress("NotifyDataSetChanged") notifyDataSetChanged()
         }
 
-        override fun getItemCount() = entries.size
+        /** Endless when there is more than one city: the same entries repeated, read with position % size. */
+        override fun getItemCount() = if (entries.size > 1) entries.size * LOOPS else entries.size
+
+        fun loopStart() = (LOOPS / 2) * entries.size
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageHolder {
             val b = ItemWorldClockPageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -154,10 +162,10 @@ class WorldClockSlider(
         }
 
         override fun onBindViewHolder(holder: PageHolder, position: Int, payloads: MutableList<Any>) {
-            if (payloads.contains(PAYLOAD_OFFSET)) holder.bindOffset(entries[position]) else onBindViewHolder(holder, position)
+            if (payloads.contains(PAYLOAD_OFFSET)) holder.bindOffset(entries[position % entries.size]) else onBindViewHolder(holder, position)
         }
 
-        override fun onBindViewHolder(holder: PageHolder, position: Int) = holder.bind(entries[position], gravity)
+        override fun onBindViewHolder(holder: PageHolder, position: Int) = holder.bind(entries[position % entries.size], gravity)
     }
 
     private inner class PageHolder(val b: ItemWorldClockPageBinding) : RecyclerView.ViewHolder(b.root) {
@@ -182,6 +190,7 @@ class WorldClockSlider(
 
     companion object {
         private const val PAYLOAD_OFFSET = "offset"
+        private const val LOOPS = 2_000
 
         fun formatOffset(context: Context, days: Int): String =
             context.resources.getQuantityString(

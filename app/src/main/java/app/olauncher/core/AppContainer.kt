@@ -48,6 +48,7 @@ class AppContainer(context: Context) {
     val space: SpaceEngine by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
     }
+    val widgetHost by lazy { app.olauncher.features.widgets.platform.WidgetHost(app) }
     val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }

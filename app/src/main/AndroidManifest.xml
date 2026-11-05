@@ -14,6 +14,8 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Wayfinder tools: "nearest …", distance and weather from where you are (asked for only when you turn it on) -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Home calendar widget: your day from the phone's calendars (incl. Google Calendar), asked for when you add it -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
@@ -149,6 +151,18 @@
                 android:resource="@xml/accessibility_service_config" />
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+        </service>
+
+        <!-- Waypoint: Music widget. Android only shows what's playing to a notification listener; this one
+             never reads notifications, it only watches media sessions. Off until the user allows it. -->
+        <service
+            android:name=".features.widgets.platform.MediaListenerService"
+            android:exported="true"
+            android:label="@string/wp_widget_music"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
 
