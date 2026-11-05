@@ -72,7 +72,7 @@ interface WidgetActions {
  * The Home widget stack: one card at a time, swipe sideways to the next (round and round), dots show where
  * you are, long-press to arrange. App widgets sit in the same card, so the stack looks like one object.
  */
-class WidgetStackView(context: Context, private val glass: Boolean, private val actions: WidgetActions) : LinearLayout(context) {
+class WidgetStackView(context: Context, private val glass: Boolean, private val actions: WidgetActions, val wide: Boolean = true) : LinearLayout(context) {
     private val d = resources.displayMetrics.density
     private val ink = context.getColorFromAttr(R.attr.primaryColor)
     private val faint = (ink and 0x00FFFFFF) or 0x99000000.toInt()
@@ -85,7 +85,9 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
     private var current = 0
     private val adapter = Adapter()
 
-    val cardHeight = (172 * d).toInt()
+    /** Square and full-width cards share one height, so a row of two squares lines up with a wide one. */
+    val cardHeight = (164 * d).toInt()
+    private val small get() = !wide
 
     init {
         orientation = VERTICAL
@@ -224,6 +226,22 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
     private fun calendar(c: FrameLayout) {
         c.setOnClickListener { actions.openCalendar() }
         if (!data.calendarAllowed) { c.addView(message(context.getString(R.string.wp_widget_calendar_connect)) { actions.askCalendar() }); return }
+        if (small) {
+            val col = column(c)
+            val today = java.time.LocalDate.now()
+            col.addView(caption(today.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM", java.util.Locale.ENGLISH)), GlassStyler.ACCENT_RED))
+            val now = System.currentTimeMillis()
+            val end = today.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val next = Agenda.upcoming(data.events.orEmpty().filter { !it.allDay }, now, end, 2)
+            if (next.isEmpty()) { col.addView(text(context.getString(R.string.wp_widget_calendar_free), 16f).apply { maxLines = 2; setPadding(0, (14 * d).toInt(), 0, 0) }); return }
+            next.forEach { e ->
+                col.addView(View(context).apply { background = GradientDrawable().apply { cornerRadius = 2 * d; setColor(e.color or 0xFF000000.toInt()) } },
+                    LayoutParams((24 * d).toInt(), (3 * d).toInt()).apply { topMargin = (12 * d).toInt() })
+                col.addView(text(e.title, 15f).apply { maxLines = 2; setPadding(0, (5 * d).toInt(), 0, 0) })
+                col.addView(caption((if (e.begin >= end) context.getString(R.string.wp_task_tomorrow) + " " else "") + time(e.begin)).apply { setPadding(0, (3 * d).toInt(), 0, 0) })
+            }
+            return
+        }
         val row = LinearLayout(context).apply { setPadding((18 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (14 * d).toInt()) }
         c.addView(row, FrameLayout.LayoutParams(-1, -1))
         val today = java.time.LocalDate.now()
@@ -269,6 +287,12 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
         top.addView(caption(context.getString(R.string.wp_widget_space_title), GlassStyler.ACCENT_RED), LayoutParams(0, -2, 1f))
         if (data.overdue > 0) top.addView(caption(context.getString(R.string.wp_overdue_count, data.overdue), GlassStyler.ACCENT_RED))
         col.addView(top)
+        if (small) {
+            col.addView(dotText(data.todos.size.toString(), 6f), LayoutParams(-2, -2).apply { topMargin = (10 * d).toInt() })
+            col.addView(caption(context.resources.getQuantityString(R.plurals.wp_todos_today, data.todos.size, data.todos.size)).apply { setPadding(0, (8 * d).toInt(), 0, 0) })
+            data.todos.firstOrNull()?.let { col.addView(text(it.title, 14f).apply { setPadding(0, (8 * d).toInt(), 0, 0) }) }
+            return
+        }
         if (data.todos.isEmpty()) {
             col.addView(text(context.getString(R.string.wp_widget_space_clear), 17f).apply { setPadding(0, (22 * d).toInt(), 0, 0) })
             col.addView(caption(context.getString(R.string.wp_widget_space_clear_hint)).apply { setPadding(0, (6 * d).toInt(), 0, 0) })
@@ -299,18 +323,18 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
         col.addView(caption(context.getString(R.string.wp_filter_goals), GlassStyler.ACCENT_RED))
         if (data.habits.isNotEmpty()) {
             val rings = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, (10 * d).toInt(), 0, 0) }
-            data.habits.take(if (data.projects.isEmpty()) 4 else 3).forEach { h ->
+            data.habits.take(if (small) 2 else if (data.projects.isEmpty()) 4 else 3).forEach { h ->
                 rings.addView(LinearLayout(context).apply {
                     orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
                     addView(app.olauncher.features.space.ui.ProgressRing(context, if (h.target > 0) (h.done.toFloat() / h.target).coerceIn(0f, 1f) else 0f,
                         if (h.done >= h.target) "✓" else "+1", ink, GlassStyler.ACCENT_RED).apply { setOnClickListener { actions.checkIn(h.id) } },
                         LayoutParams((50 * d).toInt(), (50 * d).toInt()))
                     addView(caption(h.title).apply { setPadding(0, (5 * d).toInt(), 0, 0); gravity = Gravity.CENTER })
-                }, LayoutParams((76 * d).toInt(), -2))
+                }, LayoutParams(((if (small) 64 else 76) * d).toInt(), -2))
             }
             col.addView(rings)
         }
-        data.projects.take(if (data.habits.isEmpty()) 3 else 1).forEach { p ->
+        data.projects.take(if (small) (if (data.habits.isEmpty()) 2 else 0) else if (data.habits.isEmpty()) 3 else 1).forEach { p ->
             val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, (10 * d).toInt(), 0, (4 * d).toInt()) }
             top.addView(text(p.title, 14f), LayoutParams(0, -2, 1f))
             top.addView(caption("${p.percent}% · " + context.resources.getQuantityString(R.plurals.wp_goal_days_left, p.daysLeft.coerceAtLeast(0), p.daysLeft.coerceAtLeast(0)),
@@ -324,6 +348,23 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
 
     private fun capture(c: FrameLayout) {
         c.setOnClickListener { actions.openSpace() }
+        if (small) {
+            val col = LinearLayout(context).apply { orientation = VERTICAL; gravity = Gravity.CENTER }
+            c.addView(col, FrameLayout.LayoutParams(-1, -1))
+            col.addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_mic); scaleType = ImageView.ScaleType.CENTER
+                imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GlassStyler.ACCENT_RED) }
+                contentDescription = context.getString(R.string.wp_space_record)
+                setOnClickListener { actions.record() }
+            }, LayoutParams((68 * d).toInt(), (68 * d).toInt()))
+            col.addView(text(context.getString(R.string.wp_widget_capture_write), 13f).apply {
+                gravity = Gravity.CENTER; setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
+                background = GradientDrawable().apply { cornerRadius = 100 * d; setStroke((1 * d).toInt().coerceAtLeast(1), (ink and 0x00FFFFFF) or 0x55000000) }
+                setOnClickListener { actions.write() }
+            }, LayoutParams(-2, -2).apply { topMargin = (12 * d).toInt() })
+            return
+        }
         val row = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding((18 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt()) }
         c.addView(row, FrameLayout.LayoutParams(-1, -1))
         row.addView(ImageView(context).apply {
@@ -354,7 +395,22 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
         }
     }
 
-    // ---- Weather: big dot-matrix temperature, the day's range and the next hours
+    // ---- Weather: the temperature large and light, an icon, the day's range, then the coming hours
+
+    private fun weatherIcon(code: Int) = when (code) {
+        0 -> R.drawable.ic_w_sun
+        1, 2 -> R.drawable.ic_w_partly
+        3 -> R.drawable.ic_w_cloud
+        45, 48 -> R.drawable.ic_w_fog
+        in 51..67, in 80..82 -> R.drawable.ic_w_rain
+        in 71..77, 85, 86 -> R.drawable.ic_w_snow
+        in 95..99 -> R.drawable.ic_w_storm
+        else -> R.drawable.ic_w_cloud
+    }
+
+    private fun icon(res: Int, sizeDp: Int, tint: Int = ink) = ImageView(context).apply {
+        setImageResource(res); imageTintList = android.content.res.ColorStateList.valueOf(tint); scaleType = ImageView.ScaleType.FIT_CENTER
+    }.also { it.layoutParams = LayoutParams((sizeDp * d).toInt(), (sizeDp * d).toInt()) }
 
     private fun weather(c: FrameLayout) {
         val w = data.weather
@@ -364,29 +420,35 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
             })
             return
         }
-        val row = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding((18 * d).toInt(), (14 * d).toInt(), (18 * d).toInt(), (14 * d).toInt()) }
+        val row = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding((18 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt()) }
         c.addView(row, FrameLayout.LayoutParams(-1, -1))
         val left = LinearLayout(context).apply { orientation = VERTICAL }
-        left.addView(caption(app.olauncher.features.assistant.domain.Tools.weatherCode(w.code), GlassStyler.ACCENT_RED))
-        left.addView(dotText("${w.temp.roundToInt()}°", 6f), LayoutParams(-2, -2).apply { topMargin = (8 * d).toInt(); bottomMargin = (8 * d).toInt() })
-        left.addView(caption("↑ ${w.max.roundToInt()}°  ↓ ${w.min.roundToInt()}°" + if (w.rainChance > 0) "  ☂ ${w.rainChance}%" else ""))
-        row.addView(left, LayoutParams(0, -2, 1f))
-        val hours = LinearLayout(context).apply { gravity = Gravity.BOTTOM }
-        val temps = w.hourly.map { it.second }
-        val lo = (temps.minOrNull() ?: 0.0) - 1; val hi = (temps.maxOrNull() ?: 1.0) + 1
-        w.hourly.forEach { (h, t) ->
+        val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        top.addView(icon(weatherIcon(w.code), 22, GlassStyler.ACCENT_RED))
+        top.addView(caption(app.olauncher.features.assistant.domain.Tools.weatherCode(w.code)).apply { setPadding((8 * d).toInt(), 0, 0, 0) })
+        left.addView(top)
+        left.addView(TextView(context).apply {
+            text = "${w.temp.roundToInt()}°"; setTextColor(ink); setTextSize(TypedValue.COMPLEX_UNIT_SP, if (small) 50f else 58f)
+            typeface = Typeface.create("sans-serif-thin", Typeface.NORMAL); includeFontPadding = false
+            if (glass) GlassStyler.softShadow(this)
+        }, LayoutParams(-2, -2).apply { topMargin = (2 * d).toInt() })
+        left.addView(caption("H ${w.max.roundToInt()}°  L ${w.min.roundToInt()}°" + if (w.rainChance >= 20 && !small) "  ·  ${w.rainChance}% rain" else ""))
+        row.addView(left, LayoutParams(if (small) -1 else 0, -2, if (small) 0f else 1f))
+        if (small) return
+        // the next hours: time, icon, temperature
+        val hours = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        w.hourly.take(5).forEach { h ->
             hours.addView(LinearLayout(context).apply {
                 orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-                addView(caption("${t.roundToInt()}°", ink))
-                addView(View(context).apply { background = GradientDrawable().apply { cornerRadius = 3 * d; setColor((ink and 0x00FFFFFF) or 0x66000000) } },
-                    LayoutParams((6 * d).toInt(), ((14 + 46 * ((t - lo) / (hi - lo))) * d).toInt()).apply { topMargin = (5 * d).toInt(); bottomMargin = (5 * d).toInt() })
-                addView(caption("%02d".format(h)))
-            }, LayoutParams((32 * d).toInt(), -2))
+                addView(caption("%02d".format(h.hour)))
+                addView(icon(weatherIcon(h.code), 20).apply { (layoutParams as LayoutParams).apply { topMargin = (8 * d).toInt(); bottomMargin = (8 * d).toInt() } })
+                addView(text("${h.temp.roundToInt()}°", 14f))
+            }, LayoutParams((38 * d).toInt(), -2))
         }
         row.addView(hours)
     }
 
-    // ---- Music: the cover through reeded glass behind, controls in front
+    // ---- Music: the cover through reeded glass fills the card; title, artist, progress and controls on top
 
     private var coverKey: Any? = null
     private var coverGlass: Bitmap? = null
@@ -398,43 +460,57 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
         if (art != null) {
             if (coverKey !== art) { coverKey = art; coverGlass = reed(art) }
             c.addView(ImageView(context).apply { setImageBitmap(coverGlass); scaleType = ImageView.ScaleType.CENTER_CROP }, FrameLayout.LayoutParams(-1, -1))
-            c.addView(View(context).apply { setBackgroundColor(0x40000000) }, FrameLayout.LayoutParams(-1, -1))
+            // a soft dark gradient at the bottom keeps the text readable on any cover
+            c.addView(View(context).apply {
+                background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x22000000, 0x99000000.toInt()))
+            }, FrameLayout.LayoutParams(-1, -1))
         }
         val white = if (art != null) 0xFFFFFFFF.toInt() else ink
-        val row = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt()) }
-        c.addView(row, FrameLayout.LayoutParams(-1, -1))
-        row.addView(ImageView(context).apply {
-            if (art != null) setImageBitmap(art) else setImageResource(R.drawable.ic_mic)
-            scaleType = ImageView.ScaleType.CENTER_CROP; clipToOutline = true
-            background = GradientDrawable().apply { cornerRadius = 16 * d; setColor(0x33000000) }
-            elevation = 6 * d
-        }, LayoutParams((104 * d).toInt(), (104 * d).toInt()).apply { marginEnd = (16 * d).toInt() })
-        val col = LinearLayout(context).apply { orientation = VERTICAL }
-        row.addView(col, LayoutParams(0, -2, 1f))
-        col.addView(caption(if (t.playing) context.getString(R.string.wp_widget_music_playing) else context.getString(R.string.wp_widget_music_paused),
+        val col = LinearLayout(context).apply {
+            orientation = VERTICAL; gravity = Gravity.BOTTOM
+            setPadding((18 * d).toInt(), (14 * d).toInt(), (18 * d).toInt(), (14 * d).toInt())
+        }
+        c.addView(col, FrameLayout.LayoutParams(-1, -1))
+        col.addView(caption(context.getString(if (t.playing) R.string.wp_widget_music_playing else R.string.wp_widget_music_paused),
             if (art != null) 0xCCFFFFFF.toInt() else GlassStyler.ACCENT_RED))
-        col.addView(text(t.title.ifBlank { "—" }, 17f, white, bold = true).apply { setPadding(0, (6 * d).toInt(), 0, 0); setShadowLayer(8 * d, 0f, 0f, 0x66000000) })
-        col.addView(text(t.artist, 14f, (white and 0x00FFFFFF) or 0xCC000000.toInt()).apply { setPadding(0, (3 * d).toInt(), 0, 0); setShadowLayer(8 * d, 0f, 0f, 0x66000000) })
-        col.addView(MusicProgress(context, t, white), LayoutParams(-1, (14 * d).toInt()).apply { topMargin = (10 * d).toInt() })
-        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        fun button(label: String, size: Float, main: Boolean, onClick: () -> Unit) = controls.addView(text(label, size, if (main) 0xFFFFFFFF.toInt() else white).apply {
-            gravity = Gravity.CENTER
-            if (main) background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GlassStyler.ACCENT_RED) }
-            setOnClickListener { onClick() }
-        }, LayoutParams(((if (main) 44 else 40) * d).toInt(), ((if (main) 44 else 40) * d).toInt()).apply { marginEnd = (10 * d).toInt() })
-        button("⏮", 18f, false) { NowPlaying.previous() }
-        button(if (t.playing) "⏸" else "▶", 18f, true) { NowPlaying.playPause() }
-        button("⏭", 18f, false) { NowPlaying.next() }
-        col.addView(controls, LayoutParams(-2, -2).apply { topMargin = (4 * d).toInt() })
+        val body = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
+        val texts = LinearLayout(context).apply { orientation = VERTICAL }
+        texts.addView(text(t.title.ifBlank { "—" }, if (small) 15f else 18f, white, bold = true).apply { setShadowLayer(10 * d, 0f, 0f, 0x88000000.toInt()) })
+        texts.addView(text(t.artist, 13f, (white and 0x00FFFFFF) or 0xCC000000.toInt()).apply { setPadding(0, (3 * d).toInt(), 0, 0); setShadowLayer(10 * d, 0f, 0f, 0x88000000.toInt()) })
+        body.addView(texts, LayoutParams(0, -2, 1f))
+        if (small) {
+            body.addView(control(R.drawable.ic_play.takeIf { !t.playing } ?: R.drawable.ic_pause, true, white) { NowPlaying.playPause() })
+            col.addView(body, LayoutParams(-1, -2).apply { topMargin = (8 * d).toInt() })
+            col.addView(MusicProgress(context, t, white), LayoutParams(-1, (10 * d).toInt()).apply { topMargin = (10 * d).toInt() })
+            return
+        }
+        col.addView(body, LayoutParams(-1, -2).apply { topMargin = (8 * d).toInt() })
+        col.addView(MusicProgress(context, t, white), LayoutParams(-1, (10 * d).toInt()).apply { topMargin = (12 * d).toInt(); bottomMargin = (6 * d).toInt() })
+        val controls = LinearLayout(context).apply { gravity = Gravity.CENTER }
+        controls.addView(control(R.drawable.ic_skip_previous, false, white) { NowPlaying.previous() })
+        controls.addView(control(if (t.playing) R.drawable.ic_pause else R.drawable.ic_play, true, white) { NowPlaying.playPause() },
+            LayoutParams(-2, -2).apply { marginStart = (22 * d).toInt(); marginEnd = (22 * d).toInt() })
+        controls.addView(control(R.drawable.ic_skip_next, false, white) { NowPlaying.next() })
+        col.addView(controls, LayoutParams(-1, -2))
+    }
+
+    /** A round control: the main one filled red, the others plain icons. */
+    private fun control(res: Int, main: Boolean, tint: Int, onClick: () -> Unit) = ImageView(context).apply {
+        setImageResource(res); scaleType = ImageView.ScaleType.CENTER
+        imageTintList = android.content.res.ColorStateList.valueOf(if (main) 0xFFFFFFFF.toInt() else tint)
+        if (main) background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GlassStyler.ACCENT_RED) }
+        setOnClickListener { onClick() }
+        layoutParams = LayoutParams(((if (main) 46 else 40) * d).toInt(), ((if (main) 46 else 40) * d).toInt())
     }
 
     /** The cover, blown up and seen through vertical glass ribs, like the launcher's backdrop. */
     private fun reed(art: Bitmap): Bitmap? = runCatching {
-        val w = 220; val h = 110
-        val scaled = Bitmap.createScaledBitmap(art, w, (art.height * w.toFloat() / art.width).roundToInt().coerceAtLeast(h), true)
-        val crop = Bitmap.createBitmap(scaled, 0, ((scaled.height - h) / 2).coerceAtLeast(0), w, h)
+        val w = if (wide) 240 else 140; val h = 120
+        val scale = maxOf(w.toFloat() / art.width, h.toFloat() / art.height)
+        val scaled = Bitmap.createScaledBitmap(art, (art.width * scale).roundToInt().coerceAtLeast(w), (art.height * scale).roundToInt().coerceAtLeast(h), true)
+        val crop = Bitmap.createBitmap(scaled, (scaled.width - w) / 2, (scaled.height - h) / 2, w, h)
         val px = IntArray(w * h); crop.getPixels(px, 0, w, 0, 0, w, h)
-        val out = ReededGlass.apply(px, w, h, ReededGlass.Params(ribPx = 9, darken = 0.28f))
+        val out = ReededGlass.apply(px, w, h, ReededGlass.Params(ribPx = if (wide) 10 else 8, darken = 0.2f))
         Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
     }.getOrNull()
 

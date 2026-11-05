@@ -140,6 +140,11 @@ class WaypointPrefs(private val context: Context) {
         get() = prefs.getString(WIDGET_STACK, null)
         set(value) = prefs.edit { putString(WIDGET_STACK, value) }
 
+    /** Calendar ids left out of the Calendar widget. */
+    var hiddenCalendars: Set<Long>
+        get() = prefs.getStringSet(HIDDEN_CALENDARS, emptySet()).orEmpty().mapNotNull { it.toLongOrNull() }.toSet()
+        set(value) = prefs.edit { putStringSet(HIDDEN_CALENDARS, value.map { it.toString() }.toSet()) }
+
     /** The assistant's tools: location, places, routes, weather, reminders, Space search. */
     var toolsEnabled: Boolean
         get() = prefs.getBoolean(TOOLS_ENABLED, true)
@@ -279,6 +284,7 @@ class WaypointPrefs(private val context: Context) {
         const val TOOLS_ENABLED = "WP_TOOLS_ENABLED"
         const val WIDGETS_ON_HOME = "WP_WIDGETS_ON_HOME"
         const val WIDGET_STACK = "WP_WIDGET_STACK"
+        const val HIDDEN_CALENDARS = "WP_HIDDEN_CALENDARS"
         const val TOOLS_UNSUPPORTED = "WP_TOOLS_UNSUPPORTED"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"
         const val AUTO_SCREENSHOTS = "WP_AUTO_SCREENSHOTS"
