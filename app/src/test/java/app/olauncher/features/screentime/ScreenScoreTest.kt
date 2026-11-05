@@ -45,7 +45,9 @@ class ScreenScoreTest {
         assertEquals(0f, s.budget, 0f)
         assertEquals(2 * hour, s.lateNightMs)
         assertEquals(0f, s.mindful, 0f)
-        assertEquals("4h 0m", ScreenScore.duration(s.totalMs))
+        assertEquals("4h", ScreenScore.duration(s.totalMs))
+        assertEquals("1h 2m", ScreenScore.duration(62 * min))
+        assertEquals("12m", ScreenScore.duration(12 * min))
     }
 
     @Test fun beforeTheDayStartsThereIsNoBreakYet() {

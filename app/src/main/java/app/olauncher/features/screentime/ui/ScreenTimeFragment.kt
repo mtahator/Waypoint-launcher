@@ -101,15 +101,27 @@ class ScreenTimeFragment : WpPageFragment() {
         box.addView(rings, FrameLayout.LayoutParams(d(210), d(210)))
         val mid = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         val score = DotMatrixView(ctx).apply { text = s.score.toString(); cellPx = 6f * resources.displayMetrics.density; fill = 0.84f; color = ink }
-        mid.addView(score)
-        mid.addView(caption(getString(R.string.wp_st_score), ink), LinearLayout.LayoutParams(-2, -2).apply { topMargin = d(8) })
+        mid.addView(score, LinearLayout.LayoutParams(-2, -2))
+        mid.addView(caption(getString(R.string.wp_st_score), ink), LinearLayout.LayoutParams(-2, -2).apply { topMargin = d(10) })
         box.addView(mid, FrameLayout.LayoutParams(d(210), d(210)))
         col.addView(box, LinearLayout.LayoutParams(d(210), d(210)))
-        val legend = LinearLayout(ctx).apply { gravity = Gravity.CENTER; setPadding(0, d(14), 0, 0) }
-        listOf(R.string.wp_st_budget to s.budget, R.string.wp_st_focus to s.focus, R.string.wp_st_mindful to s.mindful).forEachIndexed { i, (label, v) ->
-            legend.addView(caption("${i + 1} · ${getString(label)} ${Math.round(v * 100)}%", ink), LinearLayout.LayoutParams(-2, -2).apply { if (i > 0) marginStart = d(14) })
+        // one column per ring, outer to inner: what it measures, where it stands, a check once it's closed
+        val legend = LinearLayout(ctx).apply { setPadding(d(4), d(16), d(4), 0) }
+        listOf(
+            Triple(R.string.wp_st_budget, if (s.overBudget) getString(R.string.wp_st_over_short) else getString(R.string.wp_st_left_short, dur(s.leftMs)), s.budget),
+            Triple(R.string.wp_st_focus, "${dur(s.longestBreakMs)} / ${min(s.goals.breakMin)}", s.focus),
+            Triple(R.string.wp_st_mindful, "${Math.round(s.purposeShare * 100)}% / ${s.goals.purposePct}%", s.mindful),
+        ).forEachIndexed { i, (label, value, ring) ->
+            val c = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            c.addView(caption("${i + 1} · ${getString(label)}", ink).apply { gravity = Gravity.CENTER })
+            c.addView(TextView(ctx).apply {
+                text = value + if (ring >= 1f) "  ✓" else ""
+                textSize = 14f; setTextColor(if (ring >= 1f) app.olauncher.features.widgets.ui.WidgetDesign.ACCENT else ink)
+                gravity = Gravity.CENTER; maxLines = 1
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d(5) })
+            legend.addView(c, LinearLayout.LayoutParams(0, -2, 1f))
         }
-        col.addView(legend)
+        col.addView(legend, LinearLayout.LayoutParams(-1, -2))
         heroRings = rings; heroScore = score
         return col
     }
@@ -119,7 +131,9 @@ class ScreenTimeFragment : WpPageFragment() {
         val ctx = requireContext()
         val col = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding(d(4), d(4), d(4), d(10)) }
         val peak = (s.hourly.maxOrNull() ?: 0).coerceAtLeast(10)
-        col.addView(DotBars(ctx, s.hourly.map { if (it == 0) 0f else it.toFloat() / peak }, rows = 6).apply { setInk(ink) }, LinearLayout.LayoutParams(-1, d(64)))
+        val nowHour = java.time.LocalTime.now().hour
+        col.addView(DotBars(ctx, s.hourly.map { it.toFloat() / peak }, rows = 6, emptyAtZero = true, highlight = nowHour).apply { setInk(ink) },
+            LinearLayout.LayoutParams(-1, d(64)))
         val labels = LinearLayout(ctx)
         (0 until 24).forEach { h -> labels.addView(caption(if (h % 6 == 0) "%02d".format(h) else "", ink).apply { gravity = Gravity.START }, LinearLayout.LayoutParams(0, -2, 1f)) }
         col.addView(labels, LinearLayout.LayoutParams(-1, -2).apply { topMargin = d(4) })

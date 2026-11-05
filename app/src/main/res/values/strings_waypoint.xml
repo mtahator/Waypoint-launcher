@@ -652,6 +652,8 @@
     <string name="wp_st_left">%1$s left · the ring drains as you use the phone</string>
     <string name="wp_st_focus_hint">Your longest break from the phone today · closes at %1$s</string>
     <string name="wp_st_mindful_hint">Time in apps you use for something, rather than feeds, video and games · closes at %1$d%%</string>
+    <string name="wp_st_left_short">%1$s left</string>
+    <string name="wp_st_over_short">Over</string>
     <string name="wp_st_rhythm">Rhythm</string>
     <string name="wp_st_pickups">Pickups</string>
     <string name="wp_st_pickups_hint">Times the screen came on</string>

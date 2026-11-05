@@ -59,7 +59,13 @@ class DotMeter(context: Context, private val value: Float, private val count: In
  * Columns of dots, one per value (0..1), lit from the bottom: the next hours' temperature. An optional
  * second row of small dots under the columns shows rain chance (0..1) in red.
  */
-class DotBars(context: Context, private val values: List<Float>, private val rain: List<Float> = emptyList(), private val rows: Int = 7) : InkView(context) {
+class DotBars(
+    context: Context, private val values: List<Float>, private val rain: List<Float> = emptyList(), private val rows: Int = 7,
+    /** A zero lights no dot (screen-time hours); otherwise the lowest value still shows one (temperatures). */
+    private val emptyAtZero: Boolean = false,
+    /** The column drawn brightest (with a red top dot when [emptyAtZero]): the hour now. */
+    private val highlight: Int = 0,
+) : InkView(context) {
     override fun onDraw(canvas: Canvas) {
         if (values.isEmpty()) return
         val cols = values.size
@@ -68,11 +74,16 @@ class DotBars(context: Context, private val values: List<Float>, private val rai
         val r = cell * 0.36f
         val colW = width.toFloat() / cols
         for (c in 0 until cols) {
-            val lit = (values[c].coerceIn(0f, 1f) * (rows - 1)).toInt() + 1
+            val v = values[c].coerceIn(0f, 1f)
+            val lit = if (emptyAtZero) (if (v <= 0f) 0 else Math.round(v * rows).coerceIn(1, rows)) else (v * (rows - 1)).toInt() + 1
             val cx = colW * (c + 0.5f)
             for (k in 0 until rows) {
                 val cy = height - rainH - cell * (k + 0.5f)
-                paint.color = if (k < lit) (if (c == 0) tone else WidgetDesign.level(tone, 0xD9)) else WidgetDesign.level(tone, 0x1F)
+                paint.color = when {
+                    k < lit && c == highlight && emptyAtZero && k == lit - 1 -> WidgetDesign.ACCENT
+                    k < lit -> if (c == highlight) tone else WidgetDesign.level(tone, 0xD9)
+                    else -> WidgetDesign.level(tone, 0x1F)
+                }
                 canvas.drawCircle(cx, cy, r, paint)
             }
             rain.getOrNull(c)?.let { p ->

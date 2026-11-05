@@ -108,6 +108,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         baseAppsPaddingTop = binding.homeAppsLayout.paddingTop
         clockTop = baseAppsPaddingTop
         binding.dateTimeLayout.addOnLayoutChangeListener { v, _, _, _, bottom, _, _, _, oldBottom -> if (bottom != oldBottom) v.post { applyAppsTop() } }
+        // the screen-time badge sits on the world clock's line (or the date's), on the other side
+        binding.dateTimeLayout.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ -> v.post { alignScreenBadge() } }
         worldClocks = WorldClockSlider(binding.worldClockLayout, binding.worldClockPager, binding.worldClockDots) {
             openPage(R.id.worldClockPanelFragment)
         }
@@ -398,6 +400,22 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
             gravity = if (prefs.homeAlignment == Gravity.END) Gravity.START else Gravity.END
         }
         badge.layoutParams = params
+        badge.addOnLayoutChangeListener { v, _, top, _, bottom, _, oldTop, _, oldBottom -> if (bottom - top != oldBottom - oldTop) v.post { alignScreenBadge() } }
+        badge.post { alignScreenBadge() }
+    }
+
+    /** Puts the badge level with the world clock (the date when there's no world clock), centred on it. */
+    private fun alignScreenBadge() {
+        val b = _binding ?: return
+        val badge = screenBadge ?: return
+        val host = badge.parent as? View ?: return
+        val anchor = listOf(b.worldClockPager, dotDate, b.date).firstOrNull { it != null && it.isVisible && it.height > 0 && (it.parent as? View)?.isVisible != false } ?: return
+        if (badge.height == 0) return
+        val a = IntArray(2); anchor.getLocationInWindow(a)
+        val h = IntArray(2); host.getLocationInWindow(h)
+        val top = (a[1] - h[1] + (anchor.height - badge.height) / 2).coerceAtLeast(0)
+        val lp = badge.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (lp.topMargin != top) { lp.topMargin = top; badge.layoutParams = lp }
     }
 
     private fun populateHomeScreen(appCountUpdated: Boolean) {

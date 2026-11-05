@@ -99,9 +99,9 @@ object ScreenScore {
 
     private fun overlap(s: LongArray, a: Long, b: Long) = (minOf(s[1], b) - maxOf(s[0], a)).coerceAtLeast(0)
 
-    /** "1h 49m", "12m", "0m". */
+    /** "1h 49m", "3h", "12m", "0m". */
     fun duration(ms: Long): String {
         val m = ms / MIN
-        return if (m >= 60) "${m / 60}h ${m % 60}m" else "${m}m"
+        return when { m < 60 -> "${m}m"; m % 60 == 0L -> "${m / 60}h"; else -> "${m / 60}h ${m % 60}m" }
     }
 }
