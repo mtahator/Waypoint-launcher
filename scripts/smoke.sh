@@ -164,8 +164,9 @@ for pass in a b; do
 done
 
 adb logcat -d > "$OUT/logcat.txt"
-if grep -E "FATAL EXCEPTION|ANR in $PKG" "$OUT/logcat.txt"; then
-  grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -100 > "$OUT/crash.txt"
+# only Waypoint's own crashes count (the emulator's camera app crashes when a camera gesture opens it)
+if grep -A1 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG" || grep -q "ANR in $PKG" "$OUT/logcat.txt"; then
+  grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -A39 "Process: $PKG" | head -100 > "$OUT/crash.txt"
   cat "$OUT/crash.txt"
   exit 1
 fi
