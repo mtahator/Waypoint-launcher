@@ -95,7 +95,17 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
             androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
         val weather = if (located && WidgetStack.decode(wp.prefs.widgetStackRaw).contains(WidgetItem.Own(WidgetItem.Kind.WEATHER))) WeatherSource.now(ctx) else null
-        last = WidgetData(events, calendar, todos, tasks.count { it.due in 1 until now }, weather, located, track)
+        val goals = runCatching { wp.space.notes.goals() }.getOrDefault(emptyList())
+        val habits = goals.filter { it.kind == app.olauncher.features.space.data.Goal.Kind.HABIT }.map {
+            val p = app.olauncher.features.space.domain.Goals.progress(it.period, it.target, it.checkins, now)
+            WidgetData.Habit(it.id, it.title, p.done, p.target)
+        }
+        val projects = goals.filter { it.kind == app.olauncher.features.space.data.Goal.Kind.PROJECT && it.percent < 100 }.map {
+            val st = app.olauncher.features.space.domain.Projects.status(it.created, it.deadline, it.percent, now)
+            WidgetData.Project(it.id, it.title, st.percent, st.expected, st.daysLeft)
+        }.sortedBy { it.daysLeft }
+        val notes = runCatching { wp.space.notes.all() }.getOrDefault(emptyList()).take(3).map { WidgetData.NoteLine(it.id, it.displayTitle, it.kind.name, it.created) }
+        last = WidgetData(events, calendar, todos, tasks.count { it.due in 1 until now }, weather, located, track, habits, projects, notes)
         stack.update(last)
     }
 
@@ -112,6 +122,21 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
         fragment.viewLifecycleOwner.lifecycleScope.launch { wp.space.setTaskDone(id, true); refresh() }
     }
 
+    override fun checkIn(goalId: Long) {
+        fragment.viewLifecycleOwner.lifecycleScope.launch {
+            val g = wp.space.notes.goals().firstOrNull { it.id == goalId }
+            if (g?.kind == app.olauncher.features.space.data.Goal.Kind.PROJECT) ChatActivity.open(ctx, space = true) else wp.space.checkIn(goalId)
+            refresh()
+        }
+    }
+
+    override fun openGoals() = ChatActivity.open(ctx, space = true)
+    override fun record() = ChatActivity.open(ctx, record = true)
+    override fun write() = ctx.startActivity(ChatActivity.intent(ctx).putExtra(ChatActivity.EXTRA_PAGE, ChatActivity.PAGE_WRITE))
+    override fun addTodo() = ctx.startActivity(ChatActivity.intent(ctx).putExtra(ChatActivity.EXTRA_PAGE, ChatActivity.PAGE_TODO))
+    override fun openNote(id: Long, kind: String) = ctx.startActivity(ChatActivity.intent(ctx).putExtra(ChatActivity.EXTRA_PAGE, ChatActivity.PAGE_NOTE)
+        .putExtra(ChatActivity.EXTRA_NOTE, id).putExtra(ChatActivity.EXTRA_NOTE_KIND, kind))
+
     override fun askCalendar() = openSettings()
     override fun askLocation() = openSettings()
     override fun editStack() = openSettings()
@@ -124,6 +149,8 @@ class HomeWidgets(private val fragment: Fragment, private val container: FrameLa
                 WidgetItem.Kind.SPACE -> R.string.wp_widget_space
                 WidgetItem.Kind.WEATHER -> R.string.wp_widget_weather
                 WidgetItem.Kind.MUSIC -> R.string.wp_widget_music
+                WidgetItem.Kind.GOALS -> R.string.wp_filter_goals
+                WidgetItem.Kind.CAPTURE -> R.string.wp_widget_capture
                 WidgetItem.Kind.CLOCKS -> R.string.wp_world_clock
             })
         }

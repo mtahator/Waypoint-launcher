@@ -53,6 +53,15 @@ class ChatActivity : AppCompatActivity() {
         when (intent?.getStringExtra(EXTRA_PAGE)) {
             PAGE_MEMORY -> show(MemoryFragment())
             PAGE_COMMANDS -> show(CommandsFragment())
+            // from the Home widgets
+            PAGE_WRITE -> { showTab(space = true); supportFragmentManager.executePendingTransactions(); show(app.olauncher.features.space.ui.TextNoteFragment.newInstance(0)) }
+            PAGE_TODO -> { showTab(space = true); supportFragmentManager.executePendingTransactions()
+                (supportFragmentManager.findFragmentById(CONTAINER) as? androidx.fragment.app.Fragment)?.let { f -> f.view?.post { app.olauncher.features.space.ui.SpaceEditors.task(f, null) } } }
+            PAGE_NOTE -> {
+                val id = intent?.getLongExtra(EXTRA_NOTE, 0L) ?: 0L
+                if (id > 0) show(if (intent?.getStringExtra(EXTRA_NOTE_KIND) == "TEXT") app.olauncher.features.space.ui.TextNoteFragment.newInstance(id)
+                else app.olauncher.features.space.ui.NoteFragment.newInstance(id))
+            }
         }
         intent?.removeExtra(EXTRA_PAGE)
         if (intent?.getBooleanExtra(EXTRA_SPACE, false) == true || intent?.getBooleanExtra(EXTRA_RECORD, false) == true) showTab(space = true)
@@ -122,6 +131,11 @@ class ChatActivity : AppCompatActivity() {
         const val EXTRA_PAGE = "page"
         const val PAGE_MEMORY = "memory"
         const val PAGE_COMMANDS = "commands"
+        const val PAGE_WRITE = "write"
+        const val PAGE_TODO = "todo"
+        const val PAGE_NOTE = "note"
+        const val EXTRA_NOTE = "note"
+        const val EXTRA_NOTE_KIND = "note_kind"
         private val CONTAINER = R.id.wp_chat_container
 
         fun intent(context: Context, conversationId: Long = 0L, settings: Boolean = false, space: Boolean = false, record: Boolean = false) =

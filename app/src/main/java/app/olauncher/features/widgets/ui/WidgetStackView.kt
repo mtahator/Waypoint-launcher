@@ -42,8 +42,14 @@ data class WidgetData(
     val weather: WeatherSource.Now? = null,
     val weatherAllowed: Boolean = false,
     val track: NowPlaying.Track? = null,
+    val habits: List<Habit> = emptyList(),
+    val projects: List<Project> = emptyList(),
+    val notes: List<NoteLine> = emptyList(),
 ) {
     data class Todo(val id: Long, val title: String, val due: Long, val repeating: Boolean)
+    data class Habit(val id: Long, val title: String, val done: Int, val target: Int)
+    data class Project(val id: Long, val title: String, val percent: Int, val expected: Int, val daysLeft: Int)
+    data class NoteLine(val id: Long, val title: String, val kind: String, val created: Long)
 }
 
 /** What the widgets ask Home to do. */
@@ -51,6 +57,12 @@ interface WidgetActions {
     fun openCalendar()
     fun openSpace()
     fun completeTodo(id: Long)
+    fun checkIn(goalId: Long)
+    fun openGoals()
+    fun record()
+    fun write()
+    fun addTodo()
+    fun openNote(id: Long, kind: String)
     fun askCalendar()
     fun askLocation()
     fun editStack()
@@ -173,6 +185,8 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
                 WidgetItem.Kind.SPACE -> space(c)
                 WidgetItem.Kind.WEATHER -> weather(c)
                 WidgetItem.Kind.MUSIC -> music(c)
+                WidgetItem.Kind.GOALS -> goals(c)
+                WidgetItem.Kind.CAPTURE -> capture(c)
                 WidgetItem.Kind.CLOCKS -> Unit
             }
         }
@@ -271,6 +285,72 @@ class WidgetStackView(context: Context, private val glass: Boolean, private val 
             line.addView(text(t.title, 15f), LayoutParams(0, -2, 1f))
             if (t.due > 0) line.addView(caption((if (t.repeating) "↻ " else "") + time(t.due)))
             col.addView(line)
+        }
+    }
+
+    // ---- Goals: habit rings (tap to check in) and project bars with the even-pace tick
+
+    private fun goals(c: FrameLayout) {
+        c.setOnClickListener { actions.openGoals() }
+        if (data.habits.isEmpty() && data.projects.isEmpty()) {
+            c.addView(message(context.getString(R.string.wp_widget_goals_empty)) { actions.openGoals() }); return
+        }
+        val col = column(c)
+        col.addView(caption(context.getString(R.string.wp_filter_goals), GlassStyler.ACCENT_RED))
+        if (data.habits.isNotEmpty()) {
+            val rings = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, (10 * d).toInt(), 0, 0) }
+            data.habits.take(if (data.projects.isEmpty()) 4 else 3).forEach { h ->
+                rings.addView(LinearLayout(context).apply {
+                    orientation = VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                    addView(app.olauncher.features.space.ui.ProgressRing(context, if (h.target > 0) (h.done.toFloat() / h.target).coerceIn(0f, 1f) else 0f,
+                        if (h.done >= h.target) "✓" else "+1", ink, GlassStyler.ACCENT_RED).apply { setOnClickListener { actions.checkIn(h.id) } },
+                        LayoutParams((50 * d).toInt(), (50 * d).toInt()))
+                    addView(caption(h.title).apply { setPadding(0, (5 * d).toInt(), 0, 0); gravity = Gravity.CENTER })
+                }, LayoutParams((76 * d).toInt(), -2))
+            }
+            col.addView(rings)
+        }
+        data.projects.take(if (data.habits.isEmpty()) 3 else 1).forEach { p ->
+            val top = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, (10 * d).toInt(), 0, (4 * d).toInt()) }
+            top.addView(text(p.title, 14f), LayoutParams(0, -2, 1f))
+            top.addView(caption("${p.percent}% · " + context.resources.getQuantityString(R.plurals.wp_goal_days_left, p.daysLeft.coerceAtLeast(0), p.daysLeft.coerceAtLeast(0)),
+                if (p.percent < p.expected - 5) GlassStyler.ACCENT_RED else faint))
+            col.addView(top)
+            col.addView(app.olauncher.features.space.ui.ProjectBar(context, p.percent / 100f, p.expected / 100f, ink, GlassStyler.ACCENT_RED), LayoutParams(-1, (12 * d).toInt()))
+        }
+    }
+
+    // ---- Space capture: record a voice note, write, add a to-do; the latest captures underneath
+
+    private fun capture(c: FrameLayout) {
+        c.setOnClickListener { actions.openSpace() }
+        val row = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; setPadding((18 * d).toInt(), (14 * d).toInt(), (16 * d).toInt(), (14 * d).toInt()) }
+        c.addView(row, FrameLayout.LayoutParams(-1, -1))
+        row.addView(ImageView(context).apply {
+            setImageResource(R.drawable.ic_mic); scaleType = ImageView.ScaleType.CENTER
+            imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(GlassStyler.ACCENT_RED) }
+            contentDescription = context.getString(R.string.wp_space_record)
+            setOnClickListener { actions.record() }
+        }, LayoutParams((72 * d).toInt(), (72 * d).toInt()).apply { marginEnd = (16 * d).toInt() })
+        val col = LinearLayout(context).apply { orientation = VERTICAL }
+        row.addView(col, LayoutParams(0, -2, 1f))
+        col.addView(caption(context.getString(R.string.wp_space), GlassStyler.ACCENT_RED))
+        val chips = LinearLayout(context).apply { setPadding(0, (8 * d).toInt(), 0, (8 * d).toInt()) }
+        fun chip(label: Int, onClick: () -> Unit) = chips.addView(text(context.getString(label), 13f).apply {
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply { cornerRadius = 100 * d; setStroke((1 * d).toInt().coerceAtLeast(1), (ink and 0x00FFFFFF) or 0x55000000) }
+            setPadding((12 * d).toInt(), (7 * d).toInt(), (12 * d).toInt(), (7 * d).toInt())
+            setOnClickListener { onClick() }
+        }, LayoutParams(-2, -2).apply { marginEnd = (8 * d).toInt() })
+        chip(R.string.wp_widget_capture_write) { actions.write() }
+        chip(R.string.wp_quick_todo) { actions.addTodo() }
+        col.addView(chips)
+        if (data.notes.isEmpty()) col.addView(caption(context.getString(R.string.wp_widget_capture_hint)))
+        data.notes.take(2).forEach { n ->
+            col.addView(text((when (n.kind) { "VOICE" -> "🎙  "; "SCREENSHOT" -> "▣  "; else -> "✎  " }) + n.title, 13f, faint).apply {
+                setPadding(0, (3 * d).toInt(), 0, 0); setOnClickListener { actions.openNote(n.id, n.kind) }
+            })
         }
     }
 

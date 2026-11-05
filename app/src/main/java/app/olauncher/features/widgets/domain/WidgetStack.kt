@@ -15,14 +15,17 @@ sealed class WidgetItem {
     /** An app's widget, bound to this launcher's AppWidgetHost. */
     data class App(val appWidgetId: Int, val provider: String, val label: String) : WidgetItem()
 
-    enum class Kind { CALENDAR, SPACE, WEATHER, MUSIC, CLOCKS }
+    enum class Kind { CALENDAR, SPACE, WEATHER, MUSIC, CLOCKS, GOALS, CAPTURE }
 
     val key get() = when (this) { is Own -> "own:${kind.name}"; is App -> "app:$appWidgetId" }
 }
 
 object WidgetStack {
     /** A stack to start with: calendar first, then the day's to-dos and the weather. */
-    val DEFAULT = listOf(WidgetItem.Own(WidgetItem.Kind.CALENDAR), WidgetItem.Own(WidgetItem.Kind.SPACE), WidgetItem.Own(WidgetItem.Kind.WEATHER))
+    val DEFAULT = listOf(
+        WidgetItem.Own(WidgetItem.Kind.CALENDAR), WidgetItem.Own(WidgetItem.Kind.SPACE), WidgetItem.Own(WidgetItem.Kind.CAPTURE),
+        WidgetItem.Own(WidgetItem.Kind.GOALS), WidgetItem.Own(WidgetItem.Kind.WEATHER),
+    )
 
     fun encode(items: List<WidgetItem>): String = JSONArray().apply {
         items.forEach { i ->

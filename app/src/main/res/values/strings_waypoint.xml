@@ -591,4 +591,8 @@
     <string name="wp_tools_made">Tools the assistant made</string>
     <string name="wp_tools_made_none">None yet. Ask for something repeatable (e.g. \"make a tool for exchange rates\").</string>
     <string name="wp_tools_made_disable">Turn off</string>
+    <string name="wp_widget_goals_empty">No goals yet. Tap to add a habit or a project.</string>
+    <string name="wp_widget_capture">Space capture</string>
+    <string name="wp_widget_capture_write">✎ Write</string>
+    <string name="wp_widget_capture_hint">Tap the mic to record a voice note</string>
 </resources>

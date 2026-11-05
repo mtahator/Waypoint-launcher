@@ -64,7 +64,7 @@ class WidgetsSettingsFragment : WpPageFragment() {
         }
         page.card {
             header(getString(R.string.wp_widgets_add))
-            listOf(WidgetItem.Kind.CALENDAR, WidgetItem.Kind.SPACE, WidgetItem.Kind.WEATHER).forEach { k ->
+            listOf(WidgetItem.Kind.CALENDAR, WidgetItem.Kind.SPACE, WidgetItem.Kind.CAPTURE, WidgetItem.Kind.GOALS, WidgetItem.Kind.WEATHER).forEach { k ->
                 val item = WidgetItem.Own(k)
                 if (item !in items) row("＋ " + HomeWidgets.label(ctx, item)) { save(items + item) }
             }
