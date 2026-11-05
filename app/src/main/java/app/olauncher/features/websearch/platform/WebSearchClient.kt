@@ -50,6 +50,9 @@ object WebSearchClient {
         }
     }
 
+    /** One page's readable text (blocking; call off the main thread). */
+    fun readPage(url: String, maxChars: Int = 6_000): String = runCatching { WebSearch.htmlToText(page(url), maxChars) }.getOrDefault("")
+
     private fun page(url: String): String {
         val conn = open(url).apply { setRequestProperty("Accept", "text/html,application/xhtml+xml") }
         try {

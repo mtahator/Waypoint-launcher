@@ -35,6 +35,7 @@ import app.olauncher.helper.showToast
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /** One conversation: messages, streaming reply, and a multi-line composer that stays above the keyboard. */
 class ChatFragment : Fragment() {
@@ -365,6 +366,85 @@ class ChatFragment : Fragment() {
         box.addView(card, LinearLayout.LayoutParams(-1, -2).apply { topMargin = style.dp(6) })
     }
 
+    /** Weather, calendar and new-tool cards from the tools. */
+    private fun bindPanels(box: LinearLayout, m: Message) {
+        box.removeAllViews()
+        val list = if (m.isUser) emptyList() else app.olauncher.features.assistant.domain.Panels.decode(m.panels)
+        box.isVisible = list.isNotEmpty()
+        val ctx = requireContext()
+        fun card() = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            background = style.rounded(style.assistantBubble.takeIf { it != 0 } ?: style.codeBg, 18, style.hairline)
+            setPadding(style.dp(16), style.dp(14), style.dp(16), style.dp(14))
+        }.also { box.addView(it, LinearLayout.LayoutParams(-1, -2).apply { topMargin = style.dp(6) }) }
+        fun big(text: String) = TextView(ctx, null, 0, R.style.TextLarge).apply { this.text = text; setTextColor(style.ink); textSize = 34f; typeface = android.graphics.Typeface.MONOSPACE }
+        for (p in list) when (p) {
+            is app.olauncher.features.assistant.domain.Panel.Weather -> card().apply {
+                addView(style.caption(p.place.uppercase() + "  ·  " + app.olauncher.features.assistant.domain.Tools.weatherCode(p.code)).apply { setTextColor(0xFFD71921.toInt()) })
+                val row = LinearLayout(ctx).apply { gravity = Gravity.BOTTOM; setPadding(0, style.dp(6), 0, style.dp(10)) }
+                row.addView(big("${p.temp.roundToInt()}°"))
+                row.addView(style.caption(getString(R.string.wp_panel_feels, p.feels.roundToInt(), p.wind.roundToInt())).apply { setPadding(style.dp(12), 0, 0, style.dp(6)) })
+                addView(row)
+                val days = LinearLayout(ctx)
+                p.days.take(4).forEach { dd ->
+                    days.addView(LinearLayout(ctx).apply {
+                        orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                        val date = runCatching { java.time.LocalDate.parse(dd.date).format(java.time.format.DateTimeFormatter.ofPattern("EEE")) }.getOrDefault(dd.date)
+                        addView(style.caption(date.uppercase()))
+                        addView(TextView(ctx, null, 0, R.style.TextSmall).apply { text = "${dd.max.roundToInt()}°"; setTextColor(style.ink); textSize = 16f; setPadding(0, style.dp(4), 0, 0) })
+                        addView(style.caption("${dd.min.roundToInt()}°" + if (dd.rain >= 30) " ☂" else ""))
+                    }, LinearLayout.LayoutParams(0, -2, 1f))
+                }
+                addView(days)
+            }
+            is app.olauncher.features.assistant.domain.Panel.Agenda -> card().apply {
+                addView(style.caption(p.title.uppercase()).apply { setTextColor(0xFFD71921.toInt()) })
+                if (p.events.isEmpty()) addView(TextView(ctx, null, 0, R.style.TextSmall).apply { text = getString(R.string.wp_widget_calendar_free); setTextColor(style.ink); textSize = 15f; setPadding(0, style.dp(8), 0, 0) })
+                val tf = android.text.format.DateFormat.getTimeFormat(ctx)
+                p.events.take(8).forEach { e ->
+                    val line = LinearLayout(ctx).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(0, style.dp(10), 0, 0) }
+                    line.addView(View(ctx).apply { background = style.rounded(e.color or 0xFF000000.toInt(), 2) }, LinearLayout.LayoutParams(style.dp(3), style.dp(32)).apply { marginEnd = style.dp(12) })
+                    val t = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+                    t.addView(TextView(ctx, null, 0, R.style.TextSmall).apply { text = e.title; setTextColor(style.ink); textSize = 15f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+                    t.addView(style.caption((if (e.allDay) getString(R.string.wp_widget_all_day) else tf.format(java.util.Date(e.begin)) + "–" + tf.format(java.util.Date(e.end))) +
+                        if (e.location.isNotBlank()) "  ·  " + e.location else ""))
+                    line.addView(t, LinearLayout.LayoutParams(0, -2, 1f))
+                    addView(line)
+                }
+                setOnClickListener {
+                    runCatching { startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("content://com.android.calendar/time/${System.currentTimeMillis()}"))) }
+                }
+            }
+            is app.olauncher.features.assistant.domain.Panel.NewTool -> card().apply {
+                addView(style.caption(getString(R.string.wp_panel_new_tool)).apply { setTextColor(0xFFD71921.toInt()) })
+                addView(TextView(ctx, null, 0, R.style.TextMedium).apply { text = "my_" + p.name; setTextColor(style.ink); setPadding(0, style.dp(6), 0, 0) })
+                addView(TextView(ctx, null, 0, R.style.TextSmall).apply { text = p.description; setTextColor(style.ink); textSize = 14f; setPadding(0, style.dp(2), 0, 0) })
+                addView(style.caption("GET " + p.url).apply { setPadding(0, style.dp(6), 0, style.dp(10)); maxLines = 2 })
+                val buttons = LinearLayout(ctx)
+                val state = TextView(ctx, null, 0, R.style.TextSmall).apply { setTextColor(style.faint) }
+                fun button(label: Int, primary: Boolean, onClick: () -> Unit) = buttons.addView(TextView(ctx, null, 0, R.style.TextSmall).apply {
+                    text = getString(label); textSize = 14f; gravity = Gravity.CENTER
+                    setTextColor(if (primary) 0xFFFFFFFF.toInt() else style.ink)
+                    background = if (primary) style.rounded(0xFFD71921.toInt(), 100) else style.rounded(0, 100, style.hairline)
+                    setPadding(style.dp(18), style.dp(8), style.dp(18), style.dp(8))
+                    setOnClickListener { onClick() }
+                }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = style.dp(8) })
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val t = container.chats.customTools().firstOrNull { it.id == p.toolId }
+                    state.text = getString(when { t == null -> R.string.wp_panel_tool_removed; t.enabled -> R.string.wp_panel_tool_allowed; else -> R.string.wp_panel_tool_pending })
+                    buttons.isVisible = t != null && !t.enabled
+                }
+                button(R.string.wp_panel_tool_allow, true) {
+                    viewLifecycleOwner.lifecycleScope.launch { container.chats.setToolEnabled(p.toolId, true); this@ChatFragment.list.adapter?.notifyDataSetChanged() }
+                }
+                button(R.string.wp_panel_tool_dismiss, false) {
+                    viewLifecycleOwner.lifecycleScope.launch { container.chats.deleteTool(p.toolId); this@ChatFragment.list.adapter?.notifyDataSetChanged() }
+                }
+                addView(buttons); addView(state.apply { setPadding(0, style.dp(8), 0, 0) })
+            }
+        }
+    }
+
     private fun openPlace(p: app.olauncher.features.assistant.domain.Tools.Pin) {
         val geo = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(app.olauncher.features.assistant.domain.Tools.geoUri(p)))
         runCatching { startActivity(geo) }.onFailure { openUrl(app.olauncher.features.assistant.domain.Tools.mapsLink(p.lat, p.lon, p.name)) }
@@ -503,6 +583,7 @@ class ChatFragment : Fragment() {
 
     private inner class Holder(
         val root: LinearLayout, val bubble: TextView, val pictures: LinearLayout, val sources: LinearLayout, val meta: TextView, val map: LinearLayout,
+        val panels: LinearLayout,
     ) : RecyclerView.ViewHolder(root)
 
     private inner class Adapter : RecyclerView.Adapter<Holder>() {
@@ -529,10 +610,12 @@ class ChatFragment : Fragment() {
             root.addView(pictures, LinearLayout.LayoutParams(-1, -2))
             val map = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             root.addView(map, LinearLayout.LayoutParams(-1, -2))
+            val panels = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+            root.addView(panels, LinearLayout.LayoutParams(-1, -2))
             val sources = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
             root.addView(sources, LinearLayout.LayoutParams(-1, -2))
             root.addView(meta, LinearLayout.LayoutParams(-2, -2))
-            return Holder(root, bubble, pictures, sources, meta, map)
+            return Holder(root, bubble, pictures, sources, meta, map, panels)
         }
 
         override fun onBindViewHolder(h: Holder, position: Int) {
@@ -570,6 +653,7 @@ class ChatFragment : Fragment() {
             bindPictures(h.pictures, m)
             bindSources(h.sources, m)
             bindMap(h.map, m)
+            bindPanels(h.panels, m)
             h.bubble.layoutParams = lp
             (h.meta.layoutParams as LinearLayout.LayoutParams).gravity = lp.gravity
             val showRetry = !m.isUser && last && !busy

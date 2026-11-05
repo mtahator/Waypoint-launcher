@@ -9,7 +9,7 @@ import java.time.ZoneId
 import java.time.temporal.TemporalAdjusters
 
 /** A to-do pulled from speech or text; [due] in epoch millis, null = no time given. */
-data class ParsedTask(val title: String, val due: Long?)
+data class ParsedTask(val title: String, val due: Long?, val steps: List<String> = emptyList())
 
 /**
  * On-phone reminder extraction: "remind me to call mom tomorrow at 5pm", "remember to pay rent on Friday",

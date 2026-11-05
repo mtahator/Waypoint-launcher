@@ -16,7 +16,9 @@ object SpaceAi {
     fun prompt(kind: String, text: String, now: LocalDateTime, long: Boolean = false): String =
         "Analyse this $kind. Reply with JSON only:\n" +
             "{\"title\": \"≤6 words\", \"summary\": ${if (long) "\"2-3 sentence overview, then lines starting with '- ' for the key points, decisions and action items\"" else "\"1-3 sentences\""}, \"category\": one of ${Categories.ALL.joinToString(", ", "[", "]") { "\"$it\"" }}, " +
-            "\"tasks\": [{\"title\": \"…\", \"due\": \"YYYY-MM-DDTHH:MM\" or null}]}\n" +
+            "\"tasks\": [{\"title\": \"…\", \"due\": \"YYYY-MM-DDTHH:MM\" or null, \"steps\": [\"…\"]}]}\n" +
+            "Shape the tasks: one job with parts is ONE task with steps (\"prepare the talk: slides, rehearse, print handouts\"); " +
+            "unrelated things are separate tasks; several jobs can each have steps; steps empty when there are none. " +
             "tasks: only concrete actions the user explicitly says they must do, or asks to be reminded of " +
             "(\"remind me…\", \"remember to…\", \"I need to buy…\", deadlines, action items assigned to them). " +
             "NOT topics they talk about or plan to talk about, explanations, or what others did. " +
@@ -39,7 +41,8 @@ object SpaceAi {
                 val due = t.optString("due").takeIf { it.isNotBlank() && it != "null" }?.let {
                     runCatching { LocalDateTime.parse(it.take(16)).atZone(zone).toInstant().toEpochMilli() }.getOrNull()
                 }
-                ParsedTask(title, due)
+                val steps = t.optJSONArray("steps")?.let { st -> (0 until st.length()).map { st.optString(it).trim() }.filter { it.length >= 2 } }.orEmpty()
+                ParsedTask(title, due, steps.take(10))
             }
         }.orEmpty()
         return Analysis(o.optString("title").trim(), o.optString("summary").trim(), Categories.normalize(o.optString("category")), tasks)

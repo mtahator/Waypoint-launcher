@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import app.olauncher.features.assistant.domain.ChatCommand
+import app.olauncher.features.assistant.domain.CustomTool
 import app.olauncher.features.assistant.domain.MemoryItem
 import app.olauncher.features.websearch.domain.Source
 import app.olauncher.features.websearch.domain.WebSearch
@@ -21,12 +22,14 @@ data class Message(
     val sources: List<Source> = emptyList(),
     /** Places and routes the tools found, shown as a map card ([Tools.encodeMap] JSON, "" = none). */
     val map: String = "",
+    /** Other cards from the tools: weather, calendar, a proposed tool ([Panels] JSON). */
+    val panels: String = "",
 ) {
     val isUser get() = role == "user"
 }
 
 /** Conversations stay on the phone (chats.db, excluded from backup). */
-private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 5) {
+private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.db", null, 6) {
     override fun onConfigure(db: SQLiteDatabase) { db.setForeignKeyConstraintsEnabled(true) }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -39,6 +42,16 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         db.execSQL("CREATE INDEX messages_conv ON messages(conversation_id, id)")
         createV4(db)
         db.execSQL("ALTER TABLE messages ADD COLUMN map TEXT NOT NULL DEFAULT ''")
+        createV6(db)
+    }
+
+    /** Cards under answers, and tools the assistant made (offered only once the user allows them). */
+    private fun createV6(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE messages ADD COLUMN panels TEXT NOT NULL DEFAULT ''")
+        db.execSQL(
+            "CREATE TABLE custom_tools (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE, description TEXT NOT NULL, " +
+                "url TEXT NOT NULL, params TEXT NOT NULL DEFAULT '[]', enabled INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL)",
+        )
     }
 
     /** Memory about the user (tagged facts) and the user's own /commands. */
@@ -55,6 +68,7 @@ private class ChatDatabase(context: Context) : SQLiteOpenHelper(context, "chats.
         if (oldVersion < 3) db.execSQL("ALTER TABLE messages ADD COLUMN sources TEXT NOT NULL DEFAULT ''")
         if (oldVersion < 4) createV4(db)
         if (oldVersion < 5) db.execSQL("ALTER TABLE messages ADD COLUMN map TEXT NOT NULL DEFAULT ''")
+        if (oldVersion < 6) createV6(db)
     }
 }
 
@@ -84,13 +98,13 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
 
     suspend fun messages(conversationId: Long): List<Message> = withContext(io) {
         db.rawQuery(
-            "SELECT id, conversation_id, role, content, created, error, images, sources, map FROM messages WHERE conversation_id = ? ORDER BY id",
+            "SELECT id, conversation_id, role, content, created, error, images, sources, map, panels FROM messages WHERE conversation_id = ? ORDER BY id",
             arrayOf(conversationId.toString()),
         ).use { c ->
             buildList {
                 while (c.moveToNext()) add(Message(c.getLong(0), c.getLong(1), c.getString(2), c.getString(3), c.getLong(4), c.getInt(5) != 0,
                     c.getString(6).split('\n').filter { it.isNotBlank() },
-                    c.getString(7).takeIf { it.isNotBlank() }?.let { WebSearch.decodeSources(it) } ?: emptyList(), c.getString(8)))
+                    c.getString(7).takeIf { it.isNotBlank() }?.let { WebSearch.decodeSources(it) } ?: emptyList(), c.getString(8), c.getString(9)))
             }
         }
     }
@@ -120,6 +134,32 @@ class ChatRepository(context: Context, private val io: CoroutineDispatcher) {
         db.update("messages", ContentValues().apply { put("sources", if (sources.isEmpty()) "" else WebSearch.encodeSources(sources)) },
             "id = ?", arrayOf(messageId.toString()))
     }
+
+    suspend fun setPanels(messageId: Long, panels: String) = withContext(io) {
+        db.update("messages", ContentValues().apply { put("panels", panels) }, "id = ?", arrayOf(messageId.toString()))
+    }
+
+    // ---- tools the assistant made
+
+    suspend fun customTools(): List<CustomTool> = withContext(io) {
+        db.rawQuery("SELECT id, name, description, url, params, enabled FROM custom_tools ORDER BY name", null).use { c ->
+            buildList { while (c.moveToNext()) add(CustomTool(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), CustomTool.decodeParams(c.getString(4)), c.getInt(5) != 0)) }
+        }
+    }
+
+    /** Saves (or replaces, by name) a proposed tool, switched off. */
+    suspend fun proposeTool(t: CustomTool): Long = withContext(io) {
+        db.insertWithOnConflict("custom_tools", null, ContentValues().apply {
+            put("name", t.name); put("description", t.description); put("url", t.url); put("params", CustomTool.encodeParams(t.params))
+            put("enabled", 0); put("created", System.currentTimeMillis())
+        }, SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    suspend fun setToolEnabled(id: Long, on: Boolean) = withContext(io) {
+        db.update("custom_tools", ContentValues().apply { put("enabled", if (on) 1 else 0) }, "id = ?", arrayOf(id.toString()))
+    }
+
+    suspend fun deleteTool(id: Long) = withContext(io) { db.delete("custom_tools", "id = ?", arrayOf(id.toString())) }
 
     suspend fun setMap(messageId: Long, map: String) = withContext(io) {
         db.update("messages", ContentValues().apply { put("map", map) }, "id = ?", arrayOf(messageId.toString()))

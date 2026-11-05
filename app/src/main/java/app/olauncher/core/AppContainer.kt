@@ -6,9 +6,11 @@ import app.olauncher.features.appearance.platform.SystemGrayscaleController
 import app.olauncher.features.appearance.ui.AppearanceController
 import app.olauncher.features.assistant.data.ChatRepository
 import app.olauncher.features.assistant.platform.ApiKeyStore
+import app.olauncher.features.assistant.domain.CustomTool
 import app.olauncher.features.assistant.domain.Memories
 import app.olauncher.features.assistant.domain.MemoryItem
 import app.olauncher.features.assistant.platform.ChatEngine
+import app.olauncher.features.widgets.platform.WidgetHost
 import app.olauncher.features.assistant.platform.ToolHost
 import app.olauncher.features.assistant.platform.ToolRunner
 import app.olauncher.features.assistant.platform.ImageClient
@@ -36,6 +38,8 @@ class AppContainer(context: Context) {
         tools = ToolRunner(app, object : ToolHost {
             override suspend fun addReminder(title: String, due: Long, steps: List<String>) = space.toolReminder(title, due, steps)
             override suspend fun searchNotes(query: String) = space.searchText(query)
+            override suspend fun proposeTool(tool: CustomTool) = chats.proposeTool(tool)
+            override suspend fun customTools() = chats.customTools()
             override suspend fun remember(tag: String, text: String): String {
                 val t = text.trim()
                 if (t.length < 3) return "Nothing to remember"
@@ -48,7 +52,7 @@ class AppContainer(context: Context) {
     val space: SpaceEngine by lazy {
         SpaceEngine(app, prefs, apiKeys, chatEngine, NotesRepository(app, dispatchers.io), scope, dispatchers.io)
     }
-    val widgetHost by lazy { app.olauncher.features.widgets.platform.WidgetHost(app) }
+    val widgetHost by lazy { WidgetHost(app) }
     val exchangeRates by lazy { ExchangeRateRepository(app, prefs, dispatchers.io) }
     val backdrop by lazy { GlassBackdrop(app, prefs, dispatchers.io) }
     val appearance by lazy { AppearanceController(prefs, backdrop) }

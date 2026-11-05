@@ -94,7 +94,9 @@ class ChatEngine(
             val prompt = ImageProtocol.command(stored)
             when {
                 prompt != null -> imageReply(conversationId, prompt)
-                !web && localReply(conversationId, stored) -> Unit
+                // a simple "remind me…" is done on the phone at once; several tasks or steps go to the model,
+                // which decides how to split them
+                !web && (!isConfigured() || !app.olauncher.features.space.domain.ReminderRequest.looksCompound(stored)) && localReply(conversationId, stored) -> Unit
                 else -> reply(conversationId, forceSearch = web)
             }
         }
@@ -191,11 +193,12 @@ class ChatEngine(
         val text = StringBuilder()
         var lastSave = 0L
         var map: Tools.MapData? = null
+        val panels = ArrayList<app.olauncher.features.assistant.domain.Panel>()
         try {
             suspend fun answer(research: Research) {
                 val base = turns(research)
                 val extra = ArrayList<Turn>()
-                var offer = if (toolsOn && !research.plugin) Tools.ALL else emptyList()
+                var offer = if (toolsOn && !research.plugin) Tools.ALL + repo.customTools().filter { it.enabled }.map { it.spec() } else emptyList()
                 var round = 0
                 while (true) {
                     val roundStart = text.length
@@ -229,6 +232,7 @@ class ChatEngine(
                         _changes.tryEmit(conversationId)
                         val result = tools.run(call)
                         Tools.mapFrom(call.name, result)?.let { map = it }
+                        app.olauncher.features.assistant.domain.Panels.fromTool(call.name, result)?.let { panels += it }
                         extra += Turn(Turn.Role.TOOL, result.take(6_000), toolCallId = call.id, toolName = call.name)
                     }
                     setStatus(conversationId, "Writing the answer…")
@@ -248,6 +252,7 @@ class ChatEngine(
             repo.update(msgId, text.toString().trim())
             if (pluginSources.isNotEmpty()) repo.setSources(msgId, pluginSources)
             map?.let { repo.setMap(msgId, Tools.encodeMap(it)) }
+            if (panels.isNotEmpty()) repo.setPanels(msgId, app.olauncher.features.assistant.domain.Panels.encode(panels))
             if (prefs.useAboutMe && prefs.learnFromChats && lastUser != null && Memories.mentionsSelf(question)) learnLater(conversationId)
         } catch (e: Throwable) {
             val stopped = e is kotlinx.coroutines.CancellationException || jobs[conversationId] == null

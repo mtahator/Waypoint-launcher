@@ -31,6 +31,7 @@ class AssistantSettingsFragment : WpPageFragment() {
     private var testing = false
     private var memoryCount: Int? = null
     private var commandCount: Int? = null
+    private var customTools: List<app.olauncher.features.assistant.domain.CustomTool>? = null
 
     private val locationPermission = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { rebuild() }
 
@@ -39,6 +40,7 @@ class AssistantSettingsFragment : WpPageFragment() {
         launchUi {
             memoryCount = container.chatEngine.memories().size
             commandCount = container.chats.commands().size
+            customTools = container.chats.customTools()
             rebuild()
         }
     }
@@ -183,6 +185,23 @@ class AssistantSettingsFragment : WpPageFragment() {
                     row(getString(R.string.wp_tools_unsupported), getString(R.string.wp_tools_retry)) { container.chatEngine.resetToolSupport(); rebuild() }
                 }
                 note(getString(R.string.wp_tools_note))
+            }
+            page.card {
+                header(getString(R.string.wp_tools_made))
+                val made = customTools
+                if (made.isNullOrEmpty()) note(getString(R.string.wp_tools_made_none))
+                made.orEmpty().forEach { t ->
+                    row("my_" + t.name, getString(if (t.enabled) R.string.wp_tools_location_on else R.string.wp_panel_tool_allow), t.description + "\nGET " + t.url) {
+                        requireContext().chooseOne(R.string.wp_tools_made, listOf(
+                            getString(if (t.enabled) R.string.wp_tools_made_disable else R.string.wp_panel_tool_allow), getString(R.string.wp_delete),
+                        )) { i ->
+                            launchUi {
+                                if (i == 0) container.chats.setToolEnabled(t.id, !t.enabled) else container.chats.deleteTool(t.id)
+                                customTools = container.chats.customTools(); rebuild()
+                            }
+                        }
+                    }
+                }
             }
             page.card {
                 header(getString(R.string.wp_chats))

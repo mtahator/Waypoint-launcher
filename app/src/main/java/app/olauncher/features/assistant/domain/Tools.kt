@@ -23,6 +23,9 @@ object Tools {
     const val REMINDER = "add_reminder"
     const val SPACE = "search_my_notes"
     const val REMEMBER = "remember"
+    const val CALENDAR = "calendar"
+    const val READ_PAGE = "read_webpage"
+    const val CREATE_TOOL = "create_tool"
 
     private fun schema(vararg props: Triple<String, String, String>, required: List<String> = emptyList()) = JSONObject()
         .put("type", "object")
@@ -48,7 +51,10 @@ object Tools {
             )),
         ToolSpec(WEATHER, "Current weather and the next days' forecast for a place.",
             schema(Triple("place", "string", "City or place; omit for the user's current location"))),
-        ToolSpec(REMINDER, "Add a to-do to the user's Space, optionally with a reminder notification at a time and a list of steps.",
+        ToolSpec(REMINDER, "Add one to-do to the user's Space, optionally with a reminder at a time and a list of steps. " +
+            "Decide the shape first: one job with parts (\"plan the trip: book flights, hotel, pack\") is ONE to-do with steps; " +
+            "unrelated things (\"call mom and buy milk\") are SEPARATE to-dos, one call each; several jobs may each have their own steps. " +
+            "Keep titles short and start them with a verb.",
             schema(
                 Triple("title", "string", "What to do"),
                 Triple("due", "string", "Local date-time YYYY-MM-DDTHH:MM for a reminder, or omit"),
@@ -57,6 +63,24 @@ object Tools {
                 .put("description", "Optional sub-tasks (steps), in order, when the to-do is a bigger job or the user asks for them")) }),
         ToolSpec(SPACE, "Search the user's own notes, voice-note transcripts, screenshots and to-dos in Space.",
             schema(Triple("query", "string", "Words to look for"), required = listOf("query"))),
+        ToolSpec(CALENDAR, "The user's calendar events (from the phone's calendars, including Google Calendar) for a day or a few days.",
+            schema(
+                Triple("date", "string", "First day YYYY-MM-DD; omit for today"),
+                Triple("days", "integer", "How many days, 1–14 (default 1)"),
+            )),
+        ToolSpec(READ_PAGE, "Read a web page (article, docs, recipe…) and get its main text, for a URL the user gave or you found.",
+            schema(Triple("url", "string", "The https:// address"), required = listOf("url"))),
+        ToolSpec(CREATE_TOOL, "Propose a new tool for yourself when the user wants something repeatable that a public HTTPS GET " +
+            "API can answer (e.g. exchange rates, a sports score feed, a dictionary). The user must allow it before it can be used; " +
+            "then it appears as my_<name>. Don't use it for anything the other tools already do.",
+            schema(
+                Triple("name", "string", "short_snake_case name"),
+                Triple("description", "string", "What it does, in one sentence"),
+                Triple("url", "string", "https:// URL with {placeholders} for parameters, e.g. https://api.example.com/v1/word/{word}"),
+                required = listOf("name", "description", "url"),
+            ).also { it.getJSONObject("properties").put("params", JSONObject().put("type", "array").put("description", "The placeholders: {name, description}")
+                .put("items", JSONObject().put("type", "object").put("properties", JSONObject()
+                    .put("name", JSONObject().put("type", "string")).put("description", JSONObject().put("type", "string"))))) }),
         ToolSpec(REMEMBER, "Save a durable fact about the user to their long-term memory (e.g. their home address, " +
             "a preference, a routine). Use it when they ask you to remember something, or tell you something lasting about themselves.",
             schema(
@@ -70,8 +94,10 @@ object Tools {
     const val GUIDE = "You can use tools. For places, distances and weather use them instead of guessing; \"near me\", " +
         "\"nearest\" and \"here\" mean the user's current location (just call the tool; if it fails, use a home address from " +
         "memory or ask). The app shows found places and routes on a map card under your answer, with tap-to-open, so don't " +
-        "paste map or directions links. You have a long-term memory about the user: when they ask you to remember something, " +
-        "call remember and confirm briefly."
+        "paste map or directions links; weather and calendar results also appear as cards, so keep your text short. " +
+        "You have a long-term memory about the user: when they ask you to remember something, call remember and confirm briefly. " +
+        "For to-dos, work out whether the user means one task with steps, several tasks, or several tasks with steps, and call " +
+        "add_reminder once per task. If the user keeps needing something a public API could answer, you may propose a tool with create_tool."
 
     /** What each call is shown as while it runs. */
     fun status(name: String, args: JSONObject): String = when (name) {
@@ -82,13 +108,16 @@ object Tools {
         REMINDER -> "Adding to your to-dos…"
         SPACE -> "Searching your notes…"
         REMEMBER -> "Saving to your memory…"
+        CALENDAR -> "Checking your calendar…"
+        READ_PAGE -> "Reading the page…"
+        CREATE_TOOL -> "Drafting a new tool…"
         else -> "Using $name…"
     }
 
     /** Questions the tools answer better than a web search (so the search step is skipped). */
     private val TOOL_INTENT = Regex(
-        """\b(near(est|by| me)?|closest|around here|how far|distance|directions|route|walk(ing)? to|drive to|get to|weather|forecast|rain|temperature|remind me|my notes|in my space)\b""" +
-            """|نزدیک|فاصله|مسیر|چقدر راه|هوا|باران|بارون|دما|یادم بنداز|یادداشت‌هام|یادداشتهام""",
+        """\b(near(est|by| me)?|closest|around here|how far|distance|directions|route|walk(ing)? to|drive to|get to|weather|forecast|rain|temperature|remind me|my notes|in my space|calendar|schedule|agenda|meetings?|my day|to-?dos?|tasks?)\b""" +
+            """|نزدیک|فاصله|مسیر|چقدر راه|هوا|باران|بارون|دما|یادم بنداز|یادداشت‌هام|یادداشتهام|تقویم|برنامه‌ی امروز|برنامه امروز|جلسه""",
         RegexOption.IGNORE_CASE,
     )
 

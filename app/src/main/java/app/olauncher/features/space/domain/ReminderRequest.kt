@@ -37,6 +37,14 @@ object ReminderRequest {
     private val TAIL_LIST = Regex("""\s+to\s+(?:my\s+)?(?:to-?do|todo|task)s?(?:\s+list)?\s*$""", RegexOption.IGNORE_CASE)
     private val FA_LEAD = Regex("""^(?:[\s:،,]+|(?:که|برای|باید|برام|واسم)\s)+""")
 
+    /** More than one thing in one message ("call mom and buy milk", lists, "steps"): the model should split it. */
+    fun looksCompound(text: String): Boolean {
+        val t = text.trim()
+        return t.contains('\n') || t.length > 90 ||
+            Regex("""\b(and|then|also|plus|steps?|sub-?tasks?)\b|[,;]""", RegexOption.IGNORE_CASE).containsMatchIn(t.substringAfter(' ')) ||
+            Regex(""" و |، |مراحل|زیرکار""").containsMatchIn(t)
+    }
+
     fun parse(text: String, now: Long, zone: ZoneId = ZoneId.systemDefault()): Request? {
         val msg = ReminderParser.normalizeDigits(text.trim())
         val reminder = REMINDER.find(msg) ?: FA.find(msg)

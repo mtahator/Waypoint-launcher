@@ -581,4 +581,14 @@
     <string name="wp_widget_music_idle">Nothing playing</string>
     <string name="wp_widget_music_playing">Now playing</string>
     <string name="wp_widget_music_paused">Paused</string>
+    <string name="wp_panel_feels">feels %1$d° · wind %2$d km/h</string>
+    <string name="wp_panel_new_tool">New tool, waiting for you</string>
+    <string name="wp_panel_tool_allow">Allow</string>
+    <string name="wp_panel_tool_dismiss">Dismiss</string>
+    <string name="wp_panel_tool_pending">The assistant can use it once you allow it.</string>
+    <string name="wp_panel_tool_allowed">Allowed · the assistant can use it now</string>
+    <string name="wp_panel_tool_removed">Dismissed</string>
+    <string name="wp_tools_made">Tools the assistant made</string>
+    <string name="wp_tools_made_none">None yet. Ask for something repeatable (e.g. \"make a tool for exchange rates\").</string>
+    <string name="wp_tools_made_disable">Turn off</string>
 </resources>

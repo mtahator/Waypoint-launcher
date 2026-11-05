@@ -168,7 +168,10 @@ class SpaceEngine(
             put("status", Note.Status.DONE.name)
         }
         val existing = notes.tasks().filter { it.noteId == id }.map { it.title.lowercase() }.toSet()
-        for (t in tasks) if (t.title.lowercase() !in existing) addTask(t.title, t.due ?: 0, t.due != null, id, category)
+        for (t in tasks) if (t.title.lowercase() !in existing) {
+            val taskId = addTask(t.title, t.due ?: 0, t.due != null, id, category)
+            if (t.steps.isNotEmpty()) saveSteps(taskId, t.steps.map { Step(0, it, false) })
+        }
         _changes.tryEmit(id)
     }
 

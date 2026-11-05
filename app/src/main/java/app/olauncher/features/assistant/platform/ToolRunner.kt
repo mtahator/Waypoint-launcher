@@ -29,6 +29,10 @@ interface ToolHost {
     suspend fun searchNotes(query: String): String
     /** Saves a fact to the memory about the user; returns a confirmation line. */
     suspend fun remember(tag: String, text: String): String
+    /** Saves a tool the assistant proposed (not usable until the user allows it); returns its id. */
+    suspend fun proposeTool(tool: app.olauncher.features.assistant.domain.CustomTool): Long
+    /** The tools the user allowed. */
+    suspend fun customTools(): List<app.olauncher.features.assistant.domain.CustomTool>
 }
 
 /**
@@ -48,7 +52,10 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
                 args.optJSONArray("steps")?.let { a -> (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() } }.orEmpty())).toString()
             Tools.SPACE -> JSONObject().put("results", host.searchNotes(args.optString("query"))).toString()
             Tools.REMEMBER -> JSONObject().put("result", host.remember(args.optString("tag"), args.optString("text"))).toString()
-            else -> error("Unknown tool ${call.name}")
+            Tools.CALENDAR -> calendar(args.optString("date").takeIf { it.isNotBlank() }, args.optInt("days", 1).coerceIn(1, 14))
+            Tools.READ_PAGE -> readPage(args.optString("url"))
+            Tools.CREATE_TOOL -> createTool(args)
+            else -> if (call.name.startsWith(app.olauncher.features.assistant.domain.CustomTool.PREFIX)) custom(call.name, args) else error("Unknown tool ${call.name}")
         }
     }.getOrElse { e -> JSONObject().put("error", e.message ?: e.javaClass.simpleName).toString() }
 
@@ -168,8 +175,71 @@ class ToolRunner(private val context: Context, private val host: ToolHost) {
         val url = "https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&timezone=auto&forecast_days=4" +
             "&current=temperature_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m" +
             "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-        val label = place ?: runCatching { reverse(p.lat, p.lon)?.split(",")?.take(3)?.joinToString(",") }.getOrNull() ?: "your location"
-        return JSONObject().put("weather", Tools.summarizeWeather(get(url), label) ?: error("No forecast")).toString()
+        val label = place ?: runCatching { reverse(p.lat, p.lon)?.split(",")?.take(2)?.joinToString(",") }.getOrNull() ?: "your location"
+        val body = get(url)
+        val out = JSONObject().put("weather", Tools.summarizeWeather(body, label) ?: error("No forecast"))
+        // the same numbers for the weather card under the answer
+        runCatching {
+            val o = JSONObject(body); val c = o.getJSONObject("current"); val d = o.getJSONObject("daily")
+            out.put("panel", JSONObject().put("place", label.split(",").first().trim()).put("temp", c.getDouble("temperature_2m"))
+                .put("feels", c.optDouble("apparent_temperature")).put("code", c.optInt("weather_code")).put("wind", c.optDouble("wind_speed_10m"))
+                .put("days", JSONArray().apply {
+                    val t = d.getJSONArray("time")
+                    for (i in 0 until t.length()) put(JSONObject().put("date", t.getString(i)).put("min", d.getJSONArray("temperature_2m_min").getDouble(i))
+                        .put("max", d.getJSONArray("temperature_2m_max").getDouble(i)).put("code", d.getJSONArray("weather_code").getInt(i))
+                        .put("rain", d.optJSONArray("precipitation_probability_max")?.optInt(i) ?: 0))
+                }))
+        }
+        return out.toString()
+    }
+
+    // ---- calendar, web pages, tools the assistant makes
+
+    private suspend fun calendar(date: String?, days: Int): String {
+        if (!app.olauncher.features.widgets.platform.CalendarSource.hasPermission(context))
+            error("No calendar access. Ask the user to allow it in Settings → Widgets → Calendar.")
+        val zone = java.time.ZoneId.systemDefault()
+        val start = (date?.let { runCatching { java.time.LocalDate.parse(it.take(10)) }.getOrNull() } ?: java.time.LocalDate.now()).atStartOfDay(zone)
+        val events = app.olauncher.features.widgets.platform.CalendarSource.events(context, start.toInstant().toEpochMilli(), start.plusDays(days.toLong()).toInstant().toEpochMilli())
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("EEE d MMM HH:mm")
+        val title = if (days == 1) start.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM")) else
+            start.format(java.time.format.DateTimeFormatter.ofPattern("d MMM")) + " – " + start.plusDays(days - 1L).format(java.time.format.DateTimeFormatter.ofPattern("d MMM"))
+        return JSONObject().put("title", title).put("events", JSONArray().apply {
+            events.forEach { e ->
+                put(JSONObject().put("title", e.title).put("all_day", e.allDay).put("color", e.color).put("location", e.location)
+                    .put("begin_ms", e.begin).put("end_ms", e.end)
+                    .put("start", java.time.Instant.ofEpochMilli(e.begin).atZone(zone).format(fmt))
+                    .put("end", java.time.Instant.ofEpochMilli(e.end).atZone(zone).format(fmt)))
+            }
+        }).put("note", if (events.isEmpty()) "No events" else "The app shows these as a card").toString()
+    }
+
+    private suspend fun readPage(url: String): String {
+        require(url.startsWith("https://") || url.startsWith("http://")) { "Give a full web address" }
+        val text = withContext(Dispatchers.IO) { app.olauncher.features.websearch.platform.WebSearchClient.readPage(url, 8_000) }
+        if (text.isBlank()) error("Couldn't read that page")
+        return JSONObject().put("url", url).put("text", text).toString()
+    }
+
+    private suspend fun createTool(args: JSONObject): String {
+        val name = app.olauncher.features.assistant.domain.CustomTool.normalizeName(args.optString("name"))
+        val url = args.optString("url").trim()
+        val params = args.optJSONArray("params")?.let { a ->
+            (0 until a.length()).mapNotNull { a.optJSONObject(it) }.map { app.olauncher.features.assistant.domain.CustomTool.Param(it.optString("name").trim(), it.optString("description")) }
+        }?.filter { it.name.isNotBlank() }
+            ?: Regex("\\{([a-zA-Z0-9_]+)\\}").findAll(url).map { app.olauncher.features.assistant.domain.CustomTool.Param(it.groupValues[1], it.groupValues[1]) }.toList()
+        app.olauncher.features.assistant.domain.CustomTool.problem(name, url, params)?.let { error(it) }
+        val tool = app.olauncher.features.assistant.domain.CustomTool(0, name, args.optString("description").trim(), url, params, enabled = false)
+        val id = host.proposeTool(tool)
+        return JSONObject().put("tool_id", id).put("name", name).put("description", tool.description).put("url", url)
+            .put("result", "Proposed. The user must tap Allow on the card before it can be used as ${tool.toolName}; tell them what it does.").toString()
+    }
+
+    private suspend fun custom(name: String, args: JSONObject): String {
+        val tool = host.customTools().firstOrNull { it.toolName == name && it.enabled } ?: error("That tool isn't allowed")
+        val body = get(tool.expand(args))
+        val text = if (body.trimStart().startsWith("<")) app.olauncher.features.websearch.domain.WebSearch.htmlToText(body, 6_000) else body.take(6_000)
+        return JSONObject().put("result", text).toString()
     }
 
     // ---- http
