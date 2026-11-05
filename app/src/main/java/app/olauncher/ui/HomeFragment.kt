@@ -103,6 +103,8 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         deviceManager = context?.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         glass = wp.prefs.glassTheme
         baseAppsPaddingTop = binding.homeAppsLayout.paddingTop
+        clockTop = baseAppsPaddingTop
+        binding.dateTimeLayout.addOnLayoutChangeListener { v, _, _, _, bottom, _, _, _, oldBottom -> if (bottom != oldBottom) v.post { applyAppsTop() } }
         worldClocks = WorldClockSlider(binding.worldClockLayout, binding.worldClockPager, binding.worldClockDots) {
             openPage(R.id.worldClockPanelFragment)
         }
@@ -793,7 +795,19 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
         val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val top = if (visible && portrait) baseAppsPaddingTop + resources.getDimensionPixelSize(R.dimen.wp_world_clock_reserved)
         else baseAppsPaddingTop
-        if (binding.homeAppsLayout.paddingTop != top) binding.homeAppsLayout.updatePadding(top = top)
+        clockTop = top
+        applyAppsTop()
+    }
+
+    private var clockTop = 0
+
+    /** The app list starts below the clock and the widget stacks, so they never overlap. */
+    private fun applyAppsTop() {
+        val b = _binding ?: return
+        val widgetsBottom = if (b.widgetStackHost.isVisible && b.dateTimeLayout.isVisible && b.dateTimeLayout.height > 0)
+            b.dateTimeLayout.bottom + (12 * resources.displayMetrics.density).toInt() else 0
+        val top = maxOf(clockTop, widgetsBottom)
+        if (b.homeAppsLayout.paddingTop != top) b.homeAppsLayout.updatePadding(top = top)
     }
 
     /**
