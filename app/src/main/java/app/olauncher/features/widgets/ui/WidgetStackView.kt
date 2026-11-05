@@ -101,6 +101,38 @@ class WidgetStackView(context: Context, private val sampler: BackdropSampler?, p
     /** Called when the stack settles or redraws its content, so Home can re-run the ink pass. */
     var onSettled: () -> Unit = {}
 
+    /** Pinched together: Home folds the widgets away. */
+    var onPinchIn: () -> Unit = {}
+
+    // ---- pinch to hide: two fingers take the gesture from the pages; the stack follows the pinch
+    private var pinching = false
+    private var startSpan = 0f
+    private val scaler = android.view.ScaleGestureDetector(context, object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+        override fun onScaleBegin(detector: android.view.ScaleGestureDetector): Boolean { startSpan = detector.currentSpan; return true }
+        override fun onScale(detector: android.view.ScaleGestureDetector): Boolean {
+            val f = if (startSpan > 0f) (detector.currentSpan / startSpan).coerceIn(0.82f, 1f) else 1f
+            scaleX = f; scaleY = f; alpha = 0.4f + 0.6f * ((f - 0.82f) / 0.18f)
+            return true
+        }
+    })
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent): Boolean {
+        scaler.onTouchEvent(ev)
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_POINTER_DOWN && !pinching) {
+            pinching = true
+            // the pages stop scrolling / tapping
+            val cancel = android.view.MotionEvent.obtain(ev).apply { action = android.view.MotionEvent.ACTION_CANCEL }
+            super.dispatchTouchEvent(cancel); cancel.recycle()
+            parent?.requestDisallowInterceptTouchEvent(true)
+        }
+        if (!pinching) return super.dispatchTouchEvent(ev)
+        if (ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL) {
+            pinching = false
+            if (scaleX < 0.9f) onPinchIn() else animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(140).start()
+        }
+        return true
+    }
+
     val pageHeight = (D.PAGE_HEIGHT_DP * d).toInt()
 
     init {

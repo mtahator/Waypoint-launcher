@@ -136,6 +136,15 @@ class WaypointPrefs(private val context: Context) {
         set(value) = prefs.edit { putBoolean(WIDGETS_ON_HOME, value) }
 
     /** [WidgetStack] JSON; null = the default stack. */
+    /** Widgets folded away on Home (pinch them; tap the line to bring them back). */
+    var widgetsHidden: Boolean
+        get() = prefs.getBoolean(WIDGETS_HIDDEN, false)
+        set(value) = prefs.edit { putBoolean(WIDGETS_HIDDEN, value) }
+
+    var widgetsHideHintShown: Boolean
+        get() = prefs.getBoolean(WIDGETS_HIDE_HINT, false)
+        set(value) = prefs.edit { putBoolean(WIDGETS_HIDE_HINT, value) }
+
     /** Text colour on Home: "auto" (per text, from what is behind it), "light" or "dark". */
     var inkMode: String
         get() = prefs.getString(INK_MODE, "auto") ?: "auto"
@@ -290,6 +299,8 @@ class WaypointPrefs(private val context: Context) {
         const val WIDGETS_ON_HOME = "WP_WIDGETS_ON_HOME"
         const val WIDGET_STACK = "WP_WIDGET_STACK"
         const val INK_MODE = "WP_INK_MODE"
+        const val WIDGETS_HIDDEN = "WP_WIDGETS_HIDDEN"
+        const val WIDGETS_HIDE_HINT = "WP_WIDGETS_HIDE_HINT"
         const val HIDDEN_CALENDARS = "WP_HIDDEN_CALENDARS"
         const val TOOLS_UNSUPPORTED = "WP_TOOLS_UNSUPPORTED"
         const val COMPASS_SHORTCUT = "WP_COMPASS_SHORTCUT"

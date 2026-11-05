@@ -10,6 +10,9 @@ Every Home widget is built from this standard. The code mirrors it in
 - A page holds **one widget** (full width) or **two widgets** (two squares side by side). The user picks per page.
 - Music joins as the first page by itself while an app has a media session (playing or paused) and leaves
   when the session ends.
+- Pinch the stack (two fingers together) to hide it for a while: a short line stays in its place; tap
+  the line to bring the widgets back. Remembered, and nothing is refreshed while hidden. The corner
+  swipe can do the same (Gestures → Show / hide widgets).
 - Fixed height for every page: **176 dp**, so the stack never jumps and never reaches the app list.
   Gap between two cells: **10 dp**. Side margin of the stack: **16 dp**.
 

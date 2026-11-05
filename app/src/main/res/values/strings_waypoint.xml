@@ -549,7 +549,7 @@
     <string name="wp_widgets">Widgets</string>
     <string name="wp_widgets_subtitle">One stack on Home: swipe through its pages; a page holds one widget or two side by side.</string>
     <string name="wp_widgets_on_home">Widgets on Home</string>
-    <string name="wp_widgets_on_home_hint">Under the clock. Music comes to the front by itself while something plays.</string>
+    <string name="wp_widgets_on_home_hint">Under the clock. Pinch them to hide them for a while; tap the line left behind to bring them back.</string>
     <string name="wp_widgets_in_stack">In the stack</string>
     <string name="wp_widgets_empty">Nothing yet. Add one below.</string>
     <string name="wp_widgets_stack_note">Tap a widget to move it within its stack, to another stack, or remove it. Music joins the first stack by itself while something plays.</string>
@@ -635,6 +635,9 @@
     <string name="wp_ink_auto">Auto</string>
     <string name="wp_ink_light">White</string>
     <string name="wp_ink_dark">Black</string>
+    <string name="wp_action_toggle_widgets">Show / hide widgets</string>
+    <string name="wp_widgets_hidden_hint">Widgets hidden. Tap the line to bring them back.</string>
+    <string name="wp_widgets_show">Show widgets</string>
     <string name="wp_widgets_access">Access</string>
     <string name="wp_widgets_calendar_hint">Reads your phone\'s calendars, including synced Google Calendar, to show your day</string>
     <string name="wp_widgets_weather_hint">Your approximate location, for the local forecast (Open-Meteo)</string>

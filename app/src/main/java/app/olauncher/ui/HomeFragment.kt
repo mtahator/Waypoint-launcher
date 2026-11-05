@@ -866,6 +866,7 @@ class HomeFragment : BaseFragment(), View.OnClickListener, View.OnLongClickListe
                 } else wp.grayscale.toggle()
             }
             GestureAction.OpenWorldClockPanel -> openPage(R.id.worldClockPanelFragment)
+            GestureAction.ToggleWidgets -> widgets?.toggleHidden()
             is GestureAction.OpenApp -> {
                 val user = requireContext().getSystemService(UserManager::class.java).getUserForSerialNumber(action.userHandleId)
                 val activity = user?.let {

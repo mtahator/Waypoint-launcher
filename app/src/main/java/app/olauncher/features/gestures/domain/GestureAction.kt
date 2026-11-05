@@ -6,6 +6,7 @@ sealed interface GestureAction {
     data object ToggleLauncherMonochrome : GestureAction
     data object ToggleSystemGrayscale : GestureAction
     data object OpenWorldClockPanel : GestureAction
+    data object ToggleWidgets : GestureAction
     data object None : GestureAction
 
     companion object {
@@ -14,6 +15,7 @@ sealed interface GestureAction {
             ToggleLauncherMonochrome -> "toggle_monochrome"
             ToggleSystemGrayscale -> "toggle_system_grayscale"
             OpenWorldClockPanel -> "open_world_clock"
+            ToggleWidgets -> "toggle_widgets"
             None -> "none"
         }
 
@@ -24,6 +26,7 @@ sealed interface GestureAction {
                 raw == "toggle_monochrome" -> ToggleLauncherMonochrome
                 raw == "toggle_system_grayscale" -> ToggleSystemGrayscale
                 raw == "open_world_clock" -> OpenWorldClockPanel
+                raw == "toggle_widgets" -> ToggleWidgets
                 raw == "none" -> None
                 raw.startsWith("open_app:") -> {
                     val parts = raw.removePrefix("open_app:").split(':')

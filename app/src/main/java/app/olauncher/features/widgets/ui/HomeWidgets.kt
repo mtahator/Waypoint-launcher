@@ -15,6 +15,7 @@ import app.olauncher.features.widgets.domain.WidgetStack
 import app.olauncher.features.widgets.platform.CalendarSource
 import app.olauncher.features.widgets.platform.NowPlaying
 import app.olauncher.features.widgets.platform.WeatherSource
+import app.olauncher.helper.showToast
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -31,6 +32,11 @@ class HomeWidgets(
     private val wp = ctx.waypoint
     private val d = ctx.resources.displayMetrics.density
     val stack = WidgetStackView(ctx, sampler, this)
+    private val handle = WidgetHandle(ctx).apply {
+        contentDescription = ctx.getString(R.string.wp_widgets_show)
+        setOnClickListener { show() }
+        setOnLongClickListener { openSettings(); true }
+    }
     private var loop: Job? = null
     private var music: Job? = null
     private var playing = false
@@ -38,10 +44,41 @@ class HomeWidgets(
     private var signature = ""
     private var unsynced = 0
     private var unsyncedAt = 0L
+    private var hasPages = true
 
     init {
         container.removeAllViews()
         container.addView(stack, FrameLayout.LayoutParams(-1, -2))
+        container.addView(handle, FrameLayout.LayoutParams(-1, (28 * d).toInt()))
+        stack.onPinchIn = { hide() }
+        applyHidden()
+    }
+
+    // ---- hide for a while: pinch the widgets; tap the line to bring them back
+
+    private fun applyHidden() {
+        val hidden = wp.prefs.widgetsHidden
+        stack.isVisible = !hidden && hasPages
+        handle.isVisible = hidden && hasPages
+    }
+
+    fun toggleHidden() = if (wp.prefs.widgetsHidden) show() else hide()
+
+    fun hide() {
+        wp.prefs.widgetsHidden = true
+        stack.animate().scaleX(0.82f).scaleY(0.82f).alpha(0f).setDuration(160).withEndAction {
+            stack.scaleX = 1f; stack.scaleY = 1f; stack.alpha = 1f
+            applyHidden()
+        }.start()
+        if (!wp.prefs.widgetsHideHintShown) { wp.prefs.widgetsHideHintShown = true; ctx.showToast(ctx.getString(R.string.wp_widgets_hidden_hint)) }
+    }
+
+    fun show() {
+        wp.prefs.widgetsHidden = false
+        applyHidden()
+        stack.alpha = 0f; stack.scaleX = 0.94f; stack.scaleY = 0.94f
+        stack.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(180).start()
+        fragment.viewLifecycleOwner.lifecycleScope.launch { refresh() }
     }
 
     fun onStart() {
@@ -51,7 +88,9 @@ class HomeWidgets(
         wp.widgetHost.start()
         NowPlaying.start(ctx)
         rebuild(force = true)
-        loop = fragment.viewLifecycleOwner.lifecycleScope.launch { while (true) { refresh(); delay(60_000) } }
+        applyHidden()
+        // nothing is read while the widgets are hidden
+        loop = fragment.viewLifecycleOwner.lifecycleScope.launch { while (true) { if (!wp.prefs.widgetsHidden) refresh(); delay(60_000) } }
         music = fragment.viewLifecycleOwner.lifecycleScope.launch {
             NowPlaying.track.collect { t ->
                 // a paused session keeps its page; it goes when the app ends the session
@@ -88,6 +127,8 @@ class HomeWidgets(
             }
         }
         stack.setPages(pages, views)
+        hasPages = pages.isNotEmpty()
+        applyHidden()
         stack.update(last)
     }
 

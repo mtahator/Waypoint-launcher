@@ -167,6 +167,17 @@ class PageDots(context: Context, private val vertical: Boolean) : InkView(contex
     }
 }
 
+/** What is left of the stack while it is hidden: a short line. Tap it to bring the widgets back. */
+class WidgetHandle(context: Context) : InkView(context) {
+    private val r = RectF()
+    override fun onDraw(canvas: Canvas) {
+        val w = 44 * d; val h = 4 * d
+        paint.color = WidgetDesign.level(tone, 0x8C)
+        r.set((width - w) / 2, (height - h) / 2, (width + w) / 2, (height + h) / 2)
+        canvas.drawRoundRect(r, h / 2, h / 2, paint)
+    }
+}
+
 /** A thin bar on the right edge of a scrolling list: how far down you are. */
 class ScrollTrack(context: Context) : InkView(context) {
     var fraction = 0f; set(v) { field = v; invalidate() }

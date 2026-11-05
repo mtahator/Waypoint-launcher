@@ -65,6 +65,7 @@ class GestureSettingsFragment : WpPageFragment() {
         GestureAction.ToggleLauncherMonochrome -> getString(R.string.wp_action_toggle_monochrome)
         GestureAction.ToggleSystemGrayscale -> getString(R.string.wp_action_toggle_grayscale)
         GestureAction.OpenWorldClockPanel -> getString(R.string.wp_open_world_clock)
+        GestureAction.ToggleWidgets -> getString(R.string.wp_action_toggle_widgets)
         GestureAction.None -> getString(R.string.wp_action_none)
     }
 
@@ -79,6 +80,7 @@ class GestureSettingsFragment : WpPageFragment() {
             getString(R.string.wp_action_toggle_monochrome) to { prefs.cornerSwipeAction = GestureAction.ToggleLauncherMonochrome; rebuild() },
             getString(R.string.wp_action_toggle_grayscale) to { prefs.cornerSwipeAction = GestureAction.ToggleSystemGrayscale; rebuild() },
             getString(R.string.wp_open_world_clock) to { prefs.cornerSwipeAction = GestureAction.OpenWorldClockPanel; rebuild() },
+            getString(R.string.wp_action_toggle_widgets) to { prefs.cornerSwipeAction = GestureAction.ToggleWidgets; rebuild() },
             getString(R.string.wp_action_open_app) to {
                 requireContext().pickApp(this) { app ->
                     prefs.cornerSwipeAction = GestureAction.OpenApp(app.packageName, app.userSerial)

@@ -65,6 +65,7 @@ class GestureDomainTest {
             GestureAction.ToggleLauncherMonochrome,
             GestureAction.ToggleSystemGrayscale,
             GestureAction.OpenWorldClockPanel,
+            GestureAction.ToggleWidgets,
             GestureAction.None,
         )
         all.forEach { assertEquals(it, GestureAction.decode(GestureAction.encode(it))) }
